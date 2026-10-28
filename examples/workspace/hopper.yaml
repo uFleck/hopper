@@ -1,0 +1,6 @@
+hopper: 2
+kind: workspace
+id: 5e1a7c3e-0d5b-4c43-9b0a-2f6f1e0c9a11
+name: Hopper examples
+defaults:
+  timeoutMs: 15000

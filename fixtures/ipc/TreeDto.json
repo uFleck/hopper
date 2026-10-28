@@ -1,0 +1,40 @@
+{
+  "collections": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "agentAccess": "ask",
+              "grantSuspended": true,
+              "id": "01J0000000000000000000000A",
+              "method": "GET",
+              "name": "Get user",
+              "orphaned": false,
+              "type": "request"
+            }
+          ],
+          "name": "Users",
+          "slug": "users",
+          "type": "folder"
+        }
+      ],
+      "name": "API",
+      "slug": "api",
+      "specs": [
+        {
+          "importedAt": "2026-01-01T00:00:00Z",
+          "name": "api",
+          "operationCount": 12,
+          "url": "https://example.com/swagger.json"
+        }
+      ]
+    }
+  ],
+  "problems": [
+    {
+      "message": "invalid YAML",
+      "path": "collections/x/bad.req.yaml"
+    }
+  ]
+}

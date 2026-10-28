@@ -1,0 +1,43 @@
+{
+  "active": true,
+  "agentRules": {
+    "deny": false,
+    "patterns": [
+      {
+        "host": "staging.example.com",
+        "method": "GET",
+        "path": "/users/*"
+      }
+    ],
+    "safeReads": true
+  },
+  "applications": [
+    {
+      "allowedHosts": [
+        "staging.example.com"
+      ],
+      "allowedHostsExplicit": false,
+      "application": "api",
+      "secrets": [
+        {
+          "name": "token",
+          "provider": "keyring",
+          "status": "missing"
+        }
+      ],
+      "tls": {
+        "insecureSkipVerify": false
+      },
+      "variables": [
+        {
+          "local": false,
+          "name": "baseUrl",
+          "value": "https://staging.example.com"
+        }
+      ]
+    }
+  ],
+  "readOnly": false,
+  "revision": "sha256:abc",
+  "stage": "dev"
+}

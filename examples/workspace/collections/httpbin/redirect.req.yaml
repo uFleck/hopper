@@ -1,0 +1,11 @@
+hopper: 2
+kind: request
+id: 01JBXE000000000000000000AK
+name: Redirect chain
+method: GET
+url: '{{httpbin}}/redirect/3'
+body:
+  type: none
+auth:
+  type: inherit
+followRedirects: true

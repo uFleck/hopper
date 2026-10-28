@@ -1,0 +1,15 @@
+hopper: 2
+kind: request
+id: 01JBXE0000000000000000003C
+name: POST JSON body
+method: POST
+url: '{{httpbin}}/post'
+body:
+  type: json
+  content: |-
+    {
+      "name": "Ada",
+      "tags": ["a", "b"]
+    }
+auth:
+  type: inherit

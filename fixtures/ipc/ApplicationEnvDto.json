@@ -1,0 +1,24 @@
+{
+  "allowedHosts": [
+    "staging.example.com"
+  ],
+  "allowedHostsExplicit": false,
+  "application": "api",
+  "secrets": [
+    {
+      "name": "token",
+      "provider": "keyring",
+      "status": "missing"
+    }
+  ],
+  "tls": {
+    "insecureSkipVerify": false
+  },
+  "variables": [
+    {
+      "local": false,
+      "name": "baseUrl",
+      "value": "https://staging.example.com"
+    }
+  ]
+}

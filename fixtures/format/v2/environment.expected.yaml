@@ -1,0 +1,21 @@
+hopper: 2
+kind: environment
+applications:
+  account:
+    variables:
+      baseUrl: https://account.staging.example.com
+      tenantId: '42'
+    secrets:
+      adminToken:
+        provider: keyring
+      apiKey:
+        provider: keyring
+  bill:
+    variables:
+      baseUrl: https://bill.staging.example.com
+      tenantId: '42'
+    secrets:
+      apiKey:
+        provider: keyring
+    allowedHosts:
+    - bill.staging.example.com

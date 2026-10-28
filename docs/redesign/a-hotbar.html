@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hopper redesign A: Hotbar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=JetBrains+Mono:wght@400;500;600&family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+:root {
+  --font-ui: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+  --font-pixel: "Pixelify Sans", "Silkscreen", monospace;
+  --spring: cubic-bezier(.2, .9, .25, 1.12);
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --go: #33c15f; --go-ink: #04210e;
+  --c-2xx: #4ade80; --c-3xx: #5ec8ff; --c-4xx: #f5c542; --c-5xx: #ff6b5b;
+}
+[data-theme="night"] {
+  color-scheme: dark;
+  --wall1: #0b0d12; --wall2: #171b26;
+  --panel: #171a21; --panel2: #1e222c; --slot: #0e1015; --line: #2a303d; --line2: #3a4356;
+  --text: #e9ebf1; --text2: #a6adbd; --text3: #6e768a; --frame: #f3efe4; --hover: rgba(255, 255, 255, .05);
+  --bevel-hi: #3a4356; --bevel-lo: #07080b;
+}
+[data-theme="day"] {
+  color-scheme: light;
+  --wall1: #9ec3e6; --wall2: #dfeaf3;
+  --panel: #f3f5f8; --panel2: #ffffff; --slot: #dde2e9; --line: #cdd3dc; --line2: #a9b3c2;
+  --text: #171c26; --text2: #465065; --text3: #77819a; --frame: #171c26; --hover: rgba(0, 0, 0, .05);
+  --bevel-hi: #ffffff; --bevel-lo: #a3adbd; --go-ink: #fff; --go: #1f9a49;
+  --c-2xx: #1b8d45; --c-3xx: #1d79b5; --c-4xx: #a86f00; --c-5xx: #cf3a28;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { font: 400 14px/1.4 var(--font-ui); color: var(--text); background: linear-gradient(180deg, var(--wall1), var(--wall2)); overflow: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--frame); outline-offset: 2px; }
+kbd { font: 500 11px var(--font-mono); padding: 1px 5px; border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 3px; color: var(--text2); }
+
+/* ============ fake desktop (context only) ============ */
+.desktop { position: fixed; inset: 0; }
+.hills { position: absolute; left: 0; right: 0; bottom: 0; height: 34vh; background: var(--wall1); opacity: .55;
+  clip-path: polygon(0 60%, 6% 60%, 6% 42%, 14% 42%, 14% 55%, 22% 55%, 22% 30%, 31% 30%, 31% 48%, 40% 48%, 40% 62%, 52% 62%, 52% 38%, 61% 38%, 61% 52%, 72% 52%, 72% 26%, 80% 26%, 80% 44%, 90% 44%, 90% 58%, 100% 58%, 100% 100%, 0 100%); }
+.win { position: absolute; left: 190px; top: 70px; width: min(640px, calc(100vw - 700px)); min-width: 380px; height: 70vh; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 30px 60px rgba(0, 0, 0, .35); overflow: hidden; }
+.win .bar { height: 32px; background: var(--panel2); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 6px; padding: 0 12px; font-size: 12px; color: var(--text3); }
+.win .bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--line2); }
+.win .code { padding: 14px 16px; display: grid; gap: 7px; }
+.win .code span { height: 8px; border-radius: 2px; background: var(--line); }
+
+/* ============ mock controls (not part of the app) ============ */
+.mock { position: fixed; left: 16px; top: 16px; width: 156px; z-index: 5; display: grid; gap: 4px; font-size: 12px; }
+.mock h1 { font: 600 15px var(--font-ui); margin-bottom: 4px; }
+.mock small { color: var(--text3); display: block; margin-bottom: 8px; }
+.mock button { text-align: left; padding: 6px 9px; border-radius: 5px; background: var(--panel); border: 1px solid var(--line); color: var(--text2); transition: background .15s, color .15s, transform .15s var(--ease); }
+.mock button:hover { background: var(--panel2); color: var(--text); transform: translateX(2px); }
+.mock .sep { height: 1px; background: var(--line); margin: 6px 0; }
+.mock a { color: var(--text3); text-decoration: none; margin-top: 8px; }
+.mock a:hover { color: var(--text); }
+
+/* ============ the companion: four states ============ */
+.tab { position: fixed; right: 0; top: 46%; z-index: 20; width: 54px; height: 62px; display: grid; place-items: center; background: var(--panel); border: 2px solid var(--line2); border-right: 0; border-radius: 10px 0 0 10px; box-shadow: -6px 6px 18px rgba(0, 0, 0, .3); transform: translateX(58%); transition: transform .42s var(--spring), opacity .2s; }
+.tab:hover, .tab:focus-visible { transform: translateX(0); }
+.tab .mascot { transition: transform .3s var(--spring); }
+.tab:hover .mascot { transform: rotate(-12deg) translateY(2px); }
+body[data-mode="open"] .tab, body[data-mode="hidden"] .tab, body[data-mode="compact"] .tab { opacity: 0; pointer-events: none; transform: translateX(110%); }
+
+.compact { position: fixed; right: 14px; top: 14px; z-index: 20; width: 330px; display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 8px; background: var(--panel); border: 2px solid var(--line2); border-radius: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, .35); transform: translateY(-140%); opacity: 0; transition: transform .45s var(--spring), opacity .2s; text-align: left; }
+body[data-mode="compact"] .compact { transform: none; opacity: 1; }
+.compact .ln { min-width: 0; flex: 1; }
+.compact .ln b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.compact .ln small { color: var(--text3); font: 400 11px var(--font-mono); }
+
+.panel { position: fixed; z-index: 30; right: 14px; top: 14px; bottom: 14px; width: 430px; filter: drop-shadow(0 24px 40px rgba(0, 0, 0, .45)); transform: translateX(calc(100% + 40px)); transition: transform .5s var(--spring); }
+body[data-mode="open"] .panel { transform: none; }
+.notch { --n: 6px; clip-path: polygon(var(--n) 0, calc(100% - var(--n)) 0, calc(100% - var(--n)) var(--n), 100% var(--n), 100% calc(100% - var(--n)), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n)) 100%, var(--n) 100%, var(--n) calc(100% - var(--n)), 0 calc(100% - var(--n)), 0 var(--n), var(--n) var(--n)); }
+.frame { height: 100%; padding: 2px; background: var(--line2); }
+.shell { --n: 5px; height: 100%; background: var(--panel); display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr auto; position: relative; overflow: hidden; }
+.panel[data-env="production"] .frame { background: repeating-linear-gradient(115deg, #ec4a3c 0 10px, #1a0d0c 10px 20px); }
+.panel[data-env="production"] .frame::after { content: ""; position: absolute; }
+
+/* orchestrated entrance, runs each time the panel opens */
+body[data-mode="open"] .stagger > * { animation: rise .5s var(--ease) both; animation-delay: calc(var(--i, 0) * 38ms + 120ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+/* ---------- header ---------- */
+header { display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px 10px; }
+.mascot { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; cursor: grab; }
+.mascot .sprite { transition: transform .2s var(--spring); }
+.mascot:hover .sprite { transform: translateY(-1px); }
+.mascot .z, .mascot .bang, .mascot .item { position: absolute; pointer-events: none; opacity: 0; }
+.mascot .z { right: -2px; top: -4px; font: 600 11px var(--font-pixel); color: var(--text3); }
+.mascot .bang { right: -3px; top: -7px; font: 600 16px var(--font-pixel); color: var(--c-4xx); }
+.mascot .item { left: 50%; top: -6px; margin-left: -8px; }
+.mascot[data-state="sleeping"] .z { opacity: 1; animation: zz 3.2s ease-in-out infinite; }
+.mascot[data-state="sleeping"] .sprite.hop { animation: breathe 4s ease-in-out infinite; }
+.mascot[data-state="sending"] .item { animation: drop .7s cubic-bezier(.5, 0, 1, .6) infinite; }
+.mascot[data-state="sending"] .sprite.hop { animation: jiggle .7s ease-in-out infinite; }
+.mascot[data-state="approval"] .bang { opacity: 1; animation: bob .7s ease-in-out infinite; }
+.mascot[data-state="agent"] .sprite.hop { animation: nod 1.1s ease-in-out infinite; }
+.mascot.hurt .sprite { animation: hurt .45s ease; filter: sepia(1) saturate(6) hue-rotate(-50deg); }
+.mascot.dead .sprite { transform: rotate(90deg) translateX(-4px); filter: grayscale(.6) brightness(.7); transition: transform .5s var(--spring); }
+.mascot .boom { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transform: scale(.4); pointer-events: none; }
+.mascot.hiss .boom { animation: hiss 1.1s var(--ease); }
+.mascot.hiss .hop { animation: hophide 1.1s linear; }
+@keyframes hophide { 0%, 90% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes zz { 0%, 100% { transform: translate(0, 0); opacity: 0; } 30% { opacity: 1; } 70% { transform: translate(5px, -7px); opacity: 0; } }
+@keyframes breathe { 50% { transform: scaleY(1.04) translateY(-.5px); } }
+@keyframes drop { 0% { transform: translateY(-4px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(18px) scale(.55); opacity: 0; } }
+@keyframes jiggle { 50% { transform: translateX(.6px) rotate(1.6deg); } }
+@keyframes bob { 50% { transform: translateY(-3px); } }
+@keyframes nod { 50% { transform: translateY(2px) rotate(-3deg); } }
+@keyframes hurt { 25% { transform: translateX(-3px) rotate(-8deg); } 60% { transform: translateX(3px) rotate(6deg); } }
+@keyframes hiss { 0% { opacity: 1; transform: scale(.7); } 35% { transform: scale(1.35); filter: brightness(2.2); } 55% { transform: scale(1.35); filter: brightness(1); } 100% { opacity: 0; transform: scale(1.05); } }
+
+.ws { white-space: nowrap; display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; font-weight: 600; letter-spacing: -.01em; }
+.ws small { font: 400 11px var(--font-mono); color: var(--text3); font-weight: 400; }
+.ws:hover { background: var(--hover); }
+.spacer { flex: 1; }
+.envpill { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 9px 0 8px; border-radius: 4px; background: var(--slot); box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi); font-weight: 500; font-size: 13px; transition: transform .2s var(--spring); }
+.envpill:hover { transform: translateY(-1px); }
+.cube { width: 12px; height: 12px; background: var(--c); box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .35), inset -2px -2px 0 rgba(0, 0, 0, .35); transition: background .35s; }
+.envpill .cube { animation: none; }
+.envpill.swap .cube { animation: spin .5s var(--spring); }
+@keyframes spin { from { transform: rotate(-90deg) scale(.4); } }
+.ibtn { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; color: var(--text2); transition: background .15s, color .15s; }
+.ibtn:hover { background: var(--hover); color: var(--text); }
+.ibtn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.menu { position: absolute; z-index: 40; top: 54px; right: 52px; width: 230px; padding: 4px; background: var(--panel2); border: 2px solid var(--line2); box-shadow: 0 14px 30px rgba(0, 0, 0, .4); transform-origin: top right; transform: scale(.94) translateY(-4px); opacity: 0; pointer-events: none; transition: transform .22s var(--spring), opacity .15s; }
+.menu.on { transform: none; opacity: 1; pointer-events: auto; }
+.menu button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; text-align: left; border-radius: 3px; }
+.menu button:hover, .menu button:focus-visible { background: var(--hover); }
+.menu button[aria-checked="true"] { font-weight: 600; }
+.menu small { margin-left: auto; color: var(--text3); font: 400 11px var(--font-mono); }
+.menu hr { border: 0; height: 1px; background: var(--line); margin: 4px 2px; }
+
+/* ---------- search ---------- */
+.search { display: grid; grid-template-rows: 1fr; padding: 0 12px; transition: grid-template-rows .4s var(--ease), padding .4s var(--ease), opacity .25s; }
+.search > div { overflow: hidden; }
+body[data-view="request"] .search, body[data-view="first"] .search { grid-template-rows: 0fr; opacity: 0; padding-bottom: 0; }
+.field { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 12px; margin: 2px 0 8px; background: var(--slot); box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi); border-radius: 3px; transition: box-shadow .2s; }
+.field:focus-within { box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi), 0 0 0 2px var(--frame); }
+.field svg { width: 18px; height: 18px; stroke: var(--text3); fill: none; stroke-width: 1.8; stroke-linecap: round; flex: none; }
+.field input { flex: 1; min-width: 0; height: 100%; font: 500 15px var(--font-ui); color: var(--text); background: none; border: 0; outline: 0; }
+.field input::placeholder { color: var(--text3); font-weight: 400; }
+
+/* ---------- body / views ---------- */
+.body { position: relative; min-height: 0; }
+.view { position: absolute; inset: 0; overflow-y: auto; padding: 0 12px 14px; opacity: 0; visibility: hidden; transform: translateX(26px); transition: opacity .28s, transform .45s var(--ease), visibility 0s .45s; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+.view.on { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+.view.on.left { transform: none; }
+.view.gone-left { transform: translateX(-26px); }
+
+.group { margin: 4px 0 2px; font: 600 12px var(--font-ui); color: var(--text3); padding: 8px 6px 4px; }
+.agentline { display: flex; align-items: center; gap: 9px; margin: 2px 0 6px; padding: 8px 10px; background: color-mix(in srgb, var(--c-3xx) 11%, transparent); border-left: 3px solid var(--c-3xx); font-size: 13px; color: var(--text2); }
+.agentline b { color: var(--text); font-weight: 600; }
+.agentline .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-3xx); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; transform: scale(.7); } }
+
+.row { position: relative; display: grid; grid-template-columns: 46px 1fr auto auto; align-items: center; gap: 10px; width: 100%; padding: 8px 10px 8px 12px; border-radius: 4px; text-align: left; transition: background .15s; }
+.row::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; background: var(--m); transform: scaleY(0); transition: transform .25s var(--spring); }
+.row:hover, .row.sel { background: var(--hover); }
+.row:hover::before, .row.sel::before { transform: scaleY(1); }
+.row .mth { font: 600 11px var(--font-mono); color: var(--m); }
+.row .nm { min-width: 0; }
+.row .nm b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .nm small { display: block; font: 400 11.5px var(--font-mono); color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .ago { font-size: 12px; color: var(--text3); min-width: 44px; text-align: right; }
+.row .add { font-size: 12px; color: var(--text2); display: flex; align-items: center; gap: 5px; }
+.st { font: 600 11px var(--font-mono); padding: 2px 6px; border-radius: 3px; color: var(--c); background: color-mix(in srgb, var(--c) 15%, transparent); }
+.st-2xx { --c: var(--c-2xx); } .st-3xx { --c: var(--c-3xx); } .st-4xx { --c: var(--c-4xx); } .st-5xx { --c: var(--c-5xx); }
+.empty { display: grid; justify-items: center; gap: 8px; text-align: center; padding: 38px 20px; color: var(--text2); }
+.empty b { color: var(--text); font-size: 15px; }
+.empty .sprite { animation: bobx 3s ease-in-out infinite; }
+@keyframes bobx { 50% { transform: translateY(-4px) rotate(4deg); } }
+.link { color: var(--text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line2); }
+.link:hover { text-decoration-color: var(--frame); }
+.cmd { font: 500 13px var(--font-mono); }
+
+/* ---------- request ---------- */
+.crumb { display: flex; align-items: center; gap: 4px; padding: 6px 0 2px; color: var(--text3); font-size: 12.5px; }
+.crumb .back { display: flex; align-items: center; gap: 4px; padding: 4px 8px 4px 4px; border-radius: 4px; color: var(--text2); }
+.crumb .back:hover { background: var(--hover); color: var(--text); }
+.crumb svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.crumb .spacer { flex: 1; }
+.pinbtn.on svg { fill: #f5c542; stroke: #f5c542; }
+.rtitle { font: 600 22px/1.2 var(--font-ui); letter-spacing: -.02em; margin: 6px 0 10px; }
+.urlbar { display: flex; gap: 0; height: 42px; }
+.mth-sel { display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--slot); font: 600 12px var(--font-mono); color: var(--m); box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi); }
+.url { flex: 1; min-width: 0; display: flex; align-items: center; padding: 0 12px; background: var(--slot); font: 400 13px var(--font-mono); white-space: nowrap; overflow: hidden; margin-left: 2px; box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi); }
+.var { color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); padding: 1px 4px; border-radius: 3px; margin: 0 1px; transition: background .35s, color .35s; }
+.resolved { font: 400 11.5px var(--font-mono); color: var(--text3); margin: 6px 2px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sendrow { display: flex; gap: 8px; align-items: stretch; }
+.send { position: relative; flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--go); color: var(--go-ink); font-weight: 700; font-size: 15px; letter-spacing: -.01em; border-radius: 3px; box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .32), inset -2px -2px 0 rgba(0, 0, 0, .28); overflow: hidden; transition: transform .15s var(--spring), filter .15s; user-select: none; touch-action: none; }
+.send:hover { filter: brightness(1.07); }
+.send:active { transform: translateY(1px) scale(.992); }
+.send kbd { color: inherit; opacity: .7; border-color: currentColor; }
+.send.guard { background: var(--c-5xx); color: #fff; }
+.send.busy { pointer-events: none; filter: saturate(.7); }
+.send .drip { display: none; }
+.send.busy .drip { display: block; animation: drop .6s cubic-bezier(.5, 0, 1, .6) infinite; }
+.send.busy .lbl::after { content: "…"; }
+.ghost { height: 44px; padding: 0 12px; border-radius: 3px; background: var(--panel2); border: 1px solid var(--line2); color: var(--text2); font-weight: 500; transition: background .15s, color .15s; }
+.ghost:hover { background: var(--hover); color: var(--text); }
+.sendhint { font-size: 12px; color: var(--text3); margin: 6px 2px 0; min-height: 18px; }
+
+.disc { margin-top: 12px; border-top: 1px solid var(--line); }
+.disc-h { width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 2px; color: var(--text2); font-weight: 500; text-align: left; }
+.disc-h .chips { display: flex; gap: 6px; margin-left: auto; }
+.chip { font-size: 12px; padding: 1px 7px; border-radius: 999px; background: var(--hover); color: var(--text2); }
+.disc-h svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; transition: transform .3s var(--spring); }
+.disc.open .disc-h svg { transform: rotate(90deg); }
+.disc-b { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .4s var(--ease); }
+.disc.open .disc-b { grid-template-rows: 1fr; }
+.disc-b > div { overflow: hidden; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 1px; font: 400 12px var(--font-mono); background: var(--line); border: 1px solid var(--line); margin-bottom: 8px; }
+.kv span { padding: 5px 8px; background: var(--panel); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kv span:nth-child(odd) { color: var(--text3); }
+
+.resp { margin-top: 10px; background: var(--slot); box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi); min-height: 190px; }
+.resp-empty { display: grid; justify-items: center; gap: 8px; padding: 34px 24px; text-align: center; color: var(--text3); font-size: 13px; }
+.resp-empty .sprite { opacity: .8; }
+.resp-empty p { max-width: 280px; }
+.skel { padding: 16px; display: grid; gap: 9px; }
+.skel i { display: block; height: 10px; background: linear-gradient(90deg, var(--line) 0 30%, var(--line2) 50%, var(--line) 70%) 0 0 / 300% 100%; animation: shimmer 1.1s linear infinite; }
+@keyframes shimmer { to { background-position: -150% 0; } }
+.rhead { display: flex; align-items: center; gap: 10px; padding: 10px 12px 8px; flex-wrap: wrap; }
+.rhead .st { font-size: 13px; padding: 3px 8px; }
+.pop { animation: pop .5s var(--spring) both; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } }
+.rmeta { font: 400 12px var(--font-mono); color: var(--text2); }
+.rmeta em { font-style: normal; color: var(--text3); }
+.seg { margin-left: auto; position: relative; display: flex; padding: 2px; background: var(--panel); border-radius: 4px; }
+.seg button { position: relative; z-index: 1; padding: 3px 10px; font-size: 12.5px; color: var(--text2); transition: color .2s; }
+.seg button[aria-selected="true"] { color: var(--text); }
+.seg .ind { position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 2px; width: 50px; background: var(--line2); border-radius: 3px; transition: transform .35s var(--spring), width .35s var(--spring); }
+.callout { display: flex; align-items: center; gap: 12px; margin: 2px 12px 8px; padding: 9px 11px; background: color-mix(in srgb, var(--c) 12%, transparent); border-left: 3px solid var(--c); font-size: 13px; color: var(--text2); animation: rise .45s var(--ease) both; }
+.callout b { color: var(--text); font-weight: 600; }
+.callout button { margin-left: auto; text-decoration: underline; text-underline-offset: 3px; color: var(--text); white-space: nowrap; }
+pre.json { margin: 0; padding: 4px 14px 14px; font: 400 12.5px/1.6 var(--font-mono); color: var(--text2); overflow: auto; max-height: 270px; animation: fadein .35s ease both; }
+@keyframes fadein { from { opacity: 0; } }
+.jk { color: #8ab4ff; } .js { color: #8fdc9a; } .jn { color: #f5b971; } .jb { color: #d29bff; }
+[data-theme="day"] .jk { color: #1f5fd0; } [data-theme="day"] .js { color: #1b7a39; } [data-theme="day"] .jn { color: #a8600c; } [data-theme="day"] .jb { color: #7c3fc7; }
+.jv { cursor: copy; border-radius: 2px; transition: background .15s; } .jv:hover { background: var(--hover); outline: 1px dashed var(--line2); }
+
+/* ---------- first run ---------- */
+.first { padding-top: 6px; }
+.splash { position: relative; display: grid; justify-items: center; padding: 20px 0 6px; }
+.splash .wm { font: 600 38px var(--font-pixel); letter-spacing: .01em; }
+.splash .tilt { margin-top: 8px; transform: rotate(-4deg); font: 600 14px var(--font-pixel); color: #ffe45e; text-shadow: 2px 2px 0 #3a3410; white-space: nowrap; animation: tiltpulse 1.2s ease-in-out infinite; }
+@keyframes tiltpulse { 50% { transform: rotate(-4deg) scale(1.08); } }
+.steps { display: grid; gap: 10px; margin-top: 18px; }
+.step { display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center; padding: 12px; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; }
+.step .n { display: grid; place-items: center; width: 28px; height: 28px; background: var(--slot); font: 600 14px var(--font-pixel); box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi); }
+.step.done .n { background: var(--go); color: var(--go-ink); }
+.step b { display: block; font-weight: 600; } .step p { font-size: 12.5px; color: var(--text2); }
+.step code { font: 400 11.5px var(--font-mono); color: var(--text2); }
+.btn { padding: 7px 12px; border-radius: 3px; background: var(--go); color: var(--go-ink); font-weight: 600; box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .3), inset -2px -2px 0 rgba(0, 0, 0, .25); transition: transform .15s var(--spring); }
+.btn:hover { transform: translateY(-1px); } .btn.alt { background: var(--panel); color: var(--text); border: 1px solid var(--line2); box-shadow: none; }
+
+/* ---------- HUD: xp + hotbar ---------- */
+.hud { position: relative; padding: 12px 18px 14px; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--slot) 55%, transparent)); border-top: 1px solid var(--line); }
+.xp { position: relative; height: 7px; margin: 12px 0 11px; background: var(--slot); box-shadow: inset 1px 1px 0 var(--bevel-lo), inset -1px -1px 0 var(--bevel-hi); }
+.xp i { position: absolute; left: 0; top: 0; bottom: 0; width: 60%; background: linear-gradient(180deg, #d4ff6a, #6fd11f 55%, #4aa312); transition: width .7s var(--ease); box-shadow: 0 0 8px rgba(160, 240, 60, .45); }
+.xp.flash i { animation: xpflash .5s; }
+@keyframes xpflash { 50% { filter: brightness(1.8); } }
+.lvl { position: absolute; left: 50%; top: -16px; transform: translateX(-50%); font: 600 15px var(--font-pixel); color: #b6f23c; text-shadow: 1px 0 #0a1a02, -1px 0 #0a1a02, 0 1px #0a1a02, 0 -1px #0a1a02; }
+.lvl.up { animation: lvlup .6s var(--spring); }
+@keyframes lvlup { 40% { transform: translateX(-50%) translateY(-8px) scale(1.4); } }
+.hotbar { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.slot { position: relative; height: 42px; min-width: 0; display: grid; place-items: center; align-content: center; gap: 1px; background: var(--slot); box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi); transition: transform .2s var(--spring), background .15s; }
+.slot:hover { transform: translateY(-3px); background: var(--panel2); }
+.slot:active { transform: translateY(0) scale(.94); }
+.slot.cur::after { content: ""; position: absolute; inset: -3px; border: 3px solid var(--frame); pointer-events: none; animation: framein .3s var(--spring); }
+@keyframes framein { from { transform: scale(1.3); opacity: 0; } }
+.slot .num { position: absolute; right: 3px; bottom: 1px; font: 600 9px var(--font-pixel); color: var(--text3); }
+.slot .m { font: 600 8.5px var(--font-mono); color: var(--m); }
+.slot .lamp { position: absolute; left: 3px; top: 3px; width: 5px; height: 5px; background: var(--c); }
+.slot.vacant { color: var(--text3); border: 0; }
+.slot.vacant svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 2; fill: none; opacity: .4; }
+.slot.flash { animation: slotflash .5s; }
+@keyframes slotflash { 30% { background: color-mix(in srgb, var(--go) 40%, var(--slot)); transform: translateY(-4px) scale(1.06); } }
+.slot.fresh { animation: pop .5s var(--spring); }
+body.creative .slot { animation: float 2.4s ease-in-out infinite; animation-delay: calc(var(--k) * -.28s); }
+@keyframes float { 50% { transform: translateY(-5px); } }
+.tip { position: fixed; z-index: 70; padding: 6px 9px; background: #14081f; border: 2px solid #3a1c66; color: #fff; font-size: 12.5px; line-height: 1.35; pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .12s, transform .15s var(--ease); max-width: 260px; box-shadow: 0 6px 16px rgba(0, 0, 0, .4); }
+.tip.on { opacity: 1; transform: none; }
+.tip b { color: #fff; font-weight: 600; } .tip small { display: block; font: 400 11px var(--font-mono); color: #b9a5d8; }
+
+/* ---------- sheets / dialogs ---------- */
+.scrim { position: absolute; inset: 0; z-index: 25; background: rgba(5, 6, 10, .55); opacity: 0; pointer-events: none; transition: opacity .3s; backdrop-filter: blur(2px); }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.sheet { position: absolute; z-index: 26; left: 0; right: 0; bottom: 0; max-height: 86%; display: flex; flex-direction: column; background: var(--panel); border-top: 2px solid var(--line2); transform: translateY(104%); transition: transform .5s var(--spring); }
+.sheet.on { transform: none; }
+.sheet .grab { width: 38px; height: 4px; background: var(--line2); margin: 8px auto 2px; border-radius: 2px; }
+.sheet h2 { font: 600 18px var(--font-ui); letter-spacing: -.01em; padding: 8px 16px 2px; display: flex; align-items: center; }
+.sheet h2 .ibtn { margin-left: auto; }
+.sheet .sub { padding: 0 16px 10px; color: var(--text3); font-size: 12.5px; }
+.sheet .list { overflow-y: auto; padding: 0 12px 6px; display: grid; gap: 8px; }
+.env { position: relative; background: var(--panel2); border: 2px solid var(--line); border-radius: 4px; text-align: left; transition: border-color .25s, background .25s; }
+.env.cur { border-color: var(--c); }
+.env > button { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; text-align: left; }
+.env .cube { width: 28px; height: 28px; box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .35), inset -3px -3px 0 rgba(0, 0, 0, .35); }
+.env b { font-weight: 600; } .env small { display: block; font: 400 11.5px var(--font-mono); color: var(--text3); }
+.kind { font-size: 12px; padding: 1px 8px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.env-d { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .4s var(--ease); }
+.env.cur .env-d { grid-template-rows: 1fr; }
+.env-d > div { overflow: hidden; padding: 0 12px; }
+.env.cur .env-d > div { padding-bottom: 12px; }
+.sec { display: flex; align-items: center; gap: 10px; padding: 6px 9px; background: var(--slot); font: 400 12px var(--font-mono); margin-top: 6px; }
+.sec .name { color: var(--text3); min-width: 82px; }
+.sec .val { letter-spacing: .12em; color: var(--text2); font-family: "Segoe UI Historic", "Euphemia", var(--font-ui); transition: opacity .2s; }
+.sec .flag { margin-left: auto; font: 500 11.5px var(--font-ui); color: var(--c-2xx); }
+.sec .flag.miss { color: var(--c-4xx); }
+.sec .set { padding: 2px 9px; background: var(--go); color: var(--go-ink); font: 600 11.5px var(--font-ui); border-radius: 3px; }
+.foot-note { padding: 10px 16px 14px; font-size: 12px; color: var(--text3); border-top: 1px solid var(--line); margin-top: 8px; }
+
+.dlg { position: absolute; z-index: 36; left: 14px; right: 14px; top: 50%; background: var(--panel); border: 2px solid var(--line2); box-shadow: 0 20px 50px rgba(0, 0, 0, .55); padding: 16px; transform: translateY(-46%) scale(.94); opacity: 0; pointer-events: none; transition: transform .45s var(--spring), opacity .2s; }
+.dlg.on { transform: translateY(-50%); opacity: 1; pointer-events: auto; }
+.dlg.shake { animation: shake .4s; }
+@keyframes shake { 20%, 60% { transform: translateY(-50%) translateX(-6px); } 40%, 80% { transform: translateY(-50%) translateX(6px); } }
+.dlg-h { display: flex; gap: 12px; align-items: center; }
+.dlg-h .sprite.nod { animation: hrmm 3s ease-in-out infinite; }
+.dlg.no .dlg-h .sprite { animation: headshake .6s; }
+@keyframes hrmm { 0%, 70%, 100% { transform: none; } 78% { transform: translateX(-2px) rotate(-5deg); } 86% { transform: translateX(2px) rotate(5deg); } 94% { transform: translateX(-2px) rotate(-5deg); } }
+@keyframes headshake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
+.dlg h3 { font: 600 17px var(--font-ui); letter-spacing: -.01em; }
+.dlg .by { color: var(--text3); font-size: 12.5px; }
+.trade { display: grid; grid-template-columns: 1fr 46px 1fr; align-items: center; gap: 4px; margin: 14px 0 8px; }
+.trade .cell { padding: 10px; background: var(--slot); box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi); font-size: 12.5px; min-height: 66px; }
+.trade .cell b { display: block; font: 600 13px var(--font-mono); } .trade .cell span { color: var(--text3); }
+.arrow { position: relative; height: 18px; width: 42px; background: var(--line2); clip-path: polygon(0 28%, 58% 28%, 58% 0, 100% 50%, 58% 100%, 58% 72%, 0 72%); }
+.arrow i { position: absolute; inset: 0; background: #e9e4d3; width: 0; }
+.dlg .why { padding: 8px 10px; border-left: 3px solid var(--c-4xx); background: color-mix(in srgb, var(--c-4xx) 11%, transparent); font-size: 13px; color: var(--text2); margin-bottom: 12px; }
+.dlg .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dlg .acts button { padding: 9px 10px; border-radius: 3px; font-weight: 600; background: var(--panel2); border: 1px solid var(--line2); transition: opacity .25s, transform .15s var(--spring), filter .15s; }
+.dlg .acts button:not(:disabled):hover { transform: translateY(-1px); filter: brightness(1.1); }
+.dlg .acts button:disabled { opacity: .35; cursor: not-allowed; }
+.dlg .acts .allow { background: var(--go); color: var(--go-ink); border-color: transparent; }
+.dlg .acts .block { grid-column: 1 / -1; background: transparent; color: var(--c-5xx); border-color: color-mix(in srgb, var(--c-5xx) 55%, transparent); }
+.dlg .note { margin-top: 9px; font-size: 12px; color: var(--text3); }
+
+@media (max-width: 860px) { .win, .mock small { display: none; } }
+html.still *, html.still *::before, html.still *::after { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; } }
+</style>
+</head>
+<body data-mode="open" data-view="home">
+
+<div class="desktop" aria-hidden="true">
+  <div class="hills"></div>
+  <div class="win"><div class="bar"><i></i><i></i><i></i>&nbsp;billing-service · Program.cs</div><div class="code" id="code"></div></div>
+</div>
+
+<aside class="mock" aria-label="Mockup controls">
+  <h1>Hotbar</h1><small>Direction A · dark, search first, 9-slot HUD. Not part of the app.</small>
+  <button data-go="mode:hidden">Hidden</button>
+  <button data-go="mode:tab">Tab (hover it)</button>
+  <button data-go="mode:compact">Compact ticker</button>
+  <button data-go="mode:open">Open</button>
+  <div class="sep"></div>
+  <button data-go="home">Home</button>
+  <button data-go="request">Request + response</button>
+  <button data-go="prod">Production guard</button>
+  <button data-go="envs">Environments sheet</button>
+  <button data-go="approval">Agent approval</button>
+  <button data-go="first">First run</button>
+  <div class="sep"></div>
+  <button data-go="theme">Toggle day / night</button>
+  <small style="margin:4px 0 0">psst: F3 · ↑↑↓↓←→←→ B A · /help</small>
+  <a href="index.html">← all directions</a>
+</aside>
+
+<button class="tab" data-act="peek" aria-label="Open Hopper"><span class="mascot" data-state="sleeping"></span></button>
+<button class="compact" data-act="peek" aria-label="Open Hopper, last request Get user 200">
+  <span class="mascot" data-state="sleeping" id="mc-compact"></span>
+  <span class="ln"><b id="cp-title">Get user</b><small id="cp-sub">GET · 200 · 41 ms · 2m ago</small></span>
+  <span class="st st-2xx" id="cp-st">200</span>
+</button>
+
+<main class="panel" data-env="local" aria-label="Hopper panel">
+ <div class="frame notch"><div class="shell notch">
+
+  <header class="stagger">
+    <button class="mascot" id="mascot" data-state="sleeping" aria-label="Hopper mascot, drag to move"></button>
+    <button class="ws" data-act="ws" style="--i:1" title="3 collections"><span>acme-apis</span></button>
+    <span class="spacer"></span>
+    <button class="envpill" id="envpill" data-act="envmenu" aria-haspopup="menu" style="--i:2"><span class="cube" style="--c:#5dbb3f"></span><span id="envname">local</span><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button>
+    <button class="ibtn" data-act="settings" aria-label="Settings" style="--i:3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    <button class="ibtn" data-act="close" aria-label="Close panel (Esc)" style="--i:3"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </header>
+
+  <div class="search stagger"><div style="--i:2">
+    <label class="field">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="text" autocomplete="off" spellcheck="false" placeholder="Find a request, route or command" aria-label="Search requests">
+      <kbd>/</kbd>
+    </label>
+  </div></div>
+
+  <section class="body">
+    <div class="view on stagger" id="v-home"></div>
+    <div class="view" id="v-request"></div>
+    <div class="view first" id="v-first"></div>
+  </section>
+
+  <footer class="hud stagger" style="--i:6">
+    <div class="xp" id="xp"><span class="lvl" id="lvl">4</span><i id="xpfill"></i></div>
+    <div class="hotbar" id="hotbar" role="toolbar" aria-label="Pinned requests"></div>
+  </footer>
+
+  <div class="menu" id="envmenu" role="menu" aria-label="Environments"></div>
+  <div class="scrim" id="scrim" data-act="scrim"></div>
+
+  <section class="sheet" id="envsheet" aria-label="Environments">
+    <div class="grab"></div>
+    <h2>Environments <button class="ibtn" data-act="closesheet" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></h2>
+    <p class="sub">Pick where requests go. Production asks you to hold Send.</p>
+    <div class="list" id="envlist"></div>
+    <p class="foot-note">Secret values live in the Windows credential store. This panel only knows whether each one is set.</p>
+  </section>
+
+  <section class="dlg notch" id="approval" role="alertdialog" aria-modal="true" aria-labelledby="ap-t" style="--n:5px"></section>
+
+ </div></div>
+</main>
+
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script src="shared.js"></script>
+<script>
+const { $, esc, sprite, MATERIAL, METHOD_COLOR, envs, requests, specRoutes } = HM;
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const S = { mode: "open", view: "home", env: 0, req: null, resp: null, sending: false, sel: 0, q: "", level: 4, pct: 0.6, count: 7, tab: "body", discOpen: false, clicks: 0, firstDone: false };
+const env = () => envs[S.env];
+const byId = (id) => requests.find((r) => r.id === id);
+const ICON = {
+  back: '<svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>',
+  star: '<svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>',
+  chev: '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+};
+const mascotHTML = () => `<span class="item">${sprite("diamond", 2)}</span><span class="z">z</span><span class="bang">!</span><span class="boom">${sprite("creeper", 4)}</span><span class="hop">${sprite("hopper", 2, "hop")}</span>`;
+
+/* ---------- decor ---------- */
+$("#code").innerHTML = Array.from({ length: 22 }, (_, i) => `<span style="width:${20 + ((i * 37) % 70)}%;margin-left:${(i % 4) * 14}px;opacity:${0.4 + (i % 3) * 0.25}"></span>`).join("");
+$$(".mascot").forEach((m) => (m.innerHTML = mascotHTML()));
+
+/* ---------- mode / view ---------- */
+function setMode(m) {
+  S.mode = m;
+  document.body.dataset.mode = m;
+  if (m === "open") setTimeout(() => ($("#q").offsetParent && S.view === "home" ? $("#q").focus() : null), 480);
+  else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+function setView(v) {
+  const prev = S.view;
+  S.view = v;
+  document.body.dataset.view = v;
+  const order = { home: 0, request: 1, first: 2 };
+  $$(".view").forEach((el) => {
+    const id = el.id.replace("v-", "");
+    const on = id === v;
+    el.classList.toggle("on", on);
+    el.classList.toggle("gone-left", !on && order[id] < order[v]);
+  });
+}
+function setMascot(state) { $$(".mascot").forEach((m) => (m.dataset.state = state)); }
+
+/* ---------- home ---------- */
+const COMMANDS = [
+  { c: "/time set day", d: "Switch to the light theme", run: () => theme("day") },
+  { c: "/time set night", d: "Switch to the dark theme", run: () => theme("night") },
+  { c: "/weather rain", d: "Make it rain", run: () => { HM.weather(true); HM.toast.plain("It started raining"); } },
+  { c: "/weather clear", d: "Stop the rain", run: () => { HM.weather(false); HM.toast.plain("Weather set to clear"); } },
+  { c: "/give diamond", d: "Give yourself a diamond", run: () => { HM.gemRain(); HM.toast.advancement("diamonds", { sprite: "diamond", title: "Diamonds!", desc: "Acquire diamonds with a slash command" }); } },
+  { c: "/gamemode creative", d: "Float your hotbar", run: () => { document.body.classList.toggle("creative"); HM.toast.plain(document.body.classList.contains("creative") ? "Game mode: Creative" : "Game mode: Survival"); } },
+  { c: "/kill", d: "Punish the mascot", run: killMascot },
+  { c: "/seed", d: "Show the workspace seed", run: () => HM.toast.plain("Seed: [38517]", "Same as the MCP port. Coincidence.") },
+  { c: "/help", d: "List commands", run: () => { $("#q").value = "/"; S.q = "/"; renderHome(); } },
+];
+function theme(t) { document.documentElement.dataset.theme = t; HM.toast.plain(t === "day" ? "Time set to 1000" : "Time set to 13000"); }
+function killMascot() {
+  const m = $("#mascot");
+  m.classList.add("dead");
+  HM.toast.plain("Hopper was slain by Impatience");
+  setTimeout(() => { m.classList.remove("dead"); HM.toast.plain("Hopper respawned"); }, 1800);
+}
+
+function rowHTML(r, i, extra = "") {
+  const st = r.status ? `<span class="st st-${HM.statusClass(r.status)}">${r.status}</span>` : "";
+  return `<button class="row" data-act="open" data-id="${r.id}" data-i="${i}" style="--m:${METHOD_COLOR[r.m]};--i:${i + 2}">
+    <span class="mth">${r.m}</span><span class="nm"><b>${esc(r.name)}</b><small>${esc(r.col)} · ${esc(r.path)}</small></span>${st}<span class="ago">${r.ago}</span></button>`;
+}
+function renderHome() {
+  const q = S.q.trim().toLowerCase();
+  let html = "", i = 0;
+  S.rows = [];
+  if (!q) {
+    html += `<div class="agentline" style="--i:1"><span class="dot"></span><span><b>Claude</b> saved <b>Create user</b> to Account API <span style="color:var(--text3)">· 4 s ago</span></span></div>`;
+    html += `<div class="group" style="--i:2">Recent</div>`;
+    requests.slice(0, 7).forEach((r) => { html += rowHTML(r, i++); S.rows.push({ type: "req", id: r.id }); });
+  } else {
+    const cmds = q.startsWith("/") ? COMMANDS.filter((c) => c.c.startsWith(q) || q.startsWith(c.c)) : [];
+    if (cmds.length) {
+      html += `<div class="group">Commands</div>`;
+      cmds.forEach((c) => { html += `<button class="row" data-act="cmd" data-c="${esc(c.c)}" data-i="${i}" style="--m:#f5c542"><span class="mth">/</span><span class="nm"><b class="cmd">${esc(c.c)}</b><small>${esc(c.d)}</small></span><span></span><span class="ago">⏎</span></button>`; S.rows.push({ type: "cmd", c: c.c }); i++; });
+    }
+    const hits = requests.filter((r) => [r.name, r.path, r.col, r.m, r.folder].join(" ").toLowerCase().includes(q));
+    if (hits.length) { html += `<div class="group">Saved requests</div>`; hits.forEach((r) => { html += rowHTML(r, i++); S.rows.push({ type: "req", id: r.id }); }); }
+    const spec = specRoutes.filter((r) => (r.path + r.col + r.m).toLowerCase().includes(q));
+    if (spec.length) {
+      html += `<div class="group">In your OpenAPI specs</div>`;
+      spec.forEach((r) => { html += `<button class="row" data-act="spec" data-p="${esc(r.path)}" data-i="${i}" style="--m:${METHOD_COLOR[r.m]}"><span class="mth">${r.m}</span><span class="nm"><b>${esc(r.path)}</b><small>${esc(r.col)}</small></span><span></span><span class="add">${ICON.plus.replace("<svg", '<svg width="13" height="13" style="stroke:currentColor;fill:none;stroke-width:2"')} Save</span></button>`; S.rows.push({ type: "spec", p: r.path }); i++; });
+    }
+    if (!S.rows.length) html = `<div class="empty">${sprite("diamond", 4)}<b>Nothing matches “${esc(S.q.trim())}”.</b><span>Not even a block of dirt.<br>Try a path like <span class="cmd">/users</span> or a collection name.</span></div>`;
+  }
+  S.sel = Math.min(S.sel, Math.max(0, S.rows.length - 1));
+  $("#v-home").innerHTML = html;
+  markSel();
+}
+function markSel() { $$("#v-home .row").forEach((r, i) => r.classList.toggle("sel", i === S.sel && document.activeElement === $("#q"))); const s = $$("#v-home .row")[S.sel]; if (s) s.scrollIntoView({ block: "nearest" }); }
+
+/* ---------- request view ---------- */
+function openRequest(id, opts = {}) {
+  const r = byId(id);
+  S.req = r;
+  if (!opts.keep) { S.resp = null; }
+  renderRequest();
+  setView("request");
+  $$(".slot").forEach((s) => s.classList.toggle("cur", s.dataset.id === id));
+  if (S.mode !== "open") setMode("open");
+}
+function urlHTML(r) {
+  const c = MATERIAL[env().kind];
+  const full = "{{baseUrl}}" + r.path;
+  return esc(full).replace(/\{\{(\w+)\}\}/g, (_, k) => `<span class="var" style="--c:${c}" title="${esc(k)} = ${esc(env().vars[k] ?? "")}">{{${k}}}</span>`);
+}
+function sendLabel(r) {
+  const guard = env().kind === "production" && r.m !== "GET";
+  return guard
+    ? `<button class="send guard" id="send" data-act="send" aria-label="Hold to send on production"><span class="lbl">Hold to send</span></button>`
+    : `<button class="send" id="send" data-act="send"><span class="drip">${sprite("diamond", 2)}</span><span class="lbl">Send</span><kbd>Ctrl ↵</kbd></button>`;
+}
+function renderRequest() {
+  const r = S.req;
+  if (!r) return;
+  const e = env();
+  const guard = e.kind === "production" && r.m !== "GET";
+  $("#v-request").innerHTML = `
+    <div class="crumb"><button class="back" data-act="back" aria-label="Back to search">${ICON.back}<span>${esc(r.col)}${r.folder ? " / " + esc(r.folder) : ""}</span></button><span class="spacer"></span>
+      <button class="ibtn pinbtn ${r.pin ? "on" : ""}" data-act="pin" aria-label="${r.pin ? "Unpin from hotbar" : "Pin to hotbar"}">${ICON.star}</button></div>
+    <h2 class="rtitle">${esc(r.name)}</h2>
+    <div class="urlbar"><span class="mth-sel" style="--m:${METHOD_COLOR[r.m]}">${r.m}</span><div class="url">${urlHTML(r)}</div></div>
+    <div class="resolved">${esc(HM.resolve(e.base + r.path, e))}</div>
+    <div class="sendrow">${sendLabel(r)}<button class="ghost" data-act="curl">Copy cURL</button></div>
+    <div class="sendhint">${guard ? "Production is selected. Hold the button to break the guard." : "&nbsp;"}</div>
+    <div class="disc ${S.discOpen ? "open" : ""}" id="disc">
+      <button class="disc-h" data-act="disc">${ICON.chev}<span>Request details</span><span class="chips"><span class="chip">1 param</span><span class="chip">3 headers</span><span class="chip">${r.m === "GET" ? "no body" : "json body"}</span></span></button>
+      <div class="disc-b"><div>
+        <div class="kv"><span>userId</span><span>{{userId}} → ${esc(e.vars.userId)}</span></div>
+        <div class="kv"><span>Authorization</span><span>Bearer ${HM.enchant(8)}</span><span>Accept</span><span>application/json</span><span>X-Trace</span><span>hopper</span></div>
+      </div></div>
+    </div>
+    <div class="resp" id="resp" aria-live="polite"></div>`;
+  const send = $("#send");
+  if (guard) HM.mine(send, { ms: 750, onDone: () => doSend() });
+  renderResp();
+}
+function tipText() { return HM.pick(HM.TIPS); }
+function renderResp() {
+  const box = $("#resp");
+  if (!box) return;
+  if (S.sending) { box.innerHTML = `<div class="skel"><i style="width:34%"></i><i style="width:72%"></i><i style="width:58%"></i><i style="width:81%"></i><i style="width:46%"></i></div>`; return; }
+  const r = S.resp;
+  if (!r) { box.innerHTML = `<div class="resp-empty">${sprite("hopper", 5)}<b style="color:var(--text)">No response yet</b><p>${esc(tipText())}</p></div>`; return; }
+  const cls = HM.statusClass(r.status);
+  const call = { 404: ["villager", "Hrmm.", r.body && r.body.hint || "Check the id."], 500: ["creeper", "Sssssss… boom.", "The server threw. The trace id is in the body."], 418: ["gold", "Short and stout.", "The server refuses to brew coffee."], 402: ["gold", "Payment required.", "The card on file was declined."] }[r.status];
+  const body = r.body == null ? `<div class="resp-empty" style="padding:22px"><p>204 No Content. The server did what you asked and said nothing.</p></div>` : `<pre class="json" id="json">${S.tab === "body" ? HM.jsonHtml(r.body) : Object.entries(r.headers).map(([k, v]) => `<span class="jk">${k}</span>: <span class="js">${esc(v)}</span>`).join("\n")}</pre>`;
+  box.innerHTML = `<div class="rhead">
+      <span class="st st-${cls} pop" id="stpill">${r.status} ${esc(r.text)}</span>
+      <span class="rmeta">${r.ms} ms <em>≈ ${HM.ticks(r.ms)}</em> · ${HM.size(r.bytes)} <em>${HM.stacks(r.bytes)}</em></span>
+      <div class="seg" role="tablist"><span class="ind" id="segind"></span><button role="tab" data-act="rtab" data-t="body" aria-selected="${S.tab === "body"}">Body</button><button role="tab" data-act="rtab" data-t="headers" aria-selected="${S.tab === "headers"}">Headers</button></div>
+    </div>
+    ${call ? `<div class="callout" style="--c:var(--c-${cls})">${call[0] === "gold" ? sprite("gold", 3) : sprite(call[0], 3)}<span><b>${call[1]}</b> ${esc(call[2])}</span>${r.status === 500 ? `<button data-act="copytrace">Copy trace id</button>` : ""}</div>` : ""}
+    ${body}`;
+  placeInd();
+}
+function placeInd() {
+  const ind = $("#segind"); const sel = $('.seg [aria-selected="true"]');
+  if (ind && sel) { ind.style.width = sel.offsetWidth + "px"; ind.style.transform = `translateX(${sel.offsetLeft - 2}px)`; }
+}
+
+/* ---------- sending ---------- */
+const ADV = {
+  first: { sprite: "hopper", title: "Hello, server", desc: "Send your first request" },
+  404: { sprite: "villager", title: "Hrmm", desc: "Get a 404 from a villager-grade API" },
+  500: { sprite: "creeper", title: "Aw man", desc: "Get a 500 and feel it in your bones" },
+  418: { sprite: "gold", title: "Brewing", desc: "Ask a teapot for coffee" },
+};
+async function doSend(req = S.req) {
+  if (S.sending || !req) return;
+  if (S.req !== req || S.view !== "request") openRequest(req.id);
+  S.sending = true;
+  setMascot("sending");
+  $("#send") && $("#send").classList.add("busy");
+  renderResp();
+  const r = await HM.fakeSend(req, env());
+  S.sending = false; S.resp = r; S.count++;
+  $("#send") && $("#send").classList.remove("busy");
+  renderResp();
+  const bad = r.status >= 500;
+  setMascot(bad ? "sleeping" : "sleeping");
+  if (bad) hiss();
+  $("#cp-title").textContent = req.name; $("#cp-sub").textContent = `${req.m} · ${r.status} · ${r.ms} ms · now`;
+  const cp = $("#cp-st"); cp.textContent = r.status; cp.className = "st st-" + HM.statusClass(r.status);
+  if (r.status < 400) { await HM.orbs($("#stpill"), $("#xpfill"), 5); gainXp(0.2); }
+  else gainXp(0.05);
+  if (S.count === 8) HM.toast.advancement("first", ADV.first);
+  if (ADV[r.status]) HM.toast.advancement("a" + r.status, ADV[r.status]);
+}
+function hiss() { $$(".mascot").forEach((m) => { m.classList.remove("hiss"); void m.offsetWidth; m.classList.add("hiss"); setTimeout(() => m.classList.remove("hiss"), 1150); }); }
+function gainXp(d) {
+  S.pct += d;
+  const bar = $("#xp");
+  if (S.pct >= 1) { S.pct -= 1; S.level++; const l = $("#lvl"); l.textContent = S.level; l.classList.remove("up"); void l.offsetWidth; l.classList.add("up"); HM.toast.plain(`Level ${S.level}`, "Requests today: " + S.count); }
+  $("#xpfill").style.width = S.pct * 100 + "%";
+  bar.classList.remove("flash"); void bar.offsetWidth; bar.classList.add("flash");
+}
+
+/* ---------- hotbar ---------- */
+function renderHotbar() {
+  const slots = Array.from({ length: 9 }, (_, i) => requests.find((r) => r.pin === i + 1));
+  $("#hotbar").innerHTML = slots.map((r, i) => r
+    ? `<button class="slot ${S.req && S.req.id === r.id && S.view === "request" ? "cur" : ""}" data-act="slot" data-id="${r.id}" data-k="${i}" style="--m:${METHOD_COLOR[r.m]};--k:${i}" aria-label="${esc(r.name)}, slot ${i + 1}"><i class="lamp" style="--c:var(--c-${HM.statusClass(r.status)})"></i>${sprite("cube", 2).replace('class="sprite', `style="--c:${METHOD_COLOR[r.m]}" class="sprite`)}<span class="m">${r.m.slice(0, 3)}</span><span class="num">${i + 1}</span></button>`
+    : `<button class="slot vacant" data-act="emptyslot" data-k="${i}" style="--k:${i}" aria-label="Empty slot ${i + 1}">${ICON.plus}<span class="num">${i + 1}</span></button>`).join("");
+}
+function fireSlot(n) {
+  const r = requests.find((x) => x.pin === n);
+  if (!r) { HM.toast.plain(`Slot ${n} is empty`, "Open a request and press the star to pin it."); return; }
+  const el = $$(".slot")[n - 1]; el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+  const guard = env().kind === "production" && r.m !== "GET";
+  openRequest(r.id);
+  if (guard) { HM.toast.plain("Production guard", "Hold the Send button to confirm."); renderHotbar(); return; }
+  renderHotbar(); doSend(r);
+}
+function pinToggle() {
+  const r = S.req; if (!r) return;
+  if (r.pin) { r.pin = 0; HM.toast.plain("Unpinned " + r.name); }
+  else { const used = new Set(requests.map((x) => x.pin)); let n = 1; while (used.has(n) && n <= 9) n++; if (n > 9) return HM.toast.plain("Hotbar is full", "Unpin something first."); r.pin = n; HM.toast.plain("Pinned to slot " + n, "Alt+" + n + " sends it."); }
+  renderRequest(); renderHotbar();
+  const f = $$(".slot")[r.pin - 1]; if (f) f.classList.add("fresh");
+}
+
+/* ---------- env ---------- */
+function renderEnvMenu() {
+  $("#envmenu").innerHTML = envs.map((e, i) => `<button role="menuitemradio" aria-checked="${i === S.env}" data-act="setenv" data-i="${i}"><span class="cube" style="--c:${MATERIAL[e.kind]}"></span>${e.name}<small>${e.kind}</small></button>`).join("") + `<hr><button role="menuitem" data-act="envs">Manage environments…</button>`;
+}
+function setEnv(i) {
+  S.env = i;
+  const e = env();
+  $(".panel").dataset.env = e.kind;
+  $("#envname").textContent = e.name;
+  $("#envpill .cube").style.setProperty("--c", MATERIAL[e.kind]);
+  const p = $("#envpill"); p.classList.remove("swap"); void p.offsetWidth; p.classList.add("swap");
+  renderEnvMenu(); renderEnvSheet();
+  if (S.req) { S.resp = null; renderRequest(); }
+  if (e.kind === "production") HM.toast.plain("Production selected", "Writes need a held click.");
+}
+function renderEnvSheet() {
+  $("#envlist").innerHTML = envs.map((e, i) => `<div class="env ${i === S.env ? "cur" : ""}" style="--c:${MATERIAL[e.kind]}">
+    <button data-act="setenv" data-i="${i}"><span class="cube"></span><span><b>${e.name}</b><small>${esc(e.base)}</small></span><span class="kind">${e.kind}</span></button>
+    <div class="env-d"><div>${e.secrets.map((s) => `<div class="sec"><span class="name">${s.name}</span><span class="val" aria-label="hidden">${s.set ? HM.enchant(9) : "not set"}</span>${s.set ? `<span class="flag">set</span>` : `<span class="flag miss">missing</span><button class="set" data-act="setsecret">Set value</button>`}</div>`).join("")}</div></div></div>`).join("");
+}
+function sheet(on) { $("#envsheet").classList.toggle("on", on); $("#scrim").classList.toggle("on", on); if (on) renderEnvSheet(); }
+
+/* ---------- approval (a villager trade) ---------- */
+let apTimer = 0;
+function showApproval() {
+  const r = byId("u-del");
+  const prodIdx = envs.findIndex((e) => e.kind === "production");
+  const e = envs[prodIdx];
+  setMode("open"); setView(S.view);
+  $("#approval").classList.remove("no");
+  $("#approval").innerHTML = `<div class="dlg-h">${sprite("villager", 5, "nod")}<div><h3 id="ap-t">Claude wants to run a request</h3><div class="by">via MCP · asked just now</div></div></div>
+    <div class="trade"><div class="cell"><b style="color:${METHOD_COLOR.DELETE}">DELETE</b><span>/users/${e.vars.userId}</span><br><span>${esc(e.base)}</span></div><div class="arrow"><i id="arrowfill"></i></div><div class="cell"><b style="color:${MATERIAL.production}">production</b><span>Account API</span><br><span>No secrets leave Hopper</span></div></div>
+    <div class="why"><b>Claude says:</b> “Removing the test user from the earlier run so the next one starts clean.”</div>
+    <div class="acts"><button class="allow" id="ap-allow" data-act="ap-once" disabled>Allow once</button><button id="ap-always" data-act="ap-always" disabled>Always allow this</button><button class="block" data-act="ap-block">Block it</button></div>
+    <p class="note" id="ap-note">Buttons unlock in a moment so a stray keypress can’t approve this. Esc does nothing here.</p>`;
+  $("#scrim").classList.add("on"); $("#approval").classList.add("on");
+  setMascot("approval");
+  const t0 = performance.now();
+  const tick = (t) => { const p = Math.min(1, (t - t0) / 1100); const f = $("#arrowfill"); if (f) f.style.width = p * 100 + "%"; if (p < 1) apTimer = requestAnimationFrame(tick); else { $("#ap-allow").disabled = false; $("#ap-always").disabled = false; $("#ap-note").textContent = "Allow once runs it now. Always allow remembers this request for this environment."; } };
+  cancelAnimationFrame(apTimer); apTimer = requestAnimationFrame(tick);
+}
+function closeApproval(result) {
+  $("#approval").classList.remove("on"); $("#scrim").classList.remove("on"); setMascot("sleeping");
+  if (result === "block") HM.toast.plain("Blocked", "Claude was told no.");
+  if (result === "once") { HM.toast.plain("Allowed once", "Running DELETE /users/9001…"); }
+}
+
+/* ---------- first run ---------- */
+function renderFirst() {
+  $("#v-first").innerHTML = `<div class="splash"><div class="wm">Hopper</div><div class="tilt" id="splash">${esc(HM.pick(HM.SPLASHES))}</div></div>
+    <p style="text-align:center;color:var(--text2);margin:6px 20px 0">Your APIs, one hotkey away. Agents fill the collections, you press send.</p>
+    <div class="steps">
+      <div class="step done"><span class="n">✓</span><div><b>Pick a workspace</b><p>acme-apis · 3 collections found</p></div><button class="btn alt" data-act="folder">Change</button></div>
+      <div class="step"><span class="n">2</span><div><b>Connect your agent</b><p><code>claude mcp add hopper http://127.0.0.1:38517/mcp</code></p></div><button class="btn alt" data-act="copymcp">Copy</button></div>
+      <div class="step"><span class="n">3</span><div><b>Summon Hopper</b><p>Press <kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>H</kbd> from any window. Esc sends you back.</p></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1;padding:11px" data-act="finish">Open the panel</button></div>`;
+}
+
+/* ---------- events ---------- */
+const go = {
+  home() { setMode("open"); S.q = ""; $("#q").value = ""; renderHome(); setView("home"); renderHotbar(); closeAll(); },
+  request() { setMode("open"); closeAll(); S.discOpen = false; openRequest("u-get"); renderHotbar(); },
+  prod() { setMode("open"); closeAll(); setEnv(3); openRequest("u-del"); renderHotbar(); },
+  envs() { setMode("open"); sheet(true); },
+  approval: showApproval,
+  sent() { go.request(); setTimeout(() => doSend(), 250); },
+  err() { setMode("open"); closeAll(); openRequest("rep"); renderHotbar(); setTimeout(() => doSend(), 250); },
+  first() { setMode("open"); closeAll(); renderFirst(); setView("first"); },
+  theme() { theme(document.documentElement.dataset.theme === "night" ? "day" : "night"); },
+};
+function closeAll() { sheet(false); $("#envmenu").classList.remove("on"); closeApproval(); }
+
+document.addEventListener("click", (ev) => {
+  const g = ev.target.closest("[data-go]");
+  if (g) { const [k, v] = g.dataset.go.split(":"); if (k === "mode") { closeAll(); setMode(v); } else go[k](); return; }
+  const jv = ev.target.closest(".jv");
+  if (jv) { try { navigator.clipboard.writeText(jv.dataset.copy); } catch {} HM.toast.plain("Copied", jv.dataset.copy.slice(0, 40)); return; }
+  const a = ev.target.closest("[data-act]");
+  if (!a) { if (!ev.target.closest("#envmenu, #envpill")) $("#envmenu").classList.remove("on"); return; }
+  const act = a.dataset.act;
+  if (act !== "envmenu") if (!ev.target.closest("#envmenu")) $("#envmenu").classList.remove("on");
+  switch (act) {
+    case "peek": setMode("open"); break;
+    case "close": setMode("tab"); break;
+    case "open": openRequest(a.dataset.id); break;
+    case "back": setView("home"); S.sel = 0; renderHome(); renderHotbar(); setTimeout(() => $("#q").focus(), 300); break;
+    case "send": if (!(env().kind === "production" && S.req.m !== "GET")) doSend(); break;
+    case "slot": fireSlot(+a.dataset.k + 1); break;
+    case "emptyslot": HM.toast.plain("Empty slot " + (+a.dataset.k + 1), "Open a request and press the star to pin it."); break;
+    case "pin": pinToggle(); break;
+    case "disc": S.discOpen = !S.discOpen; $("#disc").classList.toggle("open", S.discOpen); break;
+    case "rtab": S.tab = a.dataset.t; renderResp(); break;
+    case "curl": try { navigator.clipboard.writeText(`curl -X ${S.req.m} '${HM.resolve(env().base + S.req.path, env())}'`); } catch {} HM.toast.plain("Copied cURL", "Secrets are written as placeholders."); break;
+    case "copytrace": HM.toast.plain("Copied trace id", "7f3a-91c2-0b6d"); break;
+    case "envmenu": $("#envmenu").classList.toggle("on"); renderEnvMenu(); break;
+    case "setenv": { const i = +a.dataset.i; $("#envmenu").classList.remove("on"); if (i !== S.env) setEnv(i); break; }
+    case "envs": $("#envmenu").classList.remove("on"); sheet(true); break;
+    case "closesheet": case "scrim": if (!$("#approval").classList.contains("on")) sheet(false); break;
+    case "setsecret": HM.toast.plain("Opening the Windows credential prompt…", "You type it there. Hopper never sees it."); break;
+    case "cmd": { const c = COMMANDS.find((x) => x.c === a.dataset.c); $("#q").value = ""; S.q = ""; renderHome(); c.run(); break; }
+    case "spec": HM.toast.plain("Saved to Account API", "GET " + a.dataset.p); break;
+    case "ap-once": closeApproval("once"); { const r = byId("u-del"); S.env = 3; setEnv(3); doSend(r); } break;
+    case "ap-always": closeApproval("once"); break;
+    case "ap-block": $("#approval").classList.add("no"); setTimeout(() => closeApproval("block"), 450); break;
+    case "settings": HM.toast.plain("Settings sheet", "Not part of this mockup."); break;
+    case "ws": HM.toast.plain("Workspace switcher", "Not part of this mockup."); break;
+    case "folder": HM.toast.plain("Native folder picker", "The only native dialog Hopper uses."); break;
+    case "copymcp": HM.toast.plain("Copied", "Paste it into your terminal."); break;
+    case "finish": go.home(); break;
+  }
+});
+
+$("#q").addEventListener("input", (e) => { S.q = e.target.value; S.sel = 0; renderHome(); });
+$("#q").addEventListener("focus", markSel); $("#q").addEventListener("blur", markSel);
+$("#mascot").addEventListener("click", () => {
+  const m = $("#mascot"); S.clicks++;
+  m.classList.remove("hurt"); void m.offsetWidth; m.classList.add("hurt");
+  if (S.clicks === 5) HM.toast.advancement("punch", { sprite: "hopper", title: "Not a punching bag", desc: "Hit the mascot five times" });
+});
+
+document.addEventListener("keydown", (e) => {
+  const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "h") { e.preventDefault(); S.mode === "open" ? setMode("tab") : setMode("open"); return; }
+  if (S.mode !== "open") return;
+  if ($("#approval").classList.contains("on")) { if (e.key === "Escape") { e.preventDefault(); const d = $("#approval"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake"); } return; }
+  if (e.key === "Escape") {
+    if ($("#envsheet").classList.contains("on")) return sheet(false);
+    if ($("#envmenu").classList.contains("on")) return $("#envmenu").classList.remove("on");
+    if (S.view === "request") return $("[data-act=back]").click();
+    if (S.q) { $("#q").value = ""; S.q = ""; return renderHome(); }
+    return setMode("tab");
+  }
+  if (e.altKey && /^[1-9]$/.test(e.key)) { e.preventDefault(); return fireSlot(+e.key); }
+  if (!typing && /^[1-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey) return fireSlot(+e.key);
+  if (!typing && e.key === "/" && S.view !== "first") { e.preventDefault(); if (S.view === "request") $("[data-act=back]").click(); setTimeout(() => $("#q").focus(), 60); return; }
+  if (S.view === "request" && e.key === "Enter" && e.ctrlKey) { e.preventDefault(); if (!(env().kind === "production" && S.req.m !== "GET")) doSend(); return; }
+  if (S.view === "home" && document.activeElement === $("#q")) {
+    if (e.key === "ArrowDown") { e.preventDefault(); S.sel = Math.min(S.rows.length - 1, S.sel + 1); markSel(); }
+    else if (e.key === "ArrowUp" && !(e.ctrlKey)) { e.preventDefault(); S.sel = Math.max(0, S.sel - 1); markSel(); }
+    else if (e.key === "Enter") { const t = $$("#v-home .row")[S.sel]; if (t) t.click(); }
+  }
+});
+
+HM.konami(() => { HM.gemRain(); HM.toast.advancement("konami", { sprite: "diamond", title: "Cheat code", desc: "↑ ↑ ↓ ↓ ← → ← → B A" }); });
+HM.f3((fps) => {
+  const r = $(".panel").getBoundingClientRect();
+  return [`<b>Hopper</b> 0.4.2 (mockup / vanilla)`, `${fps} fps · ${Math.floor(performance.now() / 50)} ticks`, `panel ${Math.round(r.width)}x${Math.round(r.height)} docked right`, `env: ${env().name} (${env().kind})`, `mcp: 127.0.0.1:38517 loopback only`, `requests today: ${S.count} · level ${S.level}`, `secrets in frontend: 0`, `seed: 38517`];
+});
+addEventListener("resize", placeInd);
+
+/* boot */
+renderHome(); renderHotbar(); renderEnvMenu(); renderEnvSheet(); renderFirst();
+const q = new URLSearchParams(location.search);
+if (q.has("still")) document.documentElement.classList.add("still");
+if (q.get("go") && go[q.get("go")]) setTimeout(() => go[q.get("go")](), 700);
+if (q.get("mode")) setMode(q.get("mode"));
+if (q.get("theme")) document.documentElement.dataset.theme = q.get("theme");
+
+/* hotbar tooltip */
+document.addEventListener("pointerover", (e) => {
+  const s = e.target.closest(".slot:not(.empty)"); const tip = $("#tip");
+  if (!s) return tip.classList.remove("on");
+  const r = byId(s.dataset.id);
+  tip.innerHTML = `<b>${esc(r.name)}</b><small>${r.m} ${esc(HM.resolve(r.path, env()))}</small><small>Alt+${+s.dataset.k + 1} sends it</small>`;
+  const b = s.getBoundingClientRect();
+  tip.style.left = Math.min(innerWidth - 270, b.left - 20) + "px"; tip.style.top = b.top - 76 + "px"; tip.classList.add("on");
+});
+</script>
+</body>
+</html>

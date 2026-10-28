@@ -1,0 +1,9 @@
+{
+  "domain": "example.com",
+  "expires": "2026-02-01T00:00:00Z",
+  "httpOnly": true,
+  "name": "sid",
+  "path": "/",
+  "secure": true,
+  "value": "v"
+}

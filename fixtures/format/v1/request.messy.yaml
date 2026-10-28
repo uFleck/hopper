@@ -1,0 +1,13 @@
+url: https://example.com/upload
+kind: request
+name: Upload
+hopper: 1
+futureField: { keep: [1, 2, 3] }
+method: POST
+id: 01JBX7Q4M8K3Z2N5V6T9R0YHAE
+auth: { type: apiKey, name: X-Key, value: "{{apiKey}}", in: header }
+body:
+  type: multipart
+  parts:
+    - { name: note, value: hello }
+    - { name: file, file: ./a.png, enabled: false }

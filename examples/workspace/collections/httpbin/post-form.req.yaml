@@ -1,0 +1,15 @@
+hopper: 2
+kind: request
+id: 01JBXE0000000000000000004D
+name: POST form body
+method: POST
+url: '{{httpbin}}/post'
+body:
+  type: form
+  fields:
+  - name: username
+    value: ada
+  - name: password
+    value: not-a-real-password
+auth:
+  type: inherit

@@ -1,0 +1,11 @@
+{
+  "bodyPreview": "{}",
+  "headers": [
+    [
+      "Authorization",
+      "••••"
+    ]
+  ],
+  "method": "POST",
+  "url": "https://api.example.com/users"
+}

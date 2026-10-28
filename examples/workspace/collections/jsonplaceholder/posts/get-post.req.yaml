@@ -1,0 +1,12 @@
+hopper: 2
+kind: request
+id: 01JBXE000000000000000000EQ
+name: Get post
+method: GET
+url: '{{jsonplaceholder}}/posts/{id}'
+pathParams:
+  id: '1'
+body:
+  type: none
+auth:
+  type: inherit

@@ -1,0 +1,8 @@
+hopper: 2
+kind: folder
+name: Users
+order: [get-user-by-id, search-users]
+auth: { type: inherit }
+variables:
+  pageSize: "50"
+  includeDeleted: "false"

@@ -1,0 +1,10 @@
+{
+  "allowedBy": "local environment",
+  "at": "2026-01-01T00:00:00Z",
+  "client": "claude",
+  "detail": "200",
+  "id": "01J0000000000000000000000C",
+  "outcome": "ok",
+  "target": "GET https://api.example.com/users",
+  "tool": "hopper_send_request"
+}

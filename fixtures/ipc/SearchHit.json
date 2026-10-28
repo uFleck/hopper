@@ -1,0 +1,14 @@
+{
+  "agentAccess": "ask",
+  "collection": "api",
+  "kind": "saved",
+  "matches": [
+    1,
+    2
+  ],
+  "method": "GET",
+  "name": "Get user",
+  "path": "/users/{id}",
+  "requestId": "01J0000000000000000000000A",
+  "score": 12.5
+}

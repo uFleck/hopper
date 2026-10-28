@@ -1,0 +1,34 @@
+{
+  "body": "{}",
+  "decodedBytes": 2,
+  "env": "staging",
+  "finalUrl": "https://api.example.com/b",
+  "headers": [
+    [
+      "content-type",
+      "application/json"
+    ]
+  ],
+  "historyId": "01J0000000000000000000000D",
+  "httpVersion": "HTTP/1.1",
+  "insecureTls": false,
+  "kind": "json",
+  "redirects": [
+    {
+      "status": 302,
+      "url": "https://api.example.com/a"
+    }
+  ],
+  "requestId": "01J0000000000000000000000A",
+  "resolvedUrl": "https://api.example.com/b",
+  "runId": "run-1",
+  "status": 200,
+  "statusText": "OK",
+  "timing": {
+    "downloadMs": 2,
+    "totalMs": 12,
+    "ttfbMs": 10
+  },
+  "transferredBytes": 40,
+  "truncated": false
+}

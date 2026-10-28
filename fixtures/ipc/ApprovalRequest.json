@@ -1,0 +1,22 @@
+{
+  "application": "api",
+  "armAfterMs": 500,
+  "client": "claude",
+  "createdAt": "2026-01-01T00:00:00Z",
+  "id": "01J0000000000000000000000B",
+  "reason": "no grant",
+  "request": {
+    "bodyPreview": "{}",
+    "headers": [
+      [
+        "Authorization",
+        "••••"
+      ]
+    ],
+    "method": "POST",
+    "url": "https://api.example.com/users"
+  },
+  "requestId": "01J0000000000000000000000A",
+  "requestName": "Create user",
+  "stage": "dev"
+}

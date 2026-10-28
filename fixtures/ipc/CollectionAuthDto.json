@@ -1,0 +1,8 @@
+{
+  "auth": {
+    "token": "{{apiToken}}",
+    "type": "bearer"
+  },
+  "revision": "sha256:abc",
+  "slug": "api"
+}

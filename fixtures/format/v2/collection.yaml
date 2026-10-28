@@ -1,0 +1,14 @@
+hopper: 2
+kind: collection
+name: Account API
+headers:
+  - { name: X-Tenant, value: "{{tenantId}}" }
+auth: { type: bearer, token: "{{apiKey}}" }
+specs:
+  - name: account
+    url: "{{baseUrl}}/swagger/v1/swagger.json"
+    importedAt: 2026-10-26T14:02:00Z
+    docHash: sha256:9f2c
+variables:
+  baseUrl: https://account.example.com
+  apiVersion: "2026-10"

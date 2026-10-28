@@ -1,0 +1,13 @@
+hopper: 2
+kind: request
+id: 01JBXE0000000000000000009J
+name: Timeout (1s limit)
+method: GET
+url: '{{httpbin}}/delay/5'
+body:
+  type: none
+auth:
+  type: inherit
+timeoutMs: 1000
+notes: |
+  Must fail with a timeout, not hang.

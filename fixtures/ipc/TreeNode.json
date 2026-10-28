@@ -1,0 +1,16 @@
+{
+  "children": [
+    {
+      "agentAccess": "ask",
+      "grantSuspended": true,
+      "id": "01J0000000000000000000000A",
+      "method": "GET",
+      "name": "Get user",
+      "orphaned": false,
+      "type": "request"
+    }
+  ],
+  "name": "Users",
+  "slug": "users",
+  "type": "folder"
+}

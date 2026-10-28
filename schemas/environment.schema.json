@@ -1,0 +1,151 @@
+{
+  "$defs": {
+    "AppSection": {
+      "description": "Per-application slice of a stage file (an absent section behaves as empty).",
+      "properties": {
+        "allowedHosts": {
+          "description": "Default (when absent) is the hosts of variables ending in `baseUrl`/`Url`.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "secrets": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SecretDecl"
+          },
+          "type": "object"
+        },
+        "tls": {
+          "$ref": "#/$defs/Tls"
+        },
+        "variables": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "DocKind": {
+      "enum": [
+        "workspace",
+        "collection",
+        "folder",
+        "request",
+        "environment"
+      ],
+      "type": "string"
+    },
+    "EnvKind": {
+      "enum": [
+        "local",
+        "dev",
+        "staging",
+        "production",
+        "other"
+      ],
+      "type": "string"
+    },
+    "LegacyEnvironment": {
+      "additionalProperties": true,
+      "description": "The old v1 environment body, kept for the explicit migration.",
+      "properties": {
+        "allowedHosts": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "envKind": {
+          "$ref": "#/$defs/EnvKind"
+        },
+        "name": {
+          "type": "string"
+        },
+        "secrets": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SecretDecl"
+          },
+          "type": "object"
+        },
+        "tls": {
+          "$ref": "#/$defs/Tls"
+        },
+        "variables": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "envKind"
+      ],
+      "type": "object"
+    },
+    "SecretDecl": {
+      "description": "A secret declaration: where to fetch it from, never the value.",
+      "properties": {
+        "provider": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "type": "object"
+    },
+    "Tls": {
+      "properties": {
+        "insecureSkipVerify": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Format v2 environment document: one file per stage.",
+  "properties": {
+    "applications": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AppSection"
+      },
+      "type": "object"
+    },
+    "hopper": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/$defs/DocKind"
+    },
+    "legacy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LegacyEnvironment"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "hopper",
+    "kind"
+  ],
+  "title": "StageEnvironment",
+  "type": "object"
+}

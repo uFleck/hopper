@@ -1,0 +1,6 @@
+{
+  "hash": "sha256:abc",
+  "key": "GET /users/{id}",
+  "orphaned": false,
+  "spec": "api"
+}

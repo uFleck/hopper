@@ -1,0 +1,44 @@
+/* Circuit, day: light and calm. Applied with `<html data-theme="light">`. */
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-page: #eef2f7;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f2f4f8;
+  --border-default: #e1e5ed;
+  --border-strong: #c8cfdb;
+  --text-primary: #141922;
+  --text-secondary: #4a5466;
+  --text-tertiary: #8189a0;
+  --accent: #2f55d4;
+  --accent-hover: #2445b3;
+  --accent-text: #2f55d4;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(47, 85, 212, 0.12);
+  --hover-tint: rgba(20, 25, 34, 0.05);
+  --press-tint: rgba(20, 25, 34, 0.09);
+  --sel-bg: rgba(47, 85, 212, 0.14);
+  --sel-fg: #141922;
+  --ok: #14a05a;
+  --warn: #d48a00;
+  --err: #e03a2c;
+  --i1: #2f55d4;
+  --i2: #14a05a;
+  --i3: #c2551c;
+  --i4: #7c4bd0;
+  --i5: #d48a00;
+  --wire: #cbbcbc;
+  --hop-k: #1d2030;
+  --hop-L: #f3f5f8;
+  --hop-G: #b3bac6;
+  --hop-D: #5b6272;
+  --glow: #ffd75e;
+  --s2: #14a05a;
+  --s3: #2a8fd6;
+  --s4: #d48a00;
+  --s5: #e03a2c;
+  --shadow-pop: 0 14px 34px rgba(30, 40, 70, 0.22);
+  --ring: 0 0 0 2px rgba(47, 85, 212, 0.55);
+  --scroll: rgba(20, 25, 34, 0.15);
+  --scroll-h: rgba(20, 25, 34, 0.3);
+}

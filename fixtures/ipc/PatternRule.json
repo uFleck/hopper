@@ -1,0 +1,5 @@
+{
+  "host": "staging.example.com",
+  "method": "GET",
+  "path": "/users/*"
+}

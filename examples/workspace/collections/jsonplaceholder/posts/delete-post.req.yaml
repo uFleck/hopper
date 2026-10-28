@@ -1,0 +1,14 @@
+hopper: 2
+kind: request
+id: 01JBXE000000000000000000HT
+name: Delete post
+method: DELETE
+url: '{{jsonplaceholder}}/posts/{id}'
+pathParams:
+  id: '1'
+body:
+  type: none
+auth:
+  type: inherit
+notes: |
+  Good candidate to leave on Ask or Blocked for the agent.

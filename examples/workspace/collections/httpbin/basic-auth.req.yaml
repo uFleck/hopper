@@ -1,0 +1,12 @@
+hopper: 2
+kind: request
+id: 01JBXE0000000000000000006F
+name: Basic auth
+method: GET
+url: '{{httpbin}}/basic-auth/ada/secret'
+body:
+  type: none
+auth:
+  type: basic
+  username: ada
+  password: secret

@@ -1,0 +1,10 @@
+{
+  "code": "revision_conflict",
+  "details": {
+    "names": [
+      "baseUrl"
+    ]
+  },
+  "hint": "reload",
+  "message": "changed"
+}

@@ -1,0 +1,12 @@
+hopper: 2
+kind: request
+id: 01JBXE0000000000000000001A
+name: Get my IP
+method: GET
+url: '{{httpbin}}/ip'
+body:
+  type: none
+auth:
+  type: inherit
+notes: |
+  Simplest possible request: no params, no auth.

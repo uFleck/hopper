@@ -1,0 +1,15 @@
+{
+  "application": "bill",
+  "failed": [
+    {
+      "name": "x",
+      "reason": "keyring locked"
+    }
+  ],
+  "moved": [
+    "billApiKey"
+  ],
+  "notSet": [],
+  "oldFileKept": true,
+  "stage": "local"
+}

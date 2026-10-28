@@ -1,0 +1,43 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Orders", "version": "2025-01-01" },
+  "servers": [ { "url": "https://orders.example.com/api" }, { "url": "https://staging.example.com/api" } ],
+  "paths": {
+    "/orders": {
+      "get": {
+        "operationId": "listOrders",
+        "parameters": [ { "name": "status", "in": "query", "schema": { "type": ["string", "null"], "enum": ["open", "closed"] } } ],
+        "responses": { "200": { "description": "Orders" } }
+      },
+      "post": {
+        "operationId": "createOrder",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } } },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/orders/{orderId}": {
+      "get": {
+        "operationId": "getOrder",
+        "parameters": [ { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string", "examples": ["ord_1"] } } ],
+        "responses": { "200": { "description": "Order" }, "default": { "description": "Error" } }
+      }
+    }
+  },
+  "webhooks": {
+    "orderShipped": { "post": { "operationId": "onOrderShipped", "responses": { "200": { "description": "ok" } } } }
+  },
+  "components": {
+    "schemas": {
+      "Order": {
+        "type": "object",
+        "required": ["sku"],
+        "properties": {
+          "sku": { "type": "string" },
+          "quantity": { "type": "integer", "default": 1 },
+          "note": { "type": ["string", "null"] },
+          "total": { "type": "number", "minimum": 5 }
+        }
+      }
+    }
+  }
+}

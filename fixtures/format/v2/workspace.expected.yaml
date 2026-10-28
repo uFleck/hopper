@@ -1,0 +1,10 @@
+hopper: 2
+kind: workspace
+id: 7c1e9a52-3b0e-4f6a-9d0e-1b8f5a2c4e77
+name: Umbler APIs
+defaults:
+  timeoutMs: 30000
+  followRedirects: true
+  variables:
+    apiVersion: 2026-10
+    tenantId: '42'

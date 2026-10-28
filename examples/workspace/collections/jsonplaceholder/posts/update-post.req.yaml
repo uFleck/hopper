@@ -1,0 +1,19 @@
+hopper: 2
+kind: request
+id: 01JBXE000000000000000000GS
+name: Update post
+method: PUT
+url: '{{jsonplaceholder}}/posts/{id}'
+pathParams:
+  id: '1'
+body:
+  type: json
+  content: |-
+    {
+      "id": 1,
+      "title": "updated",
+      "body": "changed",
+      "userId": 1
+    }
+auth:
+  type: inherit

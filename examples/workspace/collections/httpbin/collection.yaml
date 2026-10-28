@@ -1,0 +1,6 @@
+hopper: 2
+kind: collection
+name: httpbin
+headers:
+- name: X-Hopper-Demo
+  value: '1'

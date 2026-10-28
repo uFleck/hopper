@@ -1,0 +1,5 @@
+hopper: 1
+kind: folder
+name: Users
+order: [get-user-by-id, search-users]
+auth: { type: inherit }

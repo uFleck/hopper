@@ -1,0 +1,15 @@
+hopper: 2
+kind: environment
+legacy:
+  name: staging
+  envKind: staging
+  variables:
+    baseUrl: https://account.staging.example.com
+    tenantId: '42'
+  secrets:
+    adminToken:
+      provider: keyring
+    apiKey:
+      provider: keyring
+  allowedHosts:
+  - account.staging.example.com

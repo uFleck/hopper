@@ -1,0 +1,7 @@
+{
+  "collection": "api",
+  "limit": 20,
+  "method": "POST",
+  "query": "post users",
+  "tag": "Admin"
+}

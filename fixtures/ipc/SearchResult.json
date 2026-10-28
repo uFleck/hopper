@@ -1,0 +1,46 @@
+{
+  "hits": [
+    {
+      "agentAccess": "ask",
+      "collection": "api",
+      "kind": "saved",
+      "matches": [
+        1,
+        2
+      ],
+      "method": "GET",
+      "name": "Get user",
+      "path": "/users/{id}",
+      "requestId": "01J0000000000000000000000A",
+      "score": 12.5
+    },
+    {
+      "collection": "api",
+      "deprecated": false,
+      "key": "GetUserById",
+      "kind": "operation",
+      "matches": [],
+      "method": "GET",
+      "path": "/users/{id}",
+      "score": 3.0,
+      "spec": "api",
+      "summary": "Get a user",
+      "tags": [
+        "Users"
+      ]
+    }
+  ],
+  "methods": [
+    {
+      "count": 2,
+      "method": "GET"
+    }
+  ],
+  "tags": [
+    {
+      "count": 2,
+      "name": "Users"
+    }
+  ],
+  "total": 2
+}

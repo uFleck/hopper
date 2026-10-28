@@ -1,0 +1,27 @@
+hopper: 2
+kind: request
+id: 01JBX7Q4M8K3Z2N5V6T9R0YHAD
+name: Get user by id
+method: GET
+url: '{{baseUrl}}/api/users/{id}'
+pathParams:
+  id: '{{lastUserId}}'
+query:
+- name: includeRoles
+  value: 'true'
+- name: expand
+  value: ''
+  enabled: false
+headers:
+- name: Accept
+  value: application/json
+body:
+  type: none
+auth:
+  type: inherit
+notes: |
+  Returns 404 for soft-deleted users.
+source:
+  spec: account
+  key: GetUserById
+  hash: sha256:51ab

@@ -1,0 +1,16 @@
+hopper: 2
+kind: request
+id: 01JBXE000000000000000000FR
+name: Create post
+method: POST
+url: '{{jsonplaceholder}}/posts'
+body:
+  type: json
+  content: |-
+    {
+      "title": "hello",
+      "body": "from Hopper",
+      "userId": 1
+    }
+auth:
+  type: inherit

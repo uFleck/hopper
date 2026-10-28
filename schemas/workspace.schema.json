@@ -1,0 +1,69 @@
+{
+  "$defs": {
+    "DocKind": {
+      "enum": [
+        "workspace",
+        "collection",
+        "folder",
+        "request",
+        "environment"
+      ],
+      "type": "string"
+    },
+    "WorkspaceDefaults": {
+      "properties": {
+        "followRedirects": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeoutMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "variables": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "defaults": {
+      "$ref": "#/$defs/WorkspaceDefaults"
+    },
+    "hopper": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "id": {
+      "description": "Random UUID; namespaces keyring entries and user-local data.",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/DocKind"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "hopper",
+    "kind",
+    "id",
+    "name"
+  ],
+  "title": "Workspace",
+  "type": "object"
+}

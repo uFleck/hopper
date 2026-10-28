@@ -1,0 +1,11 @@
+{
+  "secretNames": [
+    "billApiKey"
+  ],
+  "stem": "bill-local",
+  "suggestedApplication": "bill",
+  "suggestedStage": "local",
+  "variableNames": [
+    "baseUrl"
+  ]
+}

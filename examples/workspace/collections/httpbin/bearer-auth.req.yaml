@@ -1,0 +1,15 @@
+hopper: 2
+kind: request
+id: 01JBXE0000000000000000005E
+name: Bearer auth (secret)
+method: GET
+url: '{{httpbin}}/bearer'
+body:
+  type: none
+auth:
+  type: bearer
+  token: '{{demoToken}}'
+notes: |
+  Needs the `demoToken` secret set in the `production` stage (any value).
+  Without it the send must be blocked with an unresolved-variable message.
+  httpbin returns 401 with no token and 200 with one.

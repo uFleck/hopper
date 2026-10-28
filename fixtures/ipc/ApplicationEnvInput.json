@@ -1,0 +1,23 @@
+{
+  "allowedHosts": [
+    "x"
+  ],
+  "application": "api",
+  "expectedRevision": "sha256:abc",
+  "secrets": [
+    {
+      "name": "token",
+      "provider": "keyring"
+    }
+  ],
+  "stage": "dev",
+  "tls": {
+    "insecureSkipVerify": false
+  },
+  "variables": [
+    {
+      "name": "baseUrl",
+      "value": "https://x"
+    }
+  ]
+}

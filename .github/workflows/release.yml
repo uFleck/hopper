@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    environment: Production
+    steps:
+      - name: Check signing key secret
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            Write-Error "Secret TAURI_SIGNING_PRIVATE_KEY is empty or not set. Add it under Settings > Secrets and variables > Actions (and TAURI_SIGNING_PRIVATE_KEY_PASSWORD if the key has a password)."
+            exit 1
+          }
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set version from tag
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+([-+].+)?$') {
+            Write-Error "Tag '${{ github.ref_name }}' is not a valid semver version (expected vX.Y.Z)."
+            exit 1
+          }
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+          $env:APP_VERSION = $version
+          @'
+          const fs = require("fs");
+          const v = process.env.APP_VERSION;
+          for (const f of ["src-tauri/tauri.conf.json", "package.json"]) {
+            const j = JSON.parse(fs.readFileSync(f, "utf8"));
+            j.version = v;
+            fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
+          }
+          // Cargo.toml: only touch `version` inside the [package] table.
+          const cf = "src-tauri/Cargo.toml";
+          const lines = fs.readFileSync(cf, "utf8").split(/\r?\n/);
+          let inPackage = false, done = false;
+          for (let i = 0; i < lines.length; i++) {
+            const t = lines[i].trim();
+            if (/^\[.*\]$/.test(t)) inPackage = t === "[package]";
+            else if (inPackage && !done && /^version\s*=/.test(t)) {
+              lines[i] = `version = "${v}"`;
+              done = true;
+            }
+          }
+          if (!done) { console.error("No version found in [package] of Cargo.toml"); process.exit(1); }
+          fs.writeFileSync(cf, lines.join("\n"));
+          console.log("Version set to " + v);
+          '@ | Set-Content -Path "$env:RUNNER_TEMP/set-version.cjs" -Encoding utf8
+          node "$env:RUNNER_TEMP/set-version.cjs"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .
+          shared-key: release
+          save-if: false
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate release notes
+        id: notes
+        shell: pwsh
+        run: |
+          # One bullet per commit since the previous tag (GitHub's generated notes list only PRs).
+          $tag = "${{ github.ref_name }}"
+          $prev = git describe --tags --abbrev=0 "$tag^" 2>$null
+          $range = if ($LASTEXITCODE -eq 0 -and $prev) { "$prev..$tag" } else { $tag }
+          $commits = git log --no-merges --format="* %s" $range | Where-Object { $_ -notmatch 'Co-Authored-By' }
+          $body = if ($commits) { ($commits -join "`n") } else { "* Maintenance release" }
+          if ($prev) { $body += "`n`n**Full Changelog**: https://github.com/${{ github.repository }}/compare/$prev...$tag" }
+          $delim = "NOTES_EOF_$([guid]::NewGuid().ToString('N'))"
+          "body<<$delim" >> $env:GITHUB_OUTPUT
+          $body >> $env:GITHUB_OUTPUT
+          $delim >> $env:GITHUB_OUTPUT
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Hopper ${{ github.ref_name }}
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: false
+          prerelease: false
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true

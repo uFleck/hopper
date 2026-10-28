@@ -1,0 +1,12 @@
+hopper: 2
+kind: request
+id: 01JBXE0000000000000000008H
+name: Slow response (3s)
+method: GET
+url: '{{httpbin}}/delay/3'
+body:
+  type: none
+auth:
+  type: inherit
+notes: |
+  Use to test the in-flight mascot state and Cancel.

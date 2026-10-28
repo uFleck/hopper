@@ -1,0 +1,17 @@
+[workspace]
+resolver = "3"
+members = ["crates/hopper-core", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Bruno Koster"]
+license = "MIT"
+repository = "https://github.com/uFleck/hopper"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

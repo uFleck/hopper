@@ -1,0 +1,12 @@
+{
+  "env": "staging",
+  "id": "01J0000000000000000000000D",
+  "method": "GET",
+  "requestId": "01J0000000000000000000000A",
+  "sentAt": "2026-01-01T00:00:00Z",
+  "sizeBytes": 40,
+  "status": 200,
+  "totalMs": 12,
+  "url": "https://api.example.com/users",
+  "via": "mcp"
+}

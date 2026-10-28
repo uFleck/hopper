@@ -1,0 +1,23 @@
+hopper: 2
+kind: request
+id: 01JBXE0000000000000000002B
+name: Echo query params
+method: GET
+url: '{{httpbin}}/get'
+query:
+- name: user
+  value: ada
+- name: includeRoles
+  value: 'true'
+- name: expand
+  value: roles
+  enabled: false
+headers:
+- name: Accept
+  value: application/json
+body:
+  type: none
+auth:
+  type: inherit
+notes: |
+  The disabled `expand` row must not be sent. Check the echoed `args`.

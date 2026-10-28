@@ -1,0 +1,191 @@
+/* The companion panel: one vertical column, 640 px wide by default (the widthPreset setting), 16 px in from the screen edge it is docked to. */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* The app window is transparent so the panel's rounded corners show; a plain page has nothing behind it. */
+body {
+  background: transparent;
+  color: var(--text-primary);
+  font: 14px/1.4 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+.panel {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  height: 100vh;
+  padding: var(--pad);
+  background: var(--bg-surface);
+  border-radius: var(--r-xl);
+  animation: panel-in 0.55s var(--spring) both;
+}
+
+/* The frame is an overlay, so production can recolour it without moving anything. */
+.panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--border-default);
+  transition: box-shadow 0.4s var(--ease);
+}
+.panel[data-env="production"]::after { box-shadow: inset 0 0 0 2px var(--err), inset 0 0 28px color-mix(in srgb, var(--err) 16%, transparent); }
+
+@keyframes panel-in { from { opacity: 0; transform: translateX(var(--from, 40px)) scale(0.97); } }
+html[data-side="left"] .panel { --from: -40px; }
+html[data-shell="web"] body { background: var(--bg-page); }
+
+/* Collapsing: the panel draws back toward the edge it is docked to. The window shrinks after COLLAPSE (panel.rs). */
+.panel.is-leaving {
+  pointer-events: none;
+  transform-origin: var(--origin, right) center;
+  animation: panel-out 0.28s cubic-bezier(0.5, 0, 0.75, 0.4) both;
+}
+html[data-side="left"] .panel.is-leaving { --origin: left; }
+@keyframes panel-out { to { opacity: 0; transform: translateX(calc(var(--from, 40px) * 1.4)) scale(0.92); } }
+
+/* Kept mounted while the floating Hopper is collapsed, so a half-written request survives. */
+.panel.is-collapsed { display: none; }
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.panel-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.workspace-name {
+  display: block;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-missing {
+  margin: 0;
+  color: var(--text-tertiary);
+}
+
+.search input {
+  box-sizing: border-box;
+  width: 100%;
+  height: calc(var(--ctl) + 6px);
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--bg-page);
+}
+
+.search input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.search input:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.recent {
+  min-height: 0;
+  padding-top: var(--pad);
+  border-top: 1px solid var(--border-default);
+}
+
+.recent-title {
+  margin: 0 0 6px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.recent-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.recent-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  height: var(--ctl);
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--r);
+  background: var(--bg-elevated);
+  cursor: pointer;
+}
+
+.recent-chip:hover {
+  border-color: var(--border-strong);
+}
+
+.recent-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.recent-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-empty {
+  margin: 0;
+  color: var(--text-tertiary);
+}
+
+/* Mascot: a pixel hopper. State only changes the motion: z while asleep, an item dropping while sending, a bobbing ! for approvals. */
+
+.mascot { position: relative; display: inline-grid; flex: none; place-items: center; }
+.mascot-z, .mascot-bang { position: absolute; font-style: normal; pointer-events: none; opacity: 0; font-family: var(--font-pixel); }
+.mascot-z { top: -4px; right: -2px; color: var(--text-tertiary); font-size: 12px; font-weight: 600; }
+.mascot-bang { top: -7px; right: -3px; color: var(--s4); font-size: 16px; font-weight: 600; }
+.mascot-item { position: absolute; top: -6px; left: 50%; margin-left: -8px; opacity: 0; pointer-events: none; }
+
+.mascot--sleeping .mascot-z { opacity: 1; animation: mascot-zz 3.2s ease-in-out infinite; }
+.mascot--sending .mascot-item { animation: mascot-drop 0.7s cubic-bezier(0.5, 0, 1, 0.6) infinite; }
+.mascot--sending .mascot-hop { animation: mascot-jiggle 0.7s ease-in-out infinite; }
+.mascot--agent .mascot-item { opacity: 1; top: -4px; animation: mascot-hover 0.8s ease-in-out infinite; }
+.mascot--approval .mascot-bang { opacity: 1; animation: mascot-hover 0.7s ease-in-out infinite; }
+.mascot--error .mascot-hop { filter: sepia(1) saturate(6) hue-rotate(-50deg); }
+
+@keyframes mascot-zz { 0%, 100% { transform: none; opacity: 0; } 30% { opacity: 1; } 70% { transform: translate(5px, -7px); opacity: 0; } }
+@keyframes mascot-drop { 0% { transform: translateY(-4px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(18px) scale(0.55); opacity: 0; } }
+@keyframes mascot-jiggle { 50% { transform: translateX(0.6px) rotate(1.8deg); } }
+@keyframes mascot-hover { 50% { transform: translateY(-3px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot *, .panel {
+    animation: none !important;
+  }
+}

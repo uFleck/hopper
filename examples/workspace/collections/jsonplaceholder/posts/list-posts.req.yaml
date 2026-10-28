@@ -1,0 +1,13 @@
+hopper: 2
+kind: request
+id: 01JBXE000000000000000000DP
+name: List posts
+method: GET
+url: '{{jsonplaceholder}}/posts'
+query:
+- name: userId
+  value: '1'
+body:
+  type: none
+auth:
+  type: inherit

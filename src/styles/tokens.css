@@ -1,0 +1,61 @@
+/* Design tokens shared by the panel: the Circuit theme. Night is the default; `tokens-light.css` holds day.
+   The older token names (--bg-*, --text-*, --accent...) stay, so every surface follows the theme. */
+
+:root {
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: cubic-bezier(0.2, 0.9, 0.25, 1.15);
+  --fast: 140ms;
+  --med: 260ms;
+  --font-ui: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+  --font-pixel: "Pixelify Sans", "JetBrains Mono", Consolas, monospace;
+  --r: 8px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --pad: 16px;
+  --ctl: 36px;
+}
+
+:root {
+  color-scheme: dark;
+  --bg-page: #0f1219;
+  --bg-surface: #151922;
+  --bg-elevated: #1d2230;
+  --border-default: #2a3042;
+  --border-strong: #3b445c;
+  --text-primary: #eef0f6;
+  --text-secondary: #aab1c3;
+  --text-tertiary: #6f778d;
+  --accent: #7d98ff;
+  --accent-hover: #9bb0ff;
+  --accent-text: #9bb0ff;
+  --on-accent: #0b1030;
+  --accent-soft: rgba(125, 152, 255, 0.16);
+  --hover-tint: rgba(255, 255, 255, 0.05);
+  --press-tint: rgba(255, 255, 255, 0.09);
+  --sel-bg: rgba(125, 152, 255, 0.18);
+  --sel-fg: #ffffff;
+  --ok: #3ddc84;
+  --warn: #f2b73a;
+  --err: #ff6050;
+  --i1: #7d98ff;
+  --i2: #3ddc84;
+  --i3: #ff9b6a;
+  --i4: #c39bff;
+  --i5: #f2b73a;
+  /* circuit: wire, status colours (2xx..5xx), method colours, glow */
+  --wire: #4a2c2c;
+  --hop-k: #05070b;
+  --hop-L: #e4e7eb;
+  --hop-G: #a3aab5;
+  --hop-D: #4b505b;
+  --glow: #ffd75e;
+  --s2: #3ddc84;
+  --s3: #5ab8f5;
+  --s4: #f2b73a;
+  --s5: #ff6050;
+  --shadow-pop: 0 14px 34px rgba(0, 0, 0, 0.55);
+  --ring: 0 0 0 2px rgba(125, 152, 255, 0.6);
+  --scroll: rgba(255, 255, 255, 0.1);
+  --scroll-h: rgba(255, 255, 255, 0.22);
+}

@@ -1,0 +1,10 @@
+hopper: 2
+kind: request
+id: 01JBXE000000000000000000BM
+name: Gzip response
+method: GET
+url: '{{httpbin}}/gzip'
+body:
+  type: none
+auth:
+  type: inherit

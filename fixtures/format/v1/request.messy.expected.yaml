@@ -1,0 +1,24 @@
+hopper: 2
+kind: request
+id: 01JBX7Q4M8K3Z2N5V6T9R0YHAE
+name: Upload
+method: POST
+url: https://example.com/upload
+body:
+  type: multipart
+  parts:
+  - name: note
+    value: hello
+  - name: file
+    file: ./a.png
+    enabled: false
+auth:
+  type: apiKey
+  name: X-Key
+  value: '{{apiKey}}'
+  in: header
+futureField:
+  keep:
+  - 1
+  - 2
+  - 3

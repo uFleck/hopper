@@ -1,0 +1,12 @@
+hopper: 2
+kind: request
+id: 01JBXE0000000000000000007G
+name: Status 404
+method: GET
+url: '{{httpbin}}/status/404'
+body:
+  type: none
+auth:
+  type: inherit
+notes: |
+  Error status rendering.

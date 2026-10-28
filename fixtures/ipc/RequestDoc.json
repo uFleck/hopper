@@ -1,0 +1,40 @@
+{
+  "auth": {
+    "token": "{{token}}",
+    "type": "bearer"
+  },
+  "body": {
+    "content": "{\"a\":1}",
+    "type": "json"
+  },
+  "followRedirects": true,
+  "headers": [
+    {
+      "enabled": false,
+      "name": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "id": "01J0000000000000000000000A",
+  "method": "GET",
+  "name": "Get user",
+  "notes": "note",
+  "pathParams": {
+    "id": "1"
+  },
+  "query": [
+    {
+      "enabled": true,
+      "name": "expand",
+      "value": "roles"
+    }
+  ],
+  "source": {
+    "hash": "sha256:abc",
+    "key": "GET /users/{id}",
+    "orphaned": false,
+    "spec": "api"
+  },
+  "timeoutMs": 5000,
+  "url": "{{baseUrl}}/users/{id}"
+}

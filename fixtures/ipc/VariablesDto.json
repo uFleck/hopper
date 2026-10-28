@@ -1,0 +1,16 @@
+{
+  "revision": "sha256:abc",
+  "target": {
+    "collection": "api",
+    "path": [
+      "users"
+    ],
+    "type": "folder"
+  },
+  "variables": [
+    {
+      "name": "a",
+      "value": "b"
+    }
+  ]
+}

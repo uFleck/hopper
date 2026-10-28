@@ -1,0 +1,9 @@
+hopper: 2
+kind: folder
+name: Posts
+order:
+- list-posts
+- get-post
+- create-post
+- update-post
+- delete-post

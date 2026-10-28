@@ -1,0 +1,14 @@
+hopper: 2
+kind: request
+id: 01JBXE000000000000000000CN
+name: Path param
+method: GET
+url: '{{httpbin}}/anything/{id}'
+pathParams:
+  id: '42'
+body:
+  type: none
+auth:
+  type: inherit
+notes: |
+  `{id}` is a path param; `{{httpbin}}` is a variable.

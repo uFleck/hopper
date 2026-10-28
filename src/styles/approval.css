@@ -1,0 +1,55 @@
+/* In-panel approval tray: non-modal, slides up over the panel. */
+
+.ap-layer { position: absolute; inset: 0; z-index: 50; pointer-events: none; }
+.ap-dialog { position: absolute; left: 12px; right: 12px; bottom: 12px; box-sizing: border-box; max-height: calc(100% - 24px); overflow-y: auto; pointer-events: auto; border-radius: 18px; background: var(--bg-surface); box-shadow: var(--shadow-pop), 0 0 0 1px var(--border-strong); animation: ap-tray-in 0.6s var(--spring); }
+.ap-dialog:focus { outline: none; }
+.ap-dialog.shake { animation: ap-shake 0.4s; }
+@keyframes ap-tray-in { from { transform: translateY(130%); } to { transform: none; } }
+@keyframes ap-shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+
+.ap-card { position: relative; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; padding: 14px; overflow: hidden; border: 0; border-radius: 18px; background: transparent; }
+.ap-card.is-production { background: color-mix(in srgb, var(--err) 10%, var(--bg-surface)); box-shadow: inset 0 0 0 2px var(--err); }
+.ap-dialog > .ap-card { animation: ui-pop var(--fast) var(--ease); }
+
+.ap-dust { display: flex; gap: 4px; margin: 2px 0 0; }
+.ap-dust i { flex: 1; height: 5px; border-radius: 3px; background: var(--border-default); animation: ap-dust linear forwards; }
+@keyframes ap-dust { to { background: var(--err); box-shadow: 0 0 8px color-mix(in srgb, var(--err) 60%, transparent); } }
+
+.ap-head { display: flex; align-items: center; gap: 12px; margin-top: 2px; }
+.ap-head > i { flex: none; color: var(--err); font-size: 22px; }
+.ap-title { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.ap-queue { padding: 1px 8px; border-radius: 9px; background: var(--hover-tint); color: var(--text-secondary); font-size: 13px; font-variant-numeric: tabular-nums; }
+.ap-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--bg-elevated); font: 500 13.5px var(--font-mono); }
+.ap-name { min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.ap-meta .ui-chip { margin-left: auto; }
+.ap-card.is-production .ap-meta .ui-chip--env { color: var(--err); }
+.ap-prod { display: flex; align-items: center; gap: 6px; margin: 0; padding: 6px 10px; border-radius: 12px; background: var(--err); color: #1a0502; font-weight: 600; }
+.ap-reason { margin: 0; color: var(--text-secondary); font-size: 14px; }
+.ap-req { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 12px; background: var(--bg-elevated); }
+.ap-line { display: flex; align-items: flex-start; gap: 8px; }
+.ap-url { min-width: 0; font: 13px var(--font-mono); overflow-wrap: anywhere; }
+.ap-headers { display: flex; flex-direction: column; gap: 2px; margin: 0; font: 13px var(--font-mono); }
+.ap-headers div { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-headers dt { color: var(--text-tertiary); }
+.ap-headers dt::after { content: ":"; }
+.ap-headers dd { margin: 0; overflow-wrap: anywhere; }
+.ap-body { max-height: 120px; margin: 0; overflow: auto; font: 13px var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ap-state { margin: 0; color: var(--text-tertiary); font-size: 13px; }
+.ap-card.is-arming .ap-state { color: var(--warn); }
+
+.ap-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ap-actions .ui-btn { white-space: normal; height: auto; min-height: var(--ctl); padding: 10px; border-radius: 12px; font-weight: 650; }
+.ap-actions .ui-btn:not(:disabled):hover { transform: translateY(-1px); }
+.ap-actions .ui-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.ap-actions .ap-allow_once { grid-column: 1; grid-row: 1; background: var(--text-primary); color: var(--bg-surface); }
+.ap-actions .ap-always_allow { grid-column: 2; grid-row: 1; background: var(--bg-elevated); color: var(--text-primary); }
+.ap-actions .ap-allow_session { grid-column: 1; grid-row: 2; background: var(--bg-elevated); color: var(--text-primary); }
+.ap-actions .ap-deny { grid-column: 2; grid-row: 2; }
+.ap-actions .ap-block { grid-column: 1 / -1; grid-row: 3; background: transparent; color: var(--err); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--err) 40%, transparent); }
+.ap-card.is-arming .ap-actions { opacity: 0.55; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ap-dialog, .ap-dust i { animation-duration: 0.01ms !important; }
+  .ap-dust i { animation-delay: 0ms !important; }
+}
+.ap-card.is-production .ap-meta .ui-chip--env { background: color-mix(in srgb, var(--err) 14%, transparent); color: var(--err); }

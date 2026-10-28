@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hopper redesign mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=JetBrains+Mono:wght@400;500&family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root { color-scheme: dark; --bg: #0f1117; --card: #171a22; --line: #2a303d; --text: #e9ebf1; --text2: #a6adbd; --text3: #6e768a; }
+* { box-sizing: border-box; margin: 0; }
+body { font: 400 15px/1.55 "Bricolage Grotesque", system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 56px 24px 80px; }
+main { max-width: 1040px; margin: 0 auto; }
+h1 { font: 600 44px/1.05 "Pixelify Sans", monospace; letter-spacing: .01em; }
+.lead { max-width: 60ch; color: var(--text2); margin: 14px 0 40px; font-size: 16px; }
+.dirs { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; }
+.dir { display: grid; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; text-decoration: none; color: inherit; transition: transform .35s cubic-bezier(.2, .9, .25, 1.1), border-color .2s; }
+.dir:hover { transform: translateY(-4px); border-color: #5a6580; }
+.dir img { width: 100%; height: 300px; object-fit: cover; object-position: right top; display: block; background: #0b0d12; }
+.dir div { padding: 18px 20px 22px; }
+.dir h2 { font-size: 20px; letter-spacing: -.01em; margin-bottom: 4px; }
+.dir p { color: var(--text2); font-size: 14px; }
+.dir b { color: var(--text); font-weight: 600; }
+h3 { font-size: 18px; margin: 48px 0 12px; letter-spacing: -.01em; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 32px; }
+ul { padding-left: 18px; color: var(--text2); } li { margin: 5px 0; } li b { color: var(--text); font-weight: 600; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; } td, th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; } th { color: var(--text3); font-weight: 500; }
+code, kbd { font: 500 12.5px "JetBrains Mono", monospace; background: #1f2430; padding: 1px 6px; border-radius: 4px; }
+.note { margin-top: 40px; padding: 14px 16px; border-left: 3px solid #f5c542; background: #1c1b14; color: var(--text2); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Hopper, redesigned</h1>
+  <p class="lead">Circuit is the chosen direction; the blocky Minecraft skin is hidden inside it. Both are interactive HTML mockups: open one, press <kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>H</kbd>, type in the search box, send a request. The controls on the left of each page jump between states. Neither touches the real app yet.</p>
+
+  <div class="dirs">
+    <a class="dir" href="b-circuit.html"><img src="shots/b-sent.png" alt="Circuit"><div><h2>Circuit <span style="color:#6fd11f;font-size:13px">chosen</span></h2><p>Light, calm, <b>mouse friendly</b>. The environment is a lever that is always in view. A redstone wire runs from environment to request to response and lights while a request is in flight. History is the tray of items your hopper has collected.</p></div></a>
+    <a class="dir" href="b-circuit.html?skin=blocks"><img src="shots/k-sent.png" alt="Circuit, blocky skin"><div><h2>Circuit, blocky skin <span style="color:#f5c542;font-size:13px">easter egg</span></h2><p>Hit the mascot <b>seven times</b> (or type <code>/resourcepack blocky</code>). A dirt-screen wipe loads the pack: inventory bevels, black text fields, stepped redstone wire, and a <b>nine-slot hotbar</b> replaces the tray. Seven more clicks switch back.</p></div></a>
+  </div>
+  <p style="margin-top:18px;color:var(--text3);font-size:14px">The earlier standalone <a href="a-hotbar.html" style="color:var(--text2)">Hotbar direction</a> is kept for reference; its pieces now live inside the blocky skin.</p>
+
+  <h3>How Circuit and the old Hotbar direction compare</h3>
+  <table>
+    <tr><th></th><th>Hotbar (reference)</th><th>Circuit (chosen)</th></tr>
+    <tr><td>Home</td><td>Search, then recent list</td><td>Search, then pinned lamps, then recent</td></tr>
+    <tr><td>Pinning</td><td>Slots 1-9, always visible, number keys send</td><td>Lamp tiles on home; each bulb shows the last result</td></tr>
+    <tr><td>Environment</td><td>Pill in the header, menu, full sheet for secrets</td><td>Four-notch lever under the header, one tap, always visible</td></tr>
+    <tr><td>Production guard</td><td>Hold Send; the button cracks like a block and breaks</td><td>Flip the Arm switch (expires in 5 s), then Send</td></tr>
+    <tr><td>Agent approval</td><td>Modal trade. Arrow fills for 1.1 s before buttons unlock</td><td>Non-modal tray that slides up. Redstone dust lights across before unlock</td></tr>
+    <tr><td>History</td><td>Recent list on home</td><td>Item tray in the footer, newest drops in at the left</td></tr>
+    <tr><td>Feel</td><td>Pixel-notched, inventory slots, stepped bevels</td><td>Soft cards, big radii, glowing lamps</td></tr>
+  </table>
+
+  <h3>UX changes in both</h3>
+  <div class="cols">
+    <ul>
+      <li><b>One orchestrated entrance.</b> The panel springs in from its edge and its contents stagger up once per open. Nothing else animates unprompted except the mascot.</li>
+      <li><b>Search collapses when you open a request</b>, giving the response the space. <kbd>Esc</kbd> or <kbd>/</kbd> brings it back.</li>
+      <li><b>Request details are folded.</b> You see param, header and body counts; open them only when needed.</li>
+      <li><b>Variables show their value on hover</b> and take the environment colour, so you can see where a request will go.</li>
+      <li><b>Click any response value to copy it.</b></li>
+    </ul>
+    <ul>
+      <li><b>Errors give a next step.</b> 404 shows the server's hint, 500 offers <i>Copy trace id</i>, 402 and 418 explain themselves.</li>
+      <li><b>OpenAPI routes appear in search</b> with a one-click Save, so finding a route and saving it is one motion.</li>
+      <li><b>Production is never subtle.</b> The panel frame turns red, and writes need a deliberate gesture.</li>
+      <li><b>Approvals can't be hit by accident.</b> Buttons start disabled, <kbd>Esc</kbd> shakes the dialog instead of closing it.</li>
+      <li><b>Secrets show only set or missing</b>, drawn as enchanting-table glyphs.</li>
+    </ul>
+  </div>
+
+  <h3>Minecraft easter eggs (spoilers)</h3>
+  <div class="cols">
+    <ul>
+      <li>Time is also shown in <b>ticks</b> (50 ms) and size in <b>stacks</b> (64 bytes), next to the real units.</li>
+      <li>A <b>creeper hisses</b> over the mascot on a 5xx; the funnel returns afterwards.</li>
+      <li>The mascot is a pixel hopper. It sleeps, jiggles while sending, and shows a <b>!</b> for approvals. Click it five times.</li>
+      <li>Agent approvals are a <b>villager trade</b>; blocking one makes it shake its head.</li>
+    </ul>
+    <ul>
+      <li><b>Slash commands</b> in the search box: <code>/time set day</code> (light theme), <code>/weather rain</code>, <code>/give diamond</code>, <code>/gamemode creative</code> (A), <code>/kill</code>, <code>/seed</code>, <code>/help</code>. Paths such as <code>/users</code> still search normally.</li>
+      <li><kbd>F3</kbd> opens a debug overlay (fps, ticks, panel size, MCP port, <i>secrets in frontend: 0</i>).</li>
+      <li><b>Seven mascot clicks</b> load the blocky resource pack (dirt wipe, hotbar, <kbd>1</kbd>-<kbd>9</kbd> fire pinned requests). <code>/resourcepack blocky</code> does the same.</li>
+      <li>The Konami code rains gems. A clickable redstone wire is in there too.</li>
+      <li>Empty search: <i>Not even a block of dirt.</i> First run has a rotating splash text.</li>
+    </ul>
+  </div>
+
+  <p class="note">All art is drawn from scratch as small pixel grids in <code>shared.js</code>; no Mojang textures, fonts or sounds, in line with the plan's note that Hopper's mascot is original. The mockups respect <code>prefers-reduced-motion</code>, keep a visible focus ring, and add <code>?still</code> to the URL to freeze animations for screenshots.</p>
+</main>
+</body>
+</html>
