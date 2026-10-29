@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
-import { cancel, closeRequest, refreshScopeVars, saveRequest, scopeLayers, scopeTargets, selectDraftRun, send, editDraft, useStore } from "../store";
+import { cancel, closeRequest, loadCollectionAuth, refreshScopeVars, saveRequest, scopeLayers, scopeTargets, selectDraftRun, send, editDraft, useStore } from "../store";
 import { confirm, cx, envClass } from "../ui";
 import { AddVariableDialog } from "./request/AddVariableDialog";
 import { Banners } from "./request/Banners";
-import { resolveEnv, sectionCounts, varInfo } from "./request/logic";
+import { MissingSecretBanner } from "./request/MissingSecretBanner";
+import { resolveEnv, sectionCounts, varInfo, variableOptions } from "./request/logic";
 import { RequestCrumb, RequestHeader } from "./request/RequestHeader";
 import { RequestSections } from "./request/RequestSections";
 import { SaveDialog } from "./request/SaveDialog";
 import { ResponsePane, runTone } from "./response/ResponsePane";
 import "../styles/request.css";
+import "../styles/collection.css";
 import "../styles/response.css";
 
 /** The request editor with its response: stacked in a narrow panel, side by side from about 640 px. */
@@ -18,6 +20,7 @@ export default function RequestView() {
   const collection = useStore((s) => s.draft?.base.collection);
   const env = useMemo(() => resolveEnv(stageDto, collection), [stageDto, collection]);
   const run = useStore(selectDraftRun);
+  const inheritedAuth = useStore((s) => (s.draft?.base.collection ? s.collectionAuth[s.draft.base.collection]?.auth : undefined));
   const [picking, setPicking] = useState(false);
   const [armed, setArmed] = useState(false);
   const resp = useRef<HTMLElement>(null);
@@ -28,15 +31,10 @@ export default function RequestView() {
   const addingVariable = useStore((s) => s.addingVariable);
   const targets = useMemo(() => scopeTargets(collection, folderKey ? folderKey.split("/") : [], savedId), [collection, folderKey, savedId]);
   useEffect(() => void refreshScopeVars(), [targets]);
+  useEffect(() => void (collection && loadCollectionAuth(collection)), [collection]);
 
-  const info = useMemo(() => varInfo(env, scopeLayers(scopeVars, targets)), [env, scopeVars, targets]);
-  const variables = useMemo(
-    () => [
-      ...[...info.values].map(([name, value]) => ({ name, detail: value })),
-      ...[...info.secrets].map(([name, status]) => ({ name, detail: status === "set" ? "secret" : "secret, missing" })),
-    ],
-    [info],
-  );
+  const info = useMemo(() => varInfo(env, scopeLayers(scopeVars, targets), collection ?? null), [env, scopeVars, targets, collection]);
+  const variables = useMemo(() => variableOptions(info), [info]);
 
   const runId = draft?.runId;
   useEffect(() => {
@@ -95,6 +93,7 @@ export default function RequestView() {
       <RequestCrumb draft={draft} onSave={() => void save()} onBack={() => void back()} />
       <div className="rv-main">
         <Banners draft={draft} />
+        <MissingSecretBanner doc={draft.doc} info={info} collection={collection ?? null} inherited={inheritedAuth} onSend={() => void doSend()} busy={inFlight} />
         <div className={cx("rv-circuit", run && "is-powered", inFlight && "is-live")} style={{ "--rc": tone } as CSSProperties}>
           <span className="rv-wire" aria-hidden="true"><i className="rv-spark" /></span>
 
@@ -125,7 +124,7 @@ export default function RequestView() {
         </div>
       </div>
       {picking && <SaveDialog onClose={() => setPicking(false)} />}
-      {addingVariable && <AddVariableDialog name={addingVariable} collection={collection ?? null} stage={stageDto ?? null} />}
+      {addingVariable && <AddVariableDialog name={addingVariable} collection={collection ?? null} />}
     </div>
   );
 }

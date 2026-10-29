@@ -30,7 +30,7 @@ import {
   type SheetName,
 } from "./reducers";
 import { scopeTargets, targetKey, withVariable } from "./scopes";
-import { initialSearch, initialState, store, type Toast, type ToastKind } from "./state";
+import { initialSearch, initialState, store, type CollectionTab, type Toast, type ToastKind } from "./state";
 import type { Auth, CollectionAuthDto, NameValue, Stage, VarTargetDto, VariablesDto } from "../ipc/types";
 import { confirm } from "../ui/overlays";
 
@@ -75,6 +75,12 @@ export const setRoute = (route: Route) => setState({ route });
 export const openSheet = (sheet: SheetName) => setState({ sheet, agentTab: null });
 export const openAgentSheet = (agentTab: AgentTab) => setState({ sheet: "agent", agentTab });
 export const closeSheet = () => setState({ sheet: null });
+/** Opens the Environments sheet on one stage's section of an application (allowed hosts, TLS, everything about it). */
+export const openEnvSettings = (stage: Stage, application: string) => setState({ sheet: "environments", agentTab: null, envFocus: { stage, application } });
+/** Opens the Collections sheet on one collection and tab. */
+export const openCollection = (slug: string, tab: CollectionTab = "requests") => setState({ sheet: "collections", agentTab: null, collectionFocus: { slug, tab } });
+export const clearEnvFocus = () => setState({ envFocus: null });
+export const clearCollectionFocus = () => setState({ collectionFocus: null });
 
 // -------------------------------------------------------------------------------------- workspace
 

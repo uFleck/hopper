@@ -161,19 +161,22 @@
 .rv-kind .ui-select-btn { gap: 4px; padding: 0 6px; }
 
 .rv-varinput { position: relative; display: block; min-width: 0; }
-.rv-varadd { position: absolute; top: 50%; right: 4px; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: var(--accent-soft); color: var(--accent-text); font-size: 13px; cursor: pointer; transform: translateY(-50%); }
-.rv-varadd:hover { background: var(--accent); color: var(--bg-surface); }
-.rv-suggest { position: absolute; top: calc(100% + 2px); left: 0; z-index: 30; min-width: 200px; max-width: 90vw; margin: 0; padding: 4px; list-style: none; border: 1px solid var(--border-strong); border-radius: var(--r); background: var(--bg-elevated); box-shadow: var(--shadow-pop); font: 13px var(--font-mono); }
-.rv-suggest li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
-.rv-suggest li:hover { background: var(--hover-tint); }
+.rv-varadd { position: absolute; top: 50%; right: 4px; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; background: color-mix(in srgb, var(--err) 16%, transparent); color: var(--err); font-size: 15px; cursor: pointer; transform: translateY(-50%); }
+.rv-varadd:hover { background: var(--err); color: var(--bg-surface); }
+.rv-varinput .ui-input.is-invalid { padding-right: 32px; }
+.rv-suggest { position: absolute; top: calc(100% + 2px); left: 0; z-index: 30; box-sizing: border-box; min-width: 260px; max-width: min(100%, 90vw); max-height: 240px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; border: 1px solid var(--border-strong); border-radius: var(--r); background: var(--bg-elevated); box-shadow: var(--shadow-pop); font: 13px var(--font-mono); }
+.rv-suggest li { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; cursor: pointer; }
 .rv-suggest li.is-on { background: var(--sel-bg); color: var(--sel-fg); }
-.rv-suggest-detail { overflow: hidden; color: var(--text-tertiary); text-overflow: ellipsis; white-space: nowrap; }
+.rv-suggest-name { flex: none; font-weight: 600; }
+.rv-suggest-kind { --k: var(--text-secondary); flex: none; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--k) 16%, transparent); color: var(--k); font: 600 11px var(--font-ui, inherit); }
+.rv-suggest-detail { flex: 1; min-width: 0; overflow: hidden; color: var(--text-tertiary); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.rv-suggest li.is-on .rv-suggest-detail { color: inherit; opacity: 0.75; }
+.rv-suggest .rv-suggest-none { display: block; color: var(--text-secondary); font: 13px var(--font-ui, inherit); line-height: 1.4; cursor: default; }
 
-/* Hover card of a {{variable}}: its type, where it lives and its value to edit. In the editors it floats at the token (.vp-float). */
-.rv-varpop { position: absolute; top: 100%; left: 0; z-index: 30; padding-top: 8px; }
+/* Card of a {{variable}}: its type, where it lives and its value to edit; for an undefined one, the fix. It floats at the token (.vp-float). */
 .vp-float { position: fixed; z-index: 1000; padding-top: 8px; }
 .vp-float[data-side="above"] { padding: 0 0 8px; }
-.rv-varpop .vp, .vp-float .vp { width: min(340px, calc(100vw - 16px)); border: 1px solid var(--border-strong); border-radius: 14px; background: var(--bg-elevated); box-shadow: var(--shadow-pop), 0 0 0 1px rgba(0, 0, 0, 0.15); animation: vp-in 140ms var(--ease) both; }
+.vp-float .vp { width: min(340px, calc(100vw - 16px)); border: 1px solid var(--border-strong); border-radius: 14px; background: var(--bg-elevated); box-shadow: var(--shadow-pop), 0 0 0 1px rgba(0, 0, 0, 0.15); animation: vp-in 140ms var(--ease) both; }
 @keyframes vp-in { from { opacity: 0; transform: translateY(-4px) scale(0.985); } }
 .vp-float[data-side="above"] .vp { animation-name: vp-in-up; }
 @keyframes vp-in-up { from { opacity: 0; transform: translateY(4px) scale(0.985); } }
@@ -202,6 +205,16 @@
 .vp-note--icon { display: flex; align-items: flex-start; gap: 8px; }
 .vp-note--icon i { flex: none; margin-top: 2px; color: var(--warn); font-size: 15px; }
 .vp-add { width: 100%; }
+.vp-similar { display: flex; flex-direction: column; gap: 6px; }
+.vp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.vp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--bg-page); color: var(--text-primary); font: 600 13px var(--font-mono); cursor: pointer; }
+.vp-chip span { color: var(--text-tertiary); font: 500 11.5px var(--font-ui, inherit); }
+.vp-chip:hover { border-color: var(--accent); background: var(--accent-soft); }
+.vp-scopes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vp-scope { padding: 3px 10px; border: 1px solid var(--border-default); border-radius: 999px; background: transparent; color: var(--text-secondary); font-size: 12.5px; cursor: pointer; }
+.vp-scope:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.vp-scope.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); font-weight: 650; }
+.vp-link { padding: 0; border: 0; background: none; color: var(--accent-text); font: inherit; text-decoration: underline; cursor: pointer; }
 
 .rv-pathparam { display: grid; grid-template-columns: minmax(48px, 1fr) minmax(0, 3fr); align-items: center; gap: 6px; }
 .rv-pathparam-name { color: var(--accent-text); font: 13px var(--font-mono); overflow: hidden; text-overflow: ellipsis; }

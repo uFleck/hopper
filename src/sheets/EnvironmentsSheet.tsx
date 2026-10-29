@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toHopperError, type Stage, type StageDto } from "../ipc";
-import { closeSheet, refreshEnvironments, setActiveEnv, store, toast, useStore } from "../store";
+import { clearEnvFocus, closeSheet, refreshEnvironments, setActiveEnv, store, toast, useStore } from "../store";
 import { Button, Chip, Icon, Sheet, TextInput, confirm, cx, envClass } from "../ui";
 import { deleteEnvironment, saveEnvironment } from "./env/api";
-import { blankDraft, draftFromApp, draftToInput, hasErrors, isDirty, missingSecrets, validateDraft, type EnvDraft } from "./env/draft";
+import { blankDraft, draftFromApp, draftToInput, hasErrors, isDirty, validateDraft, type EnvDraft } from "./env/draft";
 import { EnvEditor } from "./env/EnvEditor";
 import { LegacyBanner } from "./env/Legacy";
-import { MissingSecretsList } from "./env/MissingSecrets";
+import { ReviewList } from "./env/ReviewList";
+import { STAGE_LABEL, secretGaps } from "./collection/matrix";
+import "../styles/collection.css";
 
 interface EditView {
   draft: EnvDraft;
@@ -24,8 +26,10 @@ export default function EnvironmentsSheet() {
   const [view, setView] = useState<EditView | null>(null);
   const [newApp, setNewApp] = useState("");
   const [saving, setSaving] = useState(false);
+  const [reviewing, setReviewing] = useState<Stage | null>(null);
 
-  const missing = useMemo(() => missingSecrets(environments), [environments]);
+  // Opened from a collection's "allowed hosts and TLS" link: go straight to that section.
+  const focus = useStore((s) => s.envFocus);
   const stage: StageDto | undefined = environments.find((e) => e.stage === stageName);
   const apps = stage?.applications.map((a) => a.application) ?? [];
   const live = view && stage && !view.draft.isNew ? stage.applications.find((a) => a.application === view.draft.application) : undefined;
@@ -39,7 +43,15 @@ export default function EnvironmentsSheet() {
     open(a ? draftFromApp(st, a) : { ...blankDraft(st.stage, application), expectedRevision: st.revision ?? undefined }, fill);
   };
 
+  useEffect(() => {
+    if (!focus) return;
+    const st = environments.find((e) => e.stage === focus.stage);
+    if (st) openApp(st, focus.application);
+    clearEnvFocus();
+  }, [focus, environments]);
+
   const back = async () => {
+    if (reviewing && !view) return setReviewing(null);
     if (view) {
       if (dirty && !(await confirm({ title: "Discard your changes?", message: `You have unsaved changes to ${view.draft.stage}/${view.draft.application || "a new application"}.`, confirmLabel: "Discard", tone: "danger" }))) return;
       return setView(null);
@@ -102,7 +114,7 @@ export default function EnvironmentsSheet() {
   };
 
   const editing = view && errors && stage;
-  const title = editing ? `${view.draft.stage}/${view.draft.application || "new application"}` : stage ? stage.stage : "Environments";
+  const title = editing ? `${view.draft.stage}/${view.draft.application || "new application"}` : reviewing ? `${STAGE_LABEL[reviewing]}: missing values` : stage ? stage.stage : "Environments";
   return (
     <Sheet
       open
@@ -122,6 +134,8 @@ export default function EnvironmentsSheet() {
       <datalist id="env-apps">{collections.map((c) => <option key={c.slug} value={c.slug} />)}</datalist>
       {editing ? (
         <EnvEditor key={view.key} draft={view.draft} onChange={(draft) => setView({ ...view, draft })} stage={stage} live={live} errors={errors} conflict={view.conflict} initialFill={view.fill} onReload={() => void reload()} onKeepMine={() => void keepMine()} onDelete={() => void remove()} />
+      ) : reviewing ? (
+        <ReviewList stage={reviewing} environments={environments} />
       ) : stage ? (
         <div className="sh-envlist">
           {stage.readOnly && <p className="sh-help">This stage file was written by a newer Hopper: read-only here.</p>}
@@ -150,25 +164,26 @@ export default function EnvironmentsSheet() {
       ) : (
         <div className="sh-envlist">
           <LegacyBanner />
-          <MissingSecretsList items={missing} onPick={(m) => { const st = environments.find((x) => x.stage === m.stage); if (st) openApp(st, m.application, m.name); }} />
           <ul className="sh-envs">
             {environments.map((e) => {
-              const miss = e.applications.flatMap((a) => a.secrets).filter((s) => s.status === "missing").length;
+              const gaps = secretGaps(environments, e.stage).length;
+              const apps = e.applications.length;
               return (
-                <li key={e.stage} className={cx("sh-env", envClass(e.stage), e.active && "is-active")}>
-                  <button type="button" className="sh-env-open" onClick={() => setStageName(e.stage)} aria-label={`Open ${e.stage}`}>
-                    <Chip env={e.stage} />
-                    <span className="sh-env-name">{e.stage}</span>
-                    {e.active && <Chip tone="accent"><Icon name="check" /> active</Chip>}
-                    {miss > 0 && <Chip tone="warn" title="Secrets without a value on this machine">{miss} missing</Chip>}
-                    {e.readOnly && <Chip>read-only</Chip>}
-                    <Icon name="caret-right" className="sh-env-go" />
+                <li key={e.stage} className={cx("ev-stage", envClass(e.stage), e.active && "is-active")}>
+                  <button type="button" className="ev-open" onClick={() => setStageName(e.stage)} aria-label={`Open ${e.stage}`}>
+                    <i className={cx("ev-dot", gaps > 0 ? "is-warn" : apps > 0 && "is-ok")} aria-hidden="true" />
+                    <span className="ev-main">
+                      <b>{e.stage} {e.active && <Chip tone="accent"><Icon name="check" /> active</Chip>} {e.readOnly && <Chip>read-only</Chip>}</b>
+                      <span className="cv-muted">{apps === 0 ? "No collections have values here yet" : `${apps} collection${apps === 1 ? "" : "s"} · ${gaps > 0 ? `${gaps} secret${gaps === 1 ? "" : "s"} without a value` : "all set"}`}</span>
+                    </span>
                   </button>
+                  {gaps > 0 && !e.readOnly && <Button size="sm" className="cs-warnbtn" onClick={() => setReviewing(e.stage)} aria-label={`Review the ${gaps} missing values in ${e.stage}`}>Review {gaps}</Button>}
                   {!e.active && <Button size="sm" onClick={() => void setActiveEnv(e.stage)} aria-label={`Use ${e.stage}`}>Use</Button>}
                 </li>
               );
             })}
           </ul>
+          <p className="cv-muted ev-note">Values live on each collection's Variables tab. This sheet is for what a whole stage shares: the active one, read-only, allowed hosts and agent rules.</p>
         </div>
       )}
     </Sheet>

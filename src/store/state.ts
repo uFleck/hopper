@@ -20,6 +20,8 @@ import type {
 import { createStore, useStoreSelector } from "./core";
 import type { AgentTab, DraftState, Route, RunState, SheetName } from "./reducers";
 
+export type CollectionTab = "requests" | "variables" | "auth" | "specs";
+
 export interface SearchState {
   query: string;
   tag: string | null;
@@ -62,6 +64,10 @@ export interface AppState {
   collectionAuth: Record<string, CollectionAuthDto>;
   /** A variable name the user asked to define from a hover: the in-app "add variable" dialog shows while set. */
   addingVariable: string | null;
+  /** Where the Environments sheet opens: one stage's section of an application. Consumed by the sheet. */
+  envFocus: { stage: Stage; application: string } | null;
+  /** Which collection (and tab) the Collections sheet opens on. Consumed by the sheet. */
+  collectionFocus: { slug: string; tab: CollectionTab } | null;
   settings: Settings | null;
   route: Route;
   sheet: SheetName | null;
@@ -92,6 +98,8 @@ export const initialState = (): AppState => ({
   scopeVars: {},
   collectionAuth: {},
   addingVariable: null,
+  envFocus: null,
+  collectionFocus: null,
   settings: null,
   route: "find",
   sheet: null,

@@ -100,7 +100,7 @@ export function RequestHeader({ draft, env, info, variables, run, needArm, armed
           readOnly={readOnly}
           known={info.known}
           variables={variables}
-          renderVariableTip={(name) => <VarPopover name={name} info={info} />}
+          renderVariableTip={(name, { rename }) => <VarPopover name={name} info={info} rename={rename} />}
           onSave={onSave}
           lineNumbers={false}
           wrap={false}

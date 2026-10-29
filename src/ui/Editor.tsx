@@ -8,9 +8,9 @@ import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/sea
 import { Compartment, EditorState, Facet, RangeSetBuilder, type Extension } from "@codemirror/state";
 import { Decoration, drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers, placeholder as cmPlaceholder, ViewPlugin, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useHoverCard } from "./useHoverCard";
+import { useCardPlacement, useHoverCard, type CardAnchor } from "./useHoverCard";
 
 export type EditorLanguage = "json" | "xml" | "html" | "text";
 
@@ -29,8 +29,8 @@ export interface EditorProps {
   known?: Set<string>;
   /** Offered after typing `{{`. */
   variables?: VariableOption[];
-  /** Hovering any `{{name}}` opens a card with this content; it stays open while its fields have focus. Leave out for no card. */
-  renderVariableTip?: (name: string) => ReactNode;
+  /** Hovering any `{{name}}` opens a card with this content; it stays open while its fields have focus. Leave out for no card. `rename` rewrites the hovered token. */
+  renderVariableTip?: (name: string, actions: { rename: (name: string) => void; close: () => void }) => ReactNode;
   /** Ctrl+S (Cmd+S). */
   onSave?: () => void;
   placeholder?: string;
@@ -80,23 +80,20 @@ const variableHighlighter = ViewPlugin.fromClass(
 );
 
 /** The `{{name}}` token around `pos` and where it starts, or null. */
-function variableAround(view: EditorView, pos: number): { name: string; from: number } | null {
+function variableAround(view: EditorView, pos: number): { name: string; from: number; to: number } | null {
   const line = view.state.doc.lineAt(pos);
   for (const m of line.text.matchAll(VAR_RE)) {
     const from = line.from + (m.index ?? 0);
-    if (pos >= from && pos <= from + m[0].length) return m[1] ? { name: m[1], from } : null;
+    if (pos >= from && pos <= from + m[0].length) return m[1] ? { name: m[1], from, to: from + m[0].length } : null;
   }
   return null;
 }
 
-interface VarHover {
+/** The hovered token, with the viewport coordinates of its bottom-left corner. */
+interface VarHover extends CardAnchor {
   name: string;
   from: number;
-  /** Viewport coordinates of the token's bottom-left corner. */
-  left: number;
-  top: number;
-  /** Viewport y of the token's top, for placing the card above it. */
-  above: number;
+  to: number;
 }
 
 function variableCompletions(ctx: CompletionContext) {
@@ -169,18 +166,7 @@ export function Editor({
   const hover = useHoverCard<VarHover>();
   const cb = useRef({ onChange, onSave, renderVariableTip, hover });
   cb.current = { onChange, onSave, renderVariableTip, hover };
-  const card = hover.cardProps.ref;
-  const at = hover.value;
-  // Keep the card on screen: slide it in from the right edge, and flip it above the token when there is no room below.
-  useLayoutEffect(() => {
-    const el = card.current;
-    if (!at || !el) return;
-    const { offsetWidth: w, offsetHeight: h } = el;
-    el.style.left = `${Math.max(8, Math.min(at.left, window.innerWidth - w - 8))}px`;
-    const below = at.top;
-    el.style.top = below + h > window.innerHeight - 8 && at.above - h > 8 ? `${at.above - h}px` : `${below}px`;
-    el.dataset.side = el.style.top === `${below}px` ? "below" : "above";
-  }, [at, card]);
+  useCardPlacement(hover.cardProps.ref, hover.value);
   const compartments = useRef({
     language: new Compartment(), editable: new Compartment(), known: new Compartment(), vars: new Compartment(),
     wrap: new Compartment(), gutter: new Compartment(),
@@ -217,6 +203,14 @@ export function Editor({
               }
               if (h.value?.from === hit.from && h.value.name === hit.name) h.keep();
               else h.showSoon({ ...hit, left: coords.left, top: coords.bottom, above: coords.top }, !!h.value);
+            },
+            click(e, v) {
+              // Clicking a token that nothing defines pins its card, so it can be fixed without aiming a hover.
+              const { renderVariableTip: render, hover: h } = cb.current;
+              const pos = render ? v.posAtCoords({ x: e.clientX, y: e.clientY }) : null;
+              const hit = pos === null ? null : variableAround(v, pos);
+              const coords = hit && v.coordsAtPos(hit.from);
+              if (hit && coords && v.state.facet(knownFacet) && !v.state.facet(knownFacet)!.has(hit.name)) h.show({ ...hit, left: coords.left, top: coords.bottom, above: coords.top });
             },
             mouseleave: () => void (cb.current.hover.value && cb.current.hover.closeSoon()),
             keydown: () => cb.current.hover.close(),
@@ -279,7 +273,16 @@ export function Editor({
       {hover.value && renderVariableTip &&
         createPortal(
           <div {...hover.cardProps} className="vp-float" style={{ left: hover.value.left, top: hover.value.top }}>
-            <div key={`${hover.value.name}@${hover.value.from}`}>{renderVariableTip(hover.value.name)}</div>
+            <div key={`${hover.value.name}@${hover.value.from}`}>
+              {renderVariableTip(hover.value.name, {
+                rename: (name) => {
+                  const { from, to } = hover.value!;
+                  view.current?.dispatch({ changes: { from, to, insert: `{{${name}}}` } });
+                  hover.close();
+                },
+                close: hover.close,
+              })}
+            </div>
           </div>,
           document.body,
         )}

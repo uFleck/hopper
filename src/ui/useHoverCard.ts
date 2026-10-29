@@ -1,4 +1,23 @@
-import { useCallback, useEffect, useRef, useState, type FocusEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type RefObject } from "react";
+
+/** Where a card hangs: the viewport coordinates of its anchor's bottom-left corner, and of the anchor's top for flipping above. */
+export interface CardAnchor {
+  left: number;
+  top: number;
+  above: number;
+}
+
+/** Keeps a `position: fixed` card on screen: slides in from the right edge, flips above the anchor when there is no room below. Sets `data-side`. */
+export function useCardPlacement(card: RefObject<HTMLElement | null>, at: CardAnchor | null) {
+  useLayoutEffect(() => {
+    const el = card.current;
+    if (!at || !el) return;
+    const { offsetWidth: w, offsetHeight: h } = el;
+    el.style.left = `${Math.max(8, Math.min(at.left, window.innerWidth - w - 8))}px`;
+    el.style.top = at.top + h > window.innerHeight - 8 && at.above - h > 8 ? `${at.above - h}px` : `${at.top}px`;
+    el.dataset.side = el.style.top === `${at.top}px` ? "below" : "above";
+  }, [at, card]);
+}
 
 /**
  * State of a card opened by hovering something. It closes a moment after the pointer leaves the target and the card,

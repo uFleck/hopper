@@ -49,7 +49,7 @@ export function BodySection({ body, onChange, info, variables, readOnly, onSave 
             readOnly={readOnly}
             known={info.known}
             variables={variables}
-            renderVariableTip={(name) => <VarPopover name={name} info={info} />}
+            renderVariableTip={(name, { rename }) => <VarPopover name={name} info={info} rename={rename} />}
             onSave={onSave}
             ariaLabel={`${LABEL[body.type]} body`}
             minHeight={110}

@@ -1,6 +1,7 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { AgentAccess, CollectionNode, TreeNode } from "../ipc";
 import {
+  clearCollectionFocus,
   closeSheet,
   createCollection,
   createFolder,
@@ -10,15 +11,19 @@ import {
   openRequest,
   setAgentAccess,
   useStore,
+  type CollectionTab,
 } from "../store";
 import { Button, Chip, ConfirmDialog, Field, Icon, Select, Sheet, TextInput, confirm } from "../ui";
 import { Menu, type MenuItem } from "../views/find/Menu";
 import "../styles/find.css";
+import "../styles/collection.css";
 import { ACCESS_LABEL, flattenRequests, folderOptions, optionKey, requestIdsIn } from "../views/find/model";
 import { AccessChip } from "../views/find/ResultRow";
 import SpecImportForm from "../views/find/SpecImportForm";
-import { CollectionAuth } from "./CollectionAuth";
-import { CollectionVariables } from "./CollectionVariables";
+import { AuthTab } from "./collection/AuthTab";
+import { CollectionTabs } from "./collection/CollectionTabs";
+import { STAGE_LABEL, secretGaps } from "./collection/matrix";
+import { VariablesTab } from "./collection/VariablesTab";
 
 type Creating = { collection: string; parent: string[] } | "collection" | null;
 
@@ -75,6 +80,21 @@ function CollectionsBody() {
   const [importing, setImporting] = useState<string | null>(null);
   const [moving, setMoving] = useState<{ id: string; name: string } | null>(null);
   const [moveTo, setMoveTo] = useState("");
+  const [current, setCurrent] = useState<string | null>(null);
+  const [tab, setTab] = useState<CollectionTab>("requests");
+  const environments = useStore((s) => s.environments);
+  const active = environments.find((e) => e.active)?.stage ?? null;
+
+  // Opened from elsewhere (a "fix it" button) on a collection and tab.
+  const focus = useStore((s) => s.collectionFocus);
+  useEffect(() => {
+    if (!focus) return;
+    setCurrent(focus.slug);
+    setTab(focus.tab);
+    clearCollectionFocus();
+  }, [focus]);
+  // Going back to the list or to another collection starts on the requests again.
+  useEffect(() => setSelected(new Set()), [current]);
 
   const flat = useMemo(() => flattenRequests(tree), [tree]);
   const known = useMemo(() => new Set(flat.map((r) => r.id)), [flat]);
@@ -191,67 +211,101 @@ function CollectionsBody() {
       );
     });
 
-  const renderCollection = (c: CollectionNode) => {
+  const renderRow = (c: CollectionNode) => {
+    const count = requestIdsIn(c.children).length;
+    const missing = active ? secretGaps(environments, active).filter((g) => g.application === c.slug).length : 0;
+    return (
+      <li key={c.slug}>
+        <button type="button" className="col-card" onClick={() => setCurrent(c.slug)} aria-label={`Open ${c.name}`}>
+          <Icon name="folders" className="col-head-icon" />
+          <span className="col-card-main">
+            <b>{c.name}</b>
+            <span className="cv-muted">{count} request{count === 1 ? "" : "s"}{c.specs[0] ? ` · ${c.specs[0].name}` : ""}</span>
+          </span>
+          {missing > 0 && active && <Chip tone="warn" title={`Secrets without a value in ${STAGE_LABEL[active]}`}>{missing} missing</Chip>}
+          <Icon name="caret-right" className="col-card-go" />
+        </button>
+      </li>
+    );
+  };
+
+  const renderDetail = (c: CollectionNode) => {
     const all = requestIdsIn(c.children);
     const gets = requestIdsIn(c.children, (r) => r.method === "GET");
+    const operations = c.specs.reduce((n, s) => n + s.operationCount, 0);
     return (
-      <section key={c.slug} className="col-block" aria-label={`Collection ${c.name}`}>
-        <div className="col-head">
-          <Icon name="folders" className="col-head-icon" />
-          <h3 className="col-head-name">{c.name}</h3>
-          <span className="col-count">{all.length}</span>
+      <section key={c.slug} className="col-detail" aria-label={`Collection ${c.name}`}>
+        <div className="col-detailhead">
+          <div className="col-detailname">
+            <span className="cv-muted">{all.length} request{all.length === 1 ? "" : "s"}{active ? ` · ${STAGE_LABEL[active]} environment` : ""}</span>
+          </div>
           <Menu
             label={`Collection ${c.name}`}
             items={[
               ...folderItems(c.slug, [], c.children, c.name).map((it) => (it.key === "sub" ? { ...it, label: "New folder" } : it)),
-              { key: "import", label: "Import spec", icon: "download-simple", separated: true, onSelect: () => setImporting(c.slug) },
+              { key: "import", label: "Import spec", icon: "download-simple", separated: true, onSelect: () => (setTab("specs"), setImporting(c.slug)) },
             ]}
             trigger={(p) => <MoreButton {...p} label={`Actions for collection ${c.name}`} />}
           />
         </div>
 
-        <ul className="col-specs" aria-label="Specs">
-          {c.specs.map((sp) => (
-            <li key={sp.name} className="col-spec">
-              <Icon name="file-code" />
-              <span className="col-spec-name" title={sp.url}>{sp.name}</span>
-              <span className="col-count">{sp.operationCount} operations</span>
-              {sp.importedAt && <span className="col-date">{new Date(sp.importedAt).toLocaleDateString()}</span>}
-            </li>
-          ))}
-          {!c.specs.length && <li className="col-spec col-spec--none">No spec imported</li>}
-        </ul>
-        <div className="col-block-actions">
-          <Button size="sm" icon="download-simple" onClick={() => setImporting(importing === c.slug ? null : c.slug)} aria-expanded={importing === c.slug}>Import spec</Button>
-          <Button size="sm" icon="folder-plus" onClick={() => setCreating({ collection: c.slug, parent: [] })}>New folder</Button>
-          {gets.length > 0 && (
-            <Button size="sm" icon="lightning" title="Set every GET request in this collection to Auto" onClick={() => void grant(gets, "auto", `All ${gets.length} GET requests in ${c.name}`)}>
-              Auto for all GET
-            </Button>
-          )}
-        </div>
-        <CollectionVariables slug={c.slug} name={c.name} />
-        <CollectionAuth slug={c.slug} name={c.name} />
-        {importing === c.slug && <SpecImportForm collection={c.slug} onDone={() => setImporting(null)} onCancel={() => setImporting(null)} />}
-        {creating && creating !== "collection" && creating.collection === c.slug && creating.parent.length === 0 && (
-          <NameForm label="Folder name" placeholder="Users" onCancel={() => setCreating(null)} onSubmit={async (name) => (await createFolder(c.slug, [], name), setCreating(null))} />
+        <CollectionTabs slug={c.slug} operations={operations} requests={all.length} specs={c.specs.length} tab={tab} onTab={setTab} />
+
+        {tab === "requests" && (
+          <>
+            <div className="col-block-actions">
+              <Button size="sm" icon="folder-plus" onClick={() => setCreating({ collection: c.slug, parent: [] })}>New folder</Button>
+              {gets.length > 0 && (
+                <Button size="sm" icon="lightning" title="Set every GET request in this collection to Auto" onClick={() => void grant(gets, "auto", `All ${gets.length} GET requests in ${c.name}`)}>
+                  Auto for all GET
+                </Button>
+              )}
+            </div>
+            {creating && creating !== "collection" && creating.collection === c.slug && creating.parent.length === 0 && (
+              <NameForm label="Folder name" placeholder="Users" onCancel={() => setCreating(null)} onSubmit={async (name) => (await createFolder(c.slug, [], name), setCreating(null))} />
+            )}
+            <ul className="col-list col-list--root">{renderNodes(c.children, c.slug, [], 0)}</ul>
+            {!c.children.length && <p className="col-empty">Empty. Open a search result and save it here.</p>}
+          </>
         )}
-        <ul className="col-list col-list--root">{renderNodes(c.children, c.slug, [], 0)}</ul>
-        {!c.children.length && <p className="col-empty">Empty. Open a search result and save it here.</p>}
+
+        {tab === "variables" && <VariablesTab slug={c.slug} name={c.name} />}
+        {tab === "auth" && <AuthTab slug={c.slug} name={c.name} requests={all.length} />}
+
+        {tab === "specs" && (
+          <>
+            <ul className="col-specs" aria-label="Specs">
+              {c.specs.map((sp) => (
+                <li key={sp.name} className="col-spec">
+                  <Icon name="file-code" />
+                  <span className="col-spec-name" title={sp.url}>{sp.name}</span>
+                  <span className="col-count">{sp.operationCount} operations</span>
+                  {sp.importedAt && <span className="col-date">{new Date(sp.importedAt).toLocaleDateString()}</span>}
+                </li>
+              ))}
+              {!c.specs.length && <li className="col-spec col-spec--none">No spec imported</li>}
+            </ul>
+            <div className="col-block-actions">
+              <Button size="sm" icon="download-simple" onClick={() => setImporting(importing === c.slug ? null : c.slug)} aria-expanded={importing === c.slug}>Import spec</Button>
+            </div>
+            {importing === c.slug && <SpecImportForm collection={c.slug} onDone={() => setImporting(null)} onCancel={() => setImporting(null)} />}
+          </>
+        )}
       </section>
     );
   };
 
-  const bulk = picked.length > 0;
+  const shown = tree?.collections.find((c) => c.slug === current) ?? null;
+  const bulk = picked.length > 0 && !!shown && tab === "requests";
   const problems = tree?.problems ?? [];
 
   return (
     <>
       <Sheet
         open
-        title="Collections"
-        onClose={closeSheet}
-        actions={<Button size="sm" icon="plus" onClick={() => setCreating("collection")}>Collection</Button>}
+        title={shown ? shown.name : "Collections"}
+        onClose={shown ? () => setCurrent(null) : closeSheet}
+        actions={shown ? undefined : <Button size="sm" icon="plus" onClick={() => setCreating("collection")}>Collection</Button>}
         footer={
           bulk ? (
             <div className="col-bulk">
@@ -290,9 +344,9 @@ function CollectionsBody() {
           </section>
         )}
 
-        {!bulk && flat.length > 0 && <Notice>Agent access (Ask, Auto, Blocked) is user-local. Tick requests to change several at once.</Notice>}
+        {!shown && flat.length > 0 && <Notice>Agent access (Ask, Auto, Blocked) is user-local. Tick requests to change several at once.</Notice>}
 
-        {tree?.collections.map(renderCollection)}
+        {shown ? renderDetail(shown) : tree && tree.collections.length > 0 && <ul className="col-cards">{tree.collections.map(renderRow)}</ul>}
 
         {tree && !tree.collections.length && (
           <div className="col-empty-state">

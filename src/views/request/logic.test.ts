@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestDoc, VarTargetDto } from "../../ipc";
-import { allUnresolved, resolveEnv, type ResolvedEnv, flattenFolders, jsonStatus, MASK, pathParamNames, prettyJson, resolveUrl, sectionCounts, switchBody, varInfo, variableAt, variableName, variablesIn } from "./logic";
+import { allUnresolved, closestNames, resolveEnv, type ResolvedEnv, flattenFolders, jsonStatus, MASK, pathParamNames, prettyJson, renameVariable, resolveUrl, sectionCounts, suggest, switchBody, varInfo, variableAt, variableName, variableTokenAt, variablesIn } from "./logic";
 import { chunkEnd, formatBytes, formatMs, mimeType, sizeLabel, timeAgo } from "../response/format";
 
 const env = (): ResolvedEnv => ({
@@ -53,6 +53,41 @@ describe("variables", () => {
     expect(resolveUrl(d, info).text.endsWith(`?k=${MASK}`)).toBe(true);
     expect(allUnresolved(d, info)).toEqual(["other", "gone"]);
     expect(allUnresolved(doc({ body: { type: "json", content: '{"t":"{{$guid}}"}' } }), info)).toEqual([]);
+  });
+});
+
+describe("suggestions", () => {
+  const info = varInfo(env(), { below: [], above: [{ origin: "collection a", target: { type: "collection", slug: "a" }, vars: [{ name: "tenantId", value: "t1" }] }] }, "a");
+
+  it("lists everything on an empty query, nearest scope first and built-ins last", () => {
+    const names = suggest(info, "").map((s) => s.name);
+    expect(names).toEqual(["tenantId", "baseUrl", "userId", "adminKey", "apiToken", "$guid", "$isoTimestamp", "$randomInt", "$timestamp"]);
+    expect(suggest(info, "").find((s) => s.name === "adminKey")?.detail).toBe("secret, no value yet");
+  });
+
+  it("ranks prefix over word start over inside, and drops what does not match", () => {
+    expect(suggest(info, "api").map((s) => s.name)).toEqual(["apiToken"]);
+    expect(suggest(info, "url").map((s) => s.name)).toEqual(["baseUrl"]);
+    expect(suggest(info, "bsu").map((s) => s.name)).toEqual(["baseUrl"]);
+    expect(suggest(info, "id").map((s) => s.name)).toEqual(["tenantId", "userId", "$guid"]);
+    expect(suggest(info, "zzz")).toEqual([]);
+    expect(suggest(info, "$time")[0].name).toBe("$timestamp");
+  });
+
+  it("offers a defined name for a typo, and only close ones", () => {
+    expect(closestNames("baseUrll", info)).toEqual(["baseUrl"]);
+    expect(closestNames("apitoken", info)).toEqual(["apiToken"]);
+    expect(closestNames("completelyOther", info)).toEqual([]);
+    expect(closestNames("$timestmp", info)).toEqual(["$timestamp"]);
+  });
+
+  it("renames every token of a variable, whatever its spacing, and nothing else", () => {
+    expect(renameVariable("{{a}}/{{ a }}/{{ab}}/a", "a", "b")).toBe("{{b}}/{{b}}/{{ab}}/a");
+  });
+
+  it("finds the token under a character with its bounds", () => {
+    expect(variableTokenAt("x {{ id }} y", 5)).toEqual({ name: "id", from: 2, to: 10 });
+    expect(variableTokenAt("x {{ id }} y", 11)).toBeNull();
   });
 });
 

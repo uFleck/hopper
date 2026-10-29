@@ -12,18 +12,22 @@ export interface AuthSectionProps {
   readOnly: boolean;
   /** A collection has nothing to inherit from, so its inherit state reads as "No auth" and the option is not offered. */
   scope?: "request" | "collection";
+  /** The caller draws its own type picker. */
+  hideType?: boolean;
 }
 
-export function AuthSection({ auth, onChange, info, readOnly, scope = "request" }: AuthSectionProps) {
+export function AuthSection({ auth, onChange, info, readOnly, scope = "request", hideType = false }: AuthSectionProps) {
   const collection = scope === "collection";
   const types = collection ? AUTH_TYPES.filter((t) => t !== "inherit") : AUTH_TYPES;
   return (
     <div className="rv-auth">
-      <Select aria-label="Auth type" value={collection && auth.type === "inherit" ? "none" : auth.type} disabled={readOnly} onChange={(e) => onChange(switchAuth(auth, e.target.value as AuthType))}>
-        {types.map((t) => (
-          <option key={t} value={t}>{LABEL[t]}</option>
-        ))}
-      </Select>
+      {!hideType && (
+        <Select aria-label="Auth type" value={collection && auth.type === "inherit" ? "none" : auth.type} disabled={readOnly} onChange={(e) => onChange(switchAuth(auth, e.target.value as AuthType))}>
+          {types.map((t) => (
+            <option key={t} value={t}>{LABEL[t]}</option>
+          ))}
+        </Select>
+      )}
 
       {auth.type === "bearer" && (
         <Field label="Token">{() => <VarInput value={auth.token} info={info} ariaLabel="Bearer token" placeholder="{{apiToken}}" disabled={readOnly} onChange={(token) => onChange({ ...auth, token })} />}</Field>
