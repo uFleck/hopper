@@ -1968,7 +1968,10 @@ impl AppService {
         let data = open.data.clone();
         blocking(move || match rid {
             Some(r) => data.history().clear(&r),
-            None => data.history().clear_all().and_then(|()| data.bodies().clear()),
+            None => data
+                .history()
+                .clear_all()
+                .and_then(|()| data.bodies().clear()),
         })
         .await??;
         Ok(())

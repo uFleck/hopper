@@ -32,9 +32,10 @@ impl BodyFiles {
     pub fn find(&self, id: &str) -> Option<PathBuf> {
         check_key("response id", id).ok()?;
         let listing = fs::read_dir(&self.dir).ok()?;
-        listing.filter_map(Result::ok).map(|e| e.path()).find(|p| {
-            p.file_stem().and_then(|s| s.to_str()) == Some(id) && p.is_file()
-        })
+        listing
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .find(|p| p.file_stem().and_then(|s| s.to_str()) == Some(id) && p.is_file())
     }
 
     pub fn clear(&self) -> Result<(), UserDataError> {
