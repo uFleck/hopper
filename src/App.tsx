@@ -8,7 +8,7 @@ import { initStore, markNoticesSeen, selectActiveEnv, useStore } from "./store";
 import { Busy, ConfirmHost, ToastHost } from "./ui";
 import ApprovalPrompt from "./views/ApprovalPrompt";
 import FindView from "./views/FindView";
-import EnvLever from "./views/EnvLever";
+import { EnvGuard } from "./views/EnvPicker";
 import FloatingHopper from "./views/FloatingHopper";
 import FirstRun from "./views/FirstRun";
 import Header from "./views/Header";
@@ -64,7 +64,7 @@ export default function App() {
       {collapsed && <FloatingHopper info={info} />}
       <main className={collapsed ? "panel is-collapsed" : leaving ? "panel is-leaving" : "panel"} data-env={envKind} onMouseDown={() => panelEvent("clicked")}>
         <Header />
-        {ready && workspace && <EnvLever />}
+        {ready && workspace && <EnvGuard />}
 
         {!ready ? (
           <Busy label="Loading" />

@@ -14,50 +14,16 @@
 
 .hdr-warn-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px var(--bg-elevated); }
 
-/* environment lever: a segmented track with a sliding thumb; the thumb takes the environment colour */
+/* environment select: a pill in the header; the dot takes the stage colour */
 
-.lever-wrap { flex: none; }
-.lever { overflow-x: auto; padding: 4px; border-radius: var(--r-lg); background: var(--bg-elevated); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12); scrollbar-width: none; }
-.lever::-webkit-scrollbar { display: none; }
-.lever-track { --c: var(--text-tertiary); position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(72px, 1fr); min-width: 100%; }
-.lever-thumb {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: calc(100% / var(--n));
-  border-radius: 10px;
-  background: var(--bg-surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 4px 10px rgba(0, 0, 0, 0.1), inset 0 -3px 0 var(--c);
-  transform: translateX(calc(var(--i) * 100%));
-  transition: transform 0.5s var(--spring), box-shadow 0.3s;
-}
-.lever-notch {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 0;
-  height: 36px;
-  padding: 0 4px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text-tertiary);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.25s, background 0.2s;
-}
-.lever-notch:hover:not([aria-checked="true"]) { background: var(--hover-tint); color: var(--text-primary); }
-.lever-notch[aria-checked="true"] { color: var(--text-primary); }
-.lever-notch:focus-visible { outline: none; box-shadow: var(--ring); }
-.lever-notch > i { flex: none; width: 7px; height: 7px; border-radius: 2px; background: var(--c); }
-.lever-guard { margin: 8px 0 0; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--err) 12%, transparent); color: var(--err); font-size: 13.5px; font-weight: 500; animation: lever-rise 0.4s var(--ease) both; }
+.env-pill { --c: var(--text-tertiary); display: inline-flex; flex: none; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 10px; border: 0; border-radius: 999px; background: var(--bg-elevated); color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.env-pill:hover { background: var(--press-tint); }
+.env-pill:focus-visible { outline: none; box-shadow: var(--ring); }
+.env-pill > i:first-child, .env-opt > i { flex: none; width: 7px; height: 7px; border-radius: 2px; background: var(--c); }
+.env-pill-caret { color: var(--text-tertiary); font-size: 11px; }
+.env-opt { display: inline-flex; align-items: center; gap: 8px; }
+.lever-guard { flex: none; margin: 0; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--err) 12%, transparent); color: var(--err); font-size: 13.5px; font-weight: 500; animation: lever-rise 0.4s var(--ease) both; }
 @keyframes lever-rise { from { opacity: 0; transform: translateY(-4px); } }
-.lever-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .hdr-menu-btn { position: relative; display: inline-flex; }
 .hdr-menu-dot { position: absolute; top: 3px; right: 3px; box-shadow: 0 0 0 2px var(--bg-surface); }

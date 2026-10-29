@@ -14,7 +14,7 @@ function lampClass(status: number | null | undefined): string {
   return "";
 }
 
-/** The pinned saved requests as lamp tiles; each bulb shows the last result of that request. */
+/** The pinned saved requests as one-line chips; each bulb shows the last result of that request. */
 export default function Pinned() {
   const pins = usePins();
   const tree = useStore((s) => s.tree);
@@ -29,21 +29,15 @@ export default function Pinned() {
 
   return (
     <section className="pinned" aria-label="Pinned">
-      <div className="pinned-head">
-        <h2 className="pinned-title">Pinned</h2>
-        <small className="pinned-note">lamps show the last result</small>
-      </div>
+      <h2 className="pinned-title">Pinned</h2>
       <div className="lamps">
         {pinned.map((r) => {
           const status = recent.find((x) => x.id === r.id)?.status;
           return (
             <button key={r.id} type="button" className="lamp" onClick={() => void openRequest(r.id)} title={`${r.name} · ${r.collection}`}>
-              <span className="lamp-top">
-                <span className={cx("lamp-m", methodClass(r.method))}>{r.method}</span>
-                <span className={cx("lamp-bulb", lampClass(status))} aria-hidden="true" />
-              </span>
+              <span className={cx("lamp-m", methodClass(r.method))}>{r.method}</span>
               <span className="lamp-name">{r.name}</span>
-              <span className="lamp-sub">{r.collection}</span>
+              <span className={cx("lamp-bulb", lampClass(status))} title={status != null ? `Last result ${status}` : "Not sent yet"} aria-hidden="true" />
             </button>
           );
         })}

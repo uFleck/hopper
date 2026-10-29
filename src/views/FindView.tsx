@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState, type KeyboardEvent, type RefObject } from "react";
-import { clearSearch, openOperation, openRequest, openSheet, search, setSearchMethod, setSearchTag, useStore } from "../store";
+import { clearSearch, nodeKeys, openOperation, openRequest, search, setNodes, setSearchMethod, setSearchTag, useOpenNodes, useStore } from "../store";
 import { SEARCH_MAX, searchMore } from "../store/specActions";
-import { Button, Icon, Spinner } from "../ui";
+import { Button, Icon, Segmented, Spinner } from "../ui";
 import Facets from "./find/Facets";
 import { flattenRequests, type FlatRequest } from "./find/model";
 import { ResultRow, type RowItem } from "./find/ResultRow";
+import SavedTree from "./find/SavedTree";
 import { NextSteps } from "./FirstRun";
 import Pinned from "./Pinned";
 import Recent from "./Recent";
 import "../styles/find.css";
 
-const SAVED_SHOWN = 50;
+type HomeTab = "recent" | "saved";
 
 function SyntaxHint() {
   return (
@@ -31,6 +32,9 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
   const tree = useStore((s) => s.tree);
   const [selected, setSelected] = useState(0);
   const [moreBusy, setMoreBusy] = useState(false);
+  const [pickedTab, setTab] = useState<HomeTab | null>(null);
+  const recentCount = useStore((s) => s.recent.length);
+  const openNodes = useOpenNodes();
 
   const saved = useMemo(() => flattenRequests(tree), [tree]);
   const savedById = useMemo(() => new Map<string, FlatRequest>(saved.map((r) => [r.id, r])), [saved]);
@@ -38,19 +42,7 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
   const specCount = tree?.collections.reduce((n, c) => n + c.specs.length, 0) ?? 0;
 
   const items = useMemo<RowItem[]>(() => {
-    if (!searching) {
-      return saved.slice(0, SAVED_SHOWN).map((r) => ({
-        key: r.id,
-        method: r.method,
-        text: r.name,
-        sub: [r.collection, ...r.folder].join(" / "),
-        saved: true,
-        access: r.agentAccess,
-        suspended: r.grantSuspended,
-        orphaned: r.orphaned,
-        open: () => void openRequest(r.id),
-      }));
-    }
+    if (!searching) return [];
     return (result?.hits ?? []).map((h): RowItem => {
       if (h.kind === "saved") {
         const flat = savedById.get(h.requestId);
@@ -109,6 +101,9 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
   const shown = result?.hits.length ?? 0;
   const canMore = searching && shown < Math.min(total, SEARCH_MAX);
   const noSpec = !!tree && specCount === 0;
+  const tab: HomeTab = pickedTab ?? (recentCount > 0 ? "recent" : "saved");
+  const keys = useMemo(() => nodeKeys(tree), [tree]);
+  const anyOpen = keys.some((k) => openNodes.has(k));
 
   return (
     <div className="find">
@@ -125,7 +120,7 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
             aria-label="Find a request"
             autoComplete="off"
             spellCheck={false}
-            placeholder="Find a request, route or command"
+            placeholder="Find a request or route"
             value={query}
             onChange={(e) => search({ query: e.target.value })}
             onKeyDown={onKeyDown}
@@ -134,24 +129,43 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
           {loading && <Spinner label="Searching" />}
           {!query && <kbd className="find-kbd" aria-hidden="true">/</kbd>}
         </div>
-        <Button icon="folders" onClick={() => openSheet("collections")} aria-label="Browse collections">Browse</Button>
       </div>
 
       {searching && result && <Facets result={result} tag={tag} method={method} onTag={setSearchTag} onMethod={setSearchMethod} />}
       {(tag || method) && !result && <p className="find-status">Filtering</p>}
 
       {!searching && <Pinned />}
-      {!searching && <Recent />}
+
+      {!searching && saved.length > 0 && (
+        <div className="find-tabs">
+          <Segmented<HomeTab>
+            size="sm"
+            ariaLabel="Home list"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "recent", label: "Recent" },
+              { value: "saved", label: `All saved · ${saved.length}` },
+            ]}
+          />
+          {tab === "saved" && keys.length > 0 && (
+            <button type="button" className="find-collapse" onClick={() => setNodes(keys, !anyOpen)}>
+              <Icon name={anyOpen ? "arrows-in-line-vertical" : "arrows-out-line-vertical"} />
+              {anyOpen ? "Collapse all" : "Expand all"}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="find-scroll">
-        {!searching && !noSpec && items.length === 0 && (
+        {!searching && saved.length === 0 && !noSpec && (
           <div className="find-empty">
             <p>No saved requests yet. Search the {tree?.collections.reduce((n, c) => n + c.specs.reduce((m, s) => m + s.operationCount, 0), 0)} operations from your spec and open one.</p>
             <SyntaxHint />
           </div>
         )}
 
-        {!searching && items.length > 0 && <h2 className="recent-title find-list-title">Saved requests</h2>}
+        {!searching && saved.length > 0 && (tab === "recent" ? <Recent /> : <SavedTree collections={tree?.collections ?? []} />)}
 
         {searching && error && <p className="find-status is-err" role="alert">{error.message}</p>}
 
@@ -173,7 +187,7 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
         )}
 
         {items.length > 0 && (
-          <ul id="find-list" className="find-list" role="listbox" aria-label={searching ? "Results" : "Saved requests"}>
+          <ul id="find-list" className="find-list" role="listbox" aria-label="Results">
             {items.map((it, i) => (
               <ResultRow key={it.key} item={it} index={i} selected={i === selected} onHover={setSelected} />
             ))}

@@ -6,6 +6,7 @@ import { useMascot } from "../components/useMascot";
 import { panelEvent } from "../panel/control";
 import { closeWorkspace, openSheet, selectActiveEnv, setActiveEnv, useStore } from "../store";
 import { Icon, IconButton } from "../ui";
+import { EnvPicker } from "./EnvPicker";
 import { Menu, type MenuItem } from "./find/Menu";
 import UpdateButton from "./UpdateButton";
 import "../styles/header.css";
@@ -51,6 +52,7 @@ export default function Header() {
         <span className="workspace-name">{workspace?.name ?? (ready ? "No workspace" : "Loading")}</span>
       </div>
       <UpdateButton />
+      {hasWorkspace && <EnvPicker />}
       <IconButton
         icon="push-pin"
         label={pinned ? "Unpin panel" : "Pin panel open"}

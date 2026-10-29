@@ -5,3 +5,4 @@ export * from "./pins";
 export * from "./reducers";
 export * from "./scopes";
 export * from "./state";
+export * from "./treeOpen";
