@@ -1,6 +1,6 @@
 [package]
 name = "hopper"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Postman-like companion for internal HTTP APIs"
 authors = ["Bruno Koster"]
 edition = "2024"
