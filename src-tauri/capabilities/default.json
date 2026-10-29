@@ -15,7 +15,8 @@
     "notification:allow-notify",
     "opener:allow-open-url",
     "updater:allow-check",
-    "updater:allow-download-and-install",
+    "updater:allow-download",
+    "updater:allow-install",
     "process:allow-restart"
   ]
 }
