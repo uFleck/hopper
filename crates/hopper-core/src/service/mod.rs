@@ -96,6 +96,8 @@ pub(crate) struct CachedResponse {
     pub headers: Vec<(String, String)>,
     pub kind: crate::engine::ContentKind,
     pub text: Option<String>,
+    /// The full redacted body, when it was too large to keep in `text`.
+    pub body_file: Option<PathBuf>,
     pub size_bytes: u64,
     pub truncated: bool,
 }
@@ -1952,7 +1954,12 @@ impl AppService {
         let (rid, id, data) = (canon(request_id), id.to_owned(), open.data.clone());
         let entry = blocking(move || data.history().get(&rid, &id)).await??;
         let entry = entry.ok_or_else(|| HopperError::not_found("history entry"))?;
-        Ok(send::run_result_from_history(&entry))
+        let mut run = send::run_result_from_history(&entry);
+        let (data, hid) = (open.data.clone(), entry.id.clone());
+        run.body_file = blocking(move || data.bodies().find(&hid))
+            .await?
+            .map(|p| p.display().to_string());
+        Ok(run)
     }
 
     pub async fn history_clear(&self, request_id: Option<&str>) -> Result<(), HopperError> {
@@ -1961,7 +1968,7 @@ impl AppService {
         let data = open.data.clone();
         blocking(move || match rid {
             Some(r) => data.history().clear(&r),
-            None => data.history().clear_all(),
+            None => data.history().clear_all().and_then(|()| data.bodies().clear()),
         })
         .await??;
         Ok(())

@@ -81,6 +81,15 @@ function Result({ run, requestId, maximized, onMaximize }: { run: RunResult; req
     }
   };
 
+  const copyBodyPath = async () => {
+    try {
+      await navigator.clipboard.writeText(run.bodyFile ?? "");
+      toast("Copied the file path", "success");
+    } catch {
+      toast("The clipboard is not available.", "error");
+    }
+  };
+
   return (
     <>
       <div className="rv-summary">
@@ -95,6 +104,12 @@ function Result({ run, requestId, maximized, onMaximize }: { run: RunResult; req
         {run.redirects.length > 0 && <button type="button" className="rv-linkchip" onClick={() => setTab("timeline")}>{run.redirects.length} redirect{run.redirects.length === 1 ? "" : "s"}</button>}
       </div>
       {run.truncated && <p className="rv-hint is-warn" role="status"><Icon name="scissors" /> The body was cut at the size limit; what you see is the start of it.</p>}
+      {run.bodyFile && (
+        <div className="rv-row">
+          <p className="rv-hint rv-grow" role="status" title={run.bodyFile}><Icon name="file" /> Large response: the full body is saved to a file, and your agent can read it too.</p>
+          <Button size="sm" icon="copy" onClick={() => void copyBodyPath()}>Copy path</Button>
+        </div>
+      )}
 
       <div className="rv-row rv-resp-tools">
         {history && history.length > 0 && requestId && (

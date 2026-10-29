@@ -17,6 +17,7 @@
 //! path components: env rules are keyed by `name_key` (hex SHA-256 of the name)
 //! and the readable name is kept inside the JSON.
 
+mod bodies;
 mod history;
 mod workspace;
 
@@ -31,6 +32,7 @@ use time::format_description::well_known::Rfc3339;
 use ulid::Ulid;
 use uuid::Uuid;
 
+pub use bodies::BodyFiles;
 pub use history::{History, HistoryEntry, MAX_BODY_BYTES, MAX_ENTRIES_PER_REQUEST, Timing, Via};
 pub use workspace::{MAX_RECENT_REQUESTS, WorkspaceData, WsState};
 

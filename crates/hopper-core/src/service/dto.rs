@@ -766,6 +766,9 @@ pub struct RunResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body_base64: Option<String>,
     pub truncated: bool,
+    /// Full redacted body on disk, present when it is larger than history keeps.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body_file: Option<String>,
     pub timing: TimingDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transferred_bytes: Option<u64>,
@@ -1140,6 +1143,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
         body: "{}".into(),
         body_base64: None,
         truncated: false,
+        body_file: None,
         timing: TimingDto {
             ttfb_ms: 10,
             download_ms: 2,

@@ -104,7 +104,14 @@ async fn serve() -> SocketAddr {
                 "late"
             }),
         )
-        .route("/big", get(|| async { "a".repeat(100_000) }));
+        .route("/big", get(|| async { "a".repeat(100_000) }))
+        .route(
+            "/huge",
+            get(|| async {
+                let items: Vec<Value> = (0..200_000).map(|n| json!({ "n": n })).collect();
+                axum::Json(json!({ "items": items, "last": "end" }))
+            }),
+        );
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
@@ -1883,6 +1890,52 @@ async fn large_bodies_are_capped_and_paged() {
         ),
         "not_found"
     );
+}
+
+#[tokio::test]
+async fn bodies_over_the_cache_cap_are_kept_whole_on_disk() {
+    let h = H::new().await;
+    h.env("local", &[]).await;
+    h.activate("local").await;
+    let out = h
+        .agent()
+        .send_request(SendArgs {
+            request: Some(inline("GET", "{{baseUrl}}/huge")),
+            collection: Some("api".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let file = out["bodyFile"].as_str().expect("a body file");
+    let on_disk = std::fs::read(file).unwrap();
+    assert!(on_disk.len() > 2 * 1024 * 1024, "the file is not cut");
+    assert!(file.ends_with(".json"));
+    let rid = out["responseId"].as_str().unwrap();
+    let select = |path: &str| ResponsePage {
+        response_id: rid.into(),
+        path: Some(path.into()),
+        ..Default::default()
+    };
+    let last = h.agent().get_response(select("/last")).await.unwrap();
+    assert_eq!(last["text"], "end", "the pointer reads the whole body");
+    assert_eq!(last["bodyTruncated"], false);
+    let n = h
+        .agent()
+        .get_response(select("/items/199999/n"))
+        .await
+        .unwrap();
+    assert_eq!(n["text"], "199999");
+    // A small body is not written to disk.
+    let small = h
+        .agent()
+        .send_request(SendArgs {
+            request: Some(inline("GET", "{{baseUrl}}/big")),
+            collection: Some("api".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(small["bodyFile"].is_null());
 }
 
 #[tokio::test]

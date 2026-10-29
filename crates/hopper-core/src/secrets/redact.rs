@@ -24,10 +24,13 @@ impl Drop for Redactor {
 
 /// Variants shorter than this are skipped, they would mask ordinary text.
 const MIN_VARIANT_LEN: usize = 4;
+/// A secret shorter than this is a placeholder (`0`, `-`), not a credential: masking it would
+/// blank every matching character in every response and make the body unreadable.
+const MIN_SECRET_LEN: usize = 4;
 
 impl Redactor {
     pub fn add(&mut self, secret: &str) {
-        if secret.is_empty() {
+        if secret.trim().chars().count() < MIN_SECRET_LEN {
             return;
         }
         self.insert(secret.to_owned());
@@ -178,9 +181,9 @@ mod tests {
     #[test]
     fn longest_secret_wins_when_one_contains_another() {
         let mut r = Redactor::default();
-        r.add("key");
-        r.add("key-long");
-        assert_eq!(r.scrub("x key-long y"), "x •••• y");
+        r.add("keys");
+        r.add("keys-long");
+        assert_eq!(r.scrub("x keys-long y"), "x •••• y");
     }
 
     #[test]
@@ -226,10 +229,12 @@ mod tests {
     }
 
     #[test]
-    fn short_variants_are_skipped_but_exact_value_kept() {
+    fn placeholder_secrets_do_not_mask_ordinary_text() {
         let mut r = Redactor::default();
-        r.add("ab");
-        assert_eq!(r.scrub("ab YWI x"), "•••• YWI x");
+        for s in ["0", "-", " 0 ", "ab"] {
+            r.add(s);
+        }
+        assert_eq!(r.scrub("total 39652.67 in 2026"), "total 39652.67 in 2026");
     }
 
     #[test]

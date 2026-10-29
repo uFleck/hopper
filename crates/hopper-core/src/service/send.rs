@@ -30,7 +30,7 @@ use crate::{
     },
     prepare::{self, Layers, Prepared},
     store::WorkspaceStore,
-    userdata::{HistoryEntry, Timing, Via},
+    userdata::{HistoryEntry, MAX_BODY_BYTES, Timing, Via},
 };
 
 #[derive(Clone)]
@@ -672,6 +672,20 @@ impl Open {
                 .as_deref()
                 .map(Open::cap_body)
                 .map_or((None, false), |(b, c)| (Some(b), c));
+            // History and the cache cut large bodies; keep the whole one on disk.
+            let body_file = if redacted.body.len() > MAX_BODY_BYTES {
+                let (data, id) = (self.data.clone(), history_id.clone());
+                let ext = body_extension(redacted.kind);
+                let bytes = redacted.body.clone();
+                blocking(move || data.bodies().save(&id, ext, &bytes))
+                    .await
+                    .ok()
+                    .and_then(Result::ok)
+            } else {
+                None
+            };
+            result.body_file = body_file.as_ref().map(|p| p.display().to_string());
+            let truncated = redacted.truncated || (capped && body_file.is_none());
             cached = Some(self.cache_response(CachedResponse {
                 id: Ulid::generate().to_string(),
                 status: redacted.status,
@@ -679,8 +693,9 @@ impl Open {
                 headers: redacted.headers.clone(),
                 kind: redacted.kind,
                 text: body,
+                body_file,
                 size_bytes: redacted.decoded_bytes,
-                truncated: redacted.truncated || capped,
+                truncated,
             }));
             let entry = HistoryEntry {
                 id: history_id,
@@ -755,6 +770,15 @@ impl Open {
     }
 }
 
+fn body_extension(kind: ContentKind) -> &'static str {
+    match kind {
+        ContentKind::Json => "json",
+        ContentKind::Html => "html",
+        ContentKind::Text => "txt",
+        ContentKind::Image | ContentKind::Binary => "bin",
+    }
+}
+
 fn run_result(
     run_id: &str,
     history_id: &str,
@@ -781,6 +805,7 @@ fn run_result(
         body,
         body_base64,
         truncated: r.truncated,
+        body_file: None,
         timing: TimingDto {
             ttfb_ms: r.timing.ttfb_ms,
             download_ms: r.timing.download_ms,
@@ -843,6 +868,7 @@ pub(crate) fn run_result_from_history(e: &HistoryEntry) -> RunResult {
         body: e.body.clone(),
         body_base64: None,
         truncated: e.body_truncated,
+        body_file: None,
         timing: TimingDto {
             ttfb_ms: e.timing.ttfb_ms,
             download_ms: e.timing.total_ms.saturating_sub(e.timing.ttfb_ms),

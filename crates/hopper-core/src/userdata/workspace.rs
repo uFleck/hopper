@@ -135,6 +135,11 @@ impl WorkspaceData {
         self.dir.join("trash")
     }
 
+    /// Full response bodies, not cut like history.
+    pub fn bodies(&self) -> super::BodyFiles {
+        super::BodyFiles::new(self.dir.join("bodies"))
+    }
+
     pub fn history(&self) -> History {
         History::new(self.dir.join("history"), self.lock.clone())
     }

@@ -254,7 +254,7 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_send_request",
-            "Send a saved request (`id`) or an inline `request` in an environment. May wait for the user's approval in the panel; returns status, redacted headers, timing, size, a truncated body and a `responseId`.",
+            "Send a saved request (`id`) or an inline `request` in an environment. May wait for the user's approval in the panel; returns status, redacted headers, timing, size, a truncated body and a `responseId`. A body over 1 MiB is also saved whole (redacted) to `bodyFile`; read it with a script instead of paging.",
             schema(
                 json!({"id": s("Saved request id"),
                     "request": {"type": "object", "properties": inline, "required": ["method", "url"]},
@@ -267,7 +267,7 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_get_response",
-            "Page through a stored response by `responseId`, optionally selecting a JSON pointer.",
+            "Page through a stored response by `responseId`, optionally selecting a JSON pointer. Works on the whole body even when it is larger than what send_request returned; use `path` to pull just the part you need.",
             schema(
                 json!({"responseId": s("From hopper_send_request"), "offset": n("Character offset"), "limit": n("Characters per page"), "path": s("JSON pointer, e.g. /items/0/id")}),
                 &["responseId"],

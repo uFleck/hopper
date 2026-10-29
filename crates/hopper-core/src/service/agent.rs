@@ -1350,6 +1350,7 @@ impl AgentApi {
                 "body": body,
                 "bodyChars": chars,
                 "bodyTruncated": cut || res.truncated,
+                "bodyFile": cached.as_ref().and_then(|c| c.body_file.as_ref()).map(|p| p.display().to_string()),
                 "sizeBytes": res.decoded_bytes,
                 "timing": { "ttfbMs": res.timing.ttfb_ms, "totalMs": res.timing.total_ms },
                 "resolvedUrl": res.resolved_url,
@@ -1357,7 +1358,7 @@ impl AgentApi {
                 "redirects": res.redirects,
                 "env": res.env,
                 "requestId": res.request_id,
-                "note": if body.is_none() { Some("the body is not text; it is not returned") } else if cut { Some("the body was cut; use get_response to page through it") } else { None },
+                "note": if body.is_none() { Some("the body is not text; it is not returned") } else if cut { Some("the body was cut; use get_response with a JSON pointer `path` or paging, or read `bodyFile` (the full redacted body) with a script") } else { None },
             });
             Ok((v, sent.allowed_by.map(str::to_owned)))
         }
@@ -1372,14 +1373,27 @@ impl AgentApi {
 
     pub async fn get_response(&self, page: ResponsePage) -> Result<Value, HopperError> {
         let open = self.svc.open()?;
+        // A body over the cache cap lives whole in a file; page and select from that.
+        let full = match open
+            .cached_response(&page.response_id)
+            .filter(|c| c.kind.is_text_like())
+            .and_then(|c| c.body_file.clone())
+        {
+            Some(path) => blocking(move || std::fs::read(path))
+                .await
+                .ok()
+                .and_then(Result::ok)
+                .map(|b| String::from_utf8_lossy(&b).into_owned()),
+            None => None,
+        };
         let r = (|| {
             let cached = open.cached_response(&page.response_id).ok_or_else(|| {
                 HopperError::not_found("response")
                     .hint("only the last 50 responses are kept; send the request again")
             })?;
-            let text = cached
-                .text
+            let text = full
                 .as_deref()
+                .or(cached.text.as_deref())
                 .ok_or_else(|| HopperError::invalid("the response body is not text"))?;
             let selected: String = match &page.path {
                 None => text.to_owned(),
@@ -1413,6 +1427,7 @@ impl AgentApi {
                 "kind": cached.kind,
                 "sizeBytes": cached.size_bytes,
                 "bodyTruncated": cached.truncated,
+                "bodyFile": cached.body_file.as_ref().map(|p| p.display().to_string()),
             }))
         })();
         self.finish(

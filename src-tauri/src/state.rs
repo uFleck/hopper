@@ -77,21 +77,8 @@ impl EventSink for TauriSink {
     fn emit(&self, e: Event) {
         let _ = self.app.emit(e.name(), e.payload());
         match &e {
-            Event::ApprovalRequest(a) => {
-                // Approvals never take focus: show passively, and tell the user if the panel was not open.
-                if panel::mode(&self.app) != Mode::Open {
-                    self.notify(
-                        "Hopper needs your approval",
-                        format!(
-                            "{} wants to send {} to {}",
-                            a.client,
-                            a.request_name,
-                            a.stage.as_str()
-                        ),
-                    );
-                }
-                panel::dispatch(&self.app, PanelEvent::ApprovalNeeded);
-            }
+            // The panel opens by itself, so no OS toast. Approvals never take focus.
+            Event::ApprovalRequest(_) => panel::dispatch(&self.app, PanelEvent::ApprovalNeeded),
             Event::ApprovalResolved { .. } => {
                 panel::dispatch(&self.app, PanelEvent::ApprovalResolved)
             }

@@ -360,6 +360,8 @@ export interface RunResult {
   body: string;
   bodyBase64?: string;
   truncated: boolean;
+  /** Where the full body is saved on disk, set when it is larger than history keeps (1 MiB). */
+  bodyFile?: string;
   timing: { ttfbMs: number; downloadMs: number; totalMs: number };
   transferredBytes?: number;
   decodedBytes: number;
