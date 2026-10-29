@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { openSheet, toast } from "../../store";
-import { Button, Icon, cx } from "../../ui";
+import { Button, cx } from "../../ui";
 import { DefineVariable } from "./DefineVariable";
 import { closestNames, isBuiltin, type VarInfo, type VarScopeKind } from "./logic";
 import { saveVariableValue } from "./varEdit";
@@ -47,25 +47,32 @@ export function VarPopover({ name, info, rename, canDefine = true }: { name: str
     <div className="vp" role="group" aria-label={`Variable ${name}`}>
       <div className="vp-head">
         <code className="vp-name">{name}</code>
-        <span className={cx("vp-kind", `vp-kind--${kind}`)}>{kindLabel}</span>
+        <span className={cx("vp-kind", `vp-kind--${kind}`)}>
+          {kindLabel}
+          {source?.detail && !secret && <small>· {source.detail}</small>}
+        </span>
       </div>
-      {source?.detail && !secret && <p className="vp-where"><Icon name="map-pin-simple" />{source.detail}</p>}
 
       {builtin && <p className="vp-note">Generated again each time the request is sent.</p>}
       {secret && (
-        <p className="vp-note vp-note--icon">
-          <Icon name="lock-simple" />
-          {secret === "set" ? "Stored on this machine. Its value never shows here." : "No value stored yet, so requests send it empty."}
+        <p className={cx("vp-secret", secret === "missing" && "is-missing")}>
+          {secret === "set" ? (
+            <>
+              <span className="vp-dots" aria-hidden="true">••••••••••</span>
+              <small>stored on this machine</small>
+            </>
+          ) : (
+            "No value yet, so requests send it empty."
+          )}
         </p>
       )}
 
       {source && !secret && (
         <form className="vp-form" onSubmit={(e) => (e.preventDefault(), void save())}>
-          <label className="vp-label" htmlFor={`vp-${name}`}>Value</label>
           <div className="vp-edit">
             <input
-              id={`vp-${name}`}
               className="ui-input ui-input--mono"
+              aria-label={`Value of ${name}`}
               value={value}
               disabled={!edit || busy}
               spellCheck={false}
@@ -73,34 +80,30 @@ export function VarPopover({ name, info, rename, canDefine = true }: { name: str
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && draft !== null && (e.stopPropagation(), setDraft(null))}
             />
-            {edit && <Button type="submit" variant="primary" disabled={!dirty} loading={busy}>Save</Button>}
+            {edit && dirty && <Button type="submit" variant="primary" size="sm" loading={busy}>Save</Button>}
           </div>
-          <p className="vp-foot">{!edit ? "This environment is read-only." : dirty ? "Enter to save · Esc to revert" : "Edit the value here; it saves to its scope."}</p>
+          {!edit && <p className="vp-foot">This environment is read-only.</p>}
+          {dirty && <p className="vp-foot"><kbd className="ui-kbd">↵</kbd> save · <kbd className="ui-kbd">Esc</kbd> revert</p>}
         </form>
       )}
 
-      {secret === "missing" && <Button icon="lock-simple" className="vp-add" onClick={() => openSheet("environments")}>Set its value in Environments</Button>}
+      {secret === "missing" && <Button size="sm" icon="lock-simple" className="vp-add" onClick={() => openSheet("environments")}>Set its value in Environments</Button>}
 
       {!source && !secret && !builtin && (
         <>
           {similar.length > 0 && rename && (
             <div className="vp-similar">
-              <span className="vp-label">Did you mean</span>
-              <div className="vp-chips">
-                {similar.map((n) => (
-                  <button key={n} type="button" className="vp-chip" onClick={() => rename(n)}>
-                    {n}
-                    <span>{info.secrets.has(n) ? "secret" : (info.sources.get(n)?.kind ?? "")}</span>
-                  </button>
-                ))}
-              </div>
+              <span>Did you mean</span>
+              {similar.map((n) => (
+                <button key={n} type="button" className="vp-chip" onClick={() => rename(n)}>
+                  {n}
+                  <span>{info.secrets.has(n) ? "secret" : (info.sources.get(n)?.kind ?? "")}</span>
+                </button>
+              ))}
             </div>
           )}
           {canDefine ? (
-            <>
-              <span className="vp-label">{similar.length > 0 ? "Or define it" : "Nothing defines it yet. Give it a value"}</span>
-              <DefineVariable name={name} collection={info.collection} autoFocus={similar.length === 0} onDone={() => undefined} />
-            </>
+            <DefineVariable name={name} collection={info.collection} autoFocus={similar.length === 0} onDone={() => undefined} />
           ) : (
             <p className="vp-note">Nothing defines it yet. Add a row for it in this list.</p>
           )}

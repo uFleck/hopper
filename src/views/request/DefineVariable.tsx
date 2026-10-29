@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { toHopperError, type StageDto } from "../../ipc";
 import { openSheet, setVariable, toast, useStore } from "../../store";
-import { Button, Icon, cx } from "../../ui";
+import { Button, cx } from "../../ui";
 import { setEnvVariable } from "./varEdit";
 
 export type DefineScope = "collection" | "environment" | "workspace";
@@ -67,11 +67,10 @@ export function DefineVariable({ name, collection, onDone, autoFocus }: DefineVa
           autoFocus={autoFocus}
           onChange={(e) => setValue(e.target.value)}
         />
-        <Button type="submit" variant="primary" disabled={!value} loading={busy}>Add</Button>
+        <Button type="submit" variant="primary" size="sm" disabled={!value} loading={busy}>Add</Button>
       </div>
       {scopes.length > 1 && (
         <div className="vp-scopes" role="radiogroup" aria-label="Save in">
-          <span className="vp-label">Save in</span>
           {scopes.map((s) => (
             <button key={s.value} type="button" role="radio" aria-checked={s.value === scope} className={cx("vp-scope", s.value === scope && "is-on")} onClick={() => (setScope(s.value), input.current?.focus())}>
               {s.label}
@@ -81,11 +80,8 @@ export function DefineVariable({ name, collection, onDone, autoFocus }: DefineVa
       )}
       <p className="vp-foot">{current.hint}</p>
       {LOOKS_SECRET.test(name) && (
-        <p className="vp-note vp-note--icon">
-          <Icon name="lock-simple" />
-          <span>
-            Looks like a credential. <button type="button" className="vp-link" onClick={() => openSheet("environments")}>Store it as a secret</button> so the value stays out of git.
-          </span>
+        <p className="vp-foot vp-foot--warn">
+          Looks like a credential. <button type="button" className="vp-link" onClick={() => openSheet("environments")}>Store it as a secret</button> to keep it out of git.
         </p>
       )}
     </form>

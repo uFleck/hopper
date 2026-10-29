@@ -102,6 +102,18 @@ function Result({ run, requestId, maximized, onMaximize }: { run: RunResult; req
         </p>
         {run.insecureTls && <Chip tone="err" title="This response came over a connection that did not verify the certificate">TLS verification off</Chip>}
         {run.redirects.length > 0 && <button type="button" className="rv-linkchip" onClick={() => setTab("timeline")}>{run.redirects.length} redirect{run.redirects.length === 1 ? "" : "s"}</button>}
+        <span className="rv-grow" />
+        {history && history.length > 0 && requestId && (
+          <Select aria-label="Run history" className="rv-hist" value={history.some((h) => h.id === run.historyId) ? run.historyId : ""} onChange={(e) => e.target.value && void openHistoryRun(requestId, e.target.value)}>
+            {!history.some((h) => h.id === run.historyId) && <option value="">This run</option>}
+            {history.map((h) => (
+              <option key={h.id} value={h.id}>{`${h.status} · ${formatMs(h.totalMs)} · ${timeAgo(h.sentAt)} · ${h.env}`}</option>
+            ))}
+          </Select>
+        )}
+        <IconButton icon="magnifying-glass" label="Search in body (Ctrl+F)" size="sm" disabled={tab !== "body"} onClick={() => code.current?.search()} />
+        <IconButton icon="copy" label="Copy body" size="sm" onClick={() => void copyBody()} />
+        <IconButton icon={maximized ? "arrows-in" : "arrows-out"} label={maximized ? "Restore" : "Maximize response"} size="sm" active={maximized} onClick={onMaximize} />
       </div>
       {run.truncated && <p className="rv-hint is-warn" role="status"><Icon name="scissors" /> The body was cut at the size limit; what you see is the start of it.</p>}
       {run.bodyFile && (
@@ -110,21 +122,6 @@ function Result({ run, requestId, maximized, onMaximize }: { run: RunResult; req
           <Button size="sm" icon="copy" onClick={() => void copyBodyPath()}>Copy path</Button>
         </div>
       )}
-
-      <div className="rv-row rv-resp-tools">
-        {history && history.length > 0 && requestId && (
-          <Select aria-label="Run history" className="rv-grow" value={history.some((h) => h.id === run.historyId) ? run.historyId : ""} onChange={(e) => e.target.value && void openHistoryRun(requestId, e.target.value)}>
-            {!history.some((h) => h.id === run.historyId) && <option value="">This run</option>}
-            {history.map((h) => (
-              <option key={h.id} value={h.id}>{`${h.status} · ${formatMs(h.totalMs)} · ${timeAgo(h.sentAt)} · ${h.env}`}</option>
-            ))}
-          </Select>
-        )}
-        {!(history && history.length > 0) && <span className="rv-grow" />}
-        <IconButton icon="magnifying-glass" label="Search in body (Ctrl+F)" disabled={tab !== "body"} onClick={() => code.current?.search()} />
-        <IconButton icon="copy" label="Copy body" onClick={() => void copyBody()} />
-        <IconButton icon={maximized ? "arrows-in" : "arrows-out"} label={maximized ? "Restore" : "Maximize response"} active={maximized} onClick={onMaximize} />
-      </div>
 
       <Tabs ariaLabel="Response" value={tab} onChange={setTab} tabs={[{ value: "body", label: "Body" }, { value: "headers", label: "Headers", badge: run.headers.length }, { value: "cookies", label: "Cookies" }, { value: "timeline", label: "Timeline" }]} />
       <div className="rv-tabpanel" role="tabpanel">

@@ -135,7 +135,8 @@ const theme = EditorView.theme(
     ".cm-completionDetail": { color: "var(--text-tertiary)", fontStyle: "normal", marginLeft: "8px" },
     ".cm-var": { color: "var(--accent-text)", backgroundColor: "var(--accent-soft)", borderRadius: "5px", padding: "1px 2px", margin: "0 -2px", cursor: "default", transition: "background-color 120ms ease, box-shadow 120ms ease" },
     ".cm-var:hover": { backgroundColor: "color-mix(in srgb, var(--accent) 30%, transparent)", boxShadow: "0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent)" },
-    ".cm-var-unresolved": { color: "var(--err)", backgroundColor: "color-mix(in srgb, var(--err) 10%, transparent)", textDecoration: "underline wavy var(--err)", textUnderlineOffset: "3px" },
+    ".cm-var-unresolved": { color: "var(--err)", backgroundColor: "color-mix(in srgb, var(--err) 13%, transparent)" },
+    ".cm-var-unresolved:hover": { backgroundColor: "color-mix(in srgb, var(--err) 26%, transparent)", boxShadow: "0 0 0 1px color-mix(in srgb, var(--err) 55%, transparent)" },
   },
   { dark: true },
 );
