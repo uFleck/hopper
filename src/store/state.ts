@@ -5,6 +5,7 @@ import type {
   Stage,
   StageDto,
   HistoryItem,
+  HistoryRow,
   HopperError,
   McpStatus,
   Method,
@@ -57,6 +58,8 @@ export interface AppState {
   recentWorkspaces: RecentWorkspace[];
   tree: TreeDto | null;
   recent: RecentItem[];
+  /** Every run in the workspace, newest first, for the History tab. */
+  historyAll: HistoryRow[];
   environments: StageDto[];
   /** Variables of the scopes the open request resolves against, by `targetKey`; plus any the sheets loaded. */
   scopeVars: Record<string, VariablesDto>;
@@ -94,6 +97,7 @@ export const initialState = (): AppState => ({
   recentWorkspaces: [],
   tree: null,
   recent: [],
+  historyAll: [],
   environments: [],
   scopeVars: {},
   collectionAuth: {},

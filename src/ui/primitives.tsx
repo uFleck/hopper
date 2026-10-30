@@ -48,7 +48,7 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
 
 export function IconButton({ icon, label, size = "md", active, tone = "default", className, type = "button", ...rest }: IconButtonProps) {
   return (
-    <button type={type} className={cx("ui-iconbtn", size === "sm" && "ui-iconbtn--sm", active && "is-active", tone === "danger" && "ui-iconbtn--danger", className)} aria-label={label} title={label} aria-pressed={active} {...rest}>
+    <button type={type} className={cx("ui-iconbtn", size === "sm" && "ui-iconbtn--sm", active && "is-active", tone === "danger" && "ui-iconbtn--danger", className)} aria-label={label} data-tip={label} aria-pressed={active} {...rest}>
       <Icon name={icon} />
     </button>
   );
@@ -72,16 +72,16 @@ export const envClass = (stage: Stage) => `env-${stage}`;
 export type Tone = "neutral" | "ok" | "warn" | "err" | "accent";
 
 export type ChipProps =
-  | { method: Method; env?: never; tone?: never; children?: ReactNode; className?: string; title?: string }
-  | { env: Stage; method?: never; tone?: never; children?: ReactNode; className?: string; title?: string }
-  | { tone?: Tone; method?: never; env?: never; children?: ReactNode; className?: string; title?: string };
+  | { method: Method; env?: never; tone?: never; children?: ReactNode; className?: string; tip?: string }
+  | { env: Stage; method?: never; tone?: never; children?: ReactNode; className?: string; tip?: string }
+  | { tone?: Tone; method?: never; env?: never; children?: ReactNode; className?: string; tip?: string };
 
 /** A small label. `method` shows the HTTP verb in its colour, `env` takes the environment kind's colour (production is red), else a tone. */
 export function Chip(props: ChipProps) {
-  const { children, className, title } = props;
-  if (props.method) return <span className={cx("ui-chip", "ui-chip--method", methodClass(props.method), className)} title={title}>{children ?? props.method}</span>;
-  if (props.env) return <span className={cx("ui-chip", "ui-chip--env", envClass(props.env), className)} title={title}>{children ?? props.env}</span>;
-  return <span className={cx("ui-chip", `tone-${props.tone ?? "neutral"}`, className)} title={title}>{children}</span>;
+  const { children, className, tip } = props;
+  if (props.method) return <span className={cx("ui-chip", "ui-chip--method", methodClass(props.method), className)} data-tip={tip}>{children ?? props.method}</span>;
+  if (props.env) return <span className={cx("ui-chip", "ui-chip--env", envClass(props.env), className)} data-tip={tip}>{children ?? props.env}</span>;
+  return <span className={cx("ui-chip", `tone-${props.tone ?? "neutral"}`, className)} data-tip={tip}>{children}</span>;
 }
 
 /** The colour of an HTTP status: 2xx ok, 3xx accent, 4xx warn, 5xx and network errors red. */

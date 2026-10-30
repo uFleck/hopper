@@ -137,7 +137,7 @@ function SecretRow({ env, name, provider, status, error, readOnly, fill, onRenam
   return (
     <div className={cx("sh-secret", status === "missing" && "is-missing")}>
       <div className="sh-secret-main">
-        <span className={cx("sh-dot", status === "set" ? "is-set" : "is-missing")} role="img" aria-label={status === "set" ? "Value set" : status === "missing" ? "Value missing" : "Not saved yet"} title={status === "set" ? "Set" : status === "missing" ? "Missing" : "Save the environment first"} />
+        <span className={cx("sh-dot", status === "set" ? "is-set" : "is-missing")} role="img" aria-label={status === "set" ? "Value set" : status === "missing" ? "Value missing" : "Not saved yet"} data-tip={status === "set" ? "Set" : status === "missing" ? "Missing" : "Save the environment first"} />
         {saved ? <span className="sh-secret-name">{name}</span> : <TextInput mono aria-label="Secret name" placeholder="apiKey" value={name} invalid={!!error} disabled={readOnly} onChange={(e) => onRename(e.target.value)} />}
         <span className="sh-secret-value" aria-label={status === "set" ? "Value hidden" : undefined}>{status === "set" ? "••••••••" : status === "missing" ? "missing" : "not saved"}</span>
         <span className="sh-secret-prov">{provider}</span>

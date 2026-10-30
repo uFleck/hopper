@@ -23,10 +23,10 @@ function Nodes({ nodes, collection, path, open }: { nodes: TreeNode[]; collectio
       const flagged = n.grantSuspended || n.agentAccess !== "ask";
       return (
         <li key={n.id}>
-          <button type="button" className="tree-req" onClick={() => void openRequest(n.id)} title={n.name}>
+          <button type="button" className="tree-req" onClick={() => void openRequest(n.id)} data-tip={n.name}>
             <Chip method={n.method} />
             <span className="tree-name">{n.name}</span>
-            {n.orphaned && <Chip tone="warn" title="The operation is gone from the spec">orphan</Chip>}
+            {n.orphaned && <Chip tone="warn" tip="The operation is gone from the spec">orphan</Chip>}
             {flagged && <AccessChip access={n.agentAccess} suspended={n.grantSuspended} />}
           </button>
         </li>

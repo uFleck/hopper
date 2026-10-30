@@ -147,7 +147,7 @@ export default function EnvironmentsSheet() {
                 <li key={a.application} className={cx("sh-env", envClass(stage.stage))}>
                   <button type="button" className="sh-env-open" onClick={() => openApp(stage, a.application)} aria-label={`Edit ${a.application}`}>
                     <span className="sh-env-name">{a.application}</span>
-                    {miss > 0 && <Chip tone="warn" title="Secrets without a value on this machine">{miss} missing</Chip>}
+                    {miss > 0 && <Chip tone="warn" tip="Secrets without a value on this machine">{miss} missing</Chip>}
                     <Icon name="caret-right" className="sh-env-go" />
                   </button>
                 </li>

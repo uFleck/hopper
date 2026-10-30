@@ -188,7 +188,7 @@ export function VarInput({ value, onChange, info, placeholder, ariaLabel, disabl
           type="button"
           className="rv-varadd"
           aria-label={`${bad[0]} is not defined. Fix it`}
-          title={`{{${bad[0]}}} is not defined${bad.length > 1 ? ` (and ${bad.length - 1} more)` : ""}. Click to fix it.`}
+          data-tip={`{{${bad[0]}}} is not defined${bad.length > 1 ? ` (and ${bad.length - 1} more)` : ""}. Click to fix it.`}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => pin(bad[0])}
         >

@@ -44,7 +44,7 @@ export default function Header() {
 
   return (
     <header className="panel-header hdr">
-      <span className="hdr-drag" onMouseDown={startDrag} title="Drag to the other screen edge">
+      <span className="hdr-drag" onMouseDown={startDrag} data-tip="Drag to the other screen edge">
         <Mascot state={mascot} />
       </span>
       <div className="panel-title">
@@ -68,7 +68,7 @@ export default function Header() {
         items={hasWorkspace ? menu : menu.filter((m) => m.key === "agent" || m.key === "settings")}
         trigger={(props) => (
           <span className="hdr-menu-btn">
-            <button {...props} type="button" className="ui-iconbtn" aria-label="Menu" title="Menu">
+            <button {...props} type="button" className="ui-iconbtn" aria-label="Menu" data-tip="Menu">
               <Icon name="list" />
             </button>
             {approvals > 0 && <span className="hdr-warn-dot hdr-menu-dot" aria-hidden="true" />}

@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>Hopper history and rename: four placements, three rename gestures</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --font-ui:"Schibsted Grotesk","Segoe UI",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+  --bg-page:#0f1219;--bg-surface:#151922;--bg-elevated:#1d2230;
+  --border-default:#2a3042;--border-strong:#3b445c;
+  --text-primary:#eef0f6;--text-secondary:#aab1c3;--text-tertiary:#6f778d;
+  --accent:#7d98ff;--accent-text:#9bb0ff;--on-accent:#0b1030;--accent-soft:rgba(125,152,255,.16);
+  --hover-tint:rgba(255,255,255,.05);--press-tint:rgba(255,255,255,.09);
+  --ok:#3ddc84;--warn:#f2b73a;--err:#ff6050;
+  --i1:#7d98ff;--i2:#3ddc84;--i3:#ff9b6a;--i4:#c39bff;--i5:#f2b73a;
+  --shadow-pop:0 14px 34px rgba(0,0,0,.55);
+  --page:#0a0c11;--cap:#8e96ab;--w:430px;
+}
+:root[data-theme="light"]{
+  --bg-page:#eef2f7;--bg-surface:#fff;--bg-elevated:#f2f4f8;
+  --border-default:#e1e5ed;--border-strong:#c8cfdb;
+  --text-primary:#141922;--text-secondary:#4a5466;--text-tertiary:#8189a0;
+  --accent:#2f55d4;--accent-text:#2f55d4;--on-accent:#fff;--accent-soft:rgba(47,85,212,.12);
+  --hover-tint:rgba(20,25,34,.05);--press-tint:rgba(20,25,34,.09);
+  --ok:#14a05a;--warn:#d48a00;--err:#e03a2c;
+  --i1:#2f55d4;--i2:#14a05a;--i3:#c2551c;--i4:#7c4bd0;--i5:#d48a00;
+  --shadow-pop:0 14px 34px rgba(30,40,70,.22);
+  --page:#d9dee8;--cap:#555;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 24px 48px;background:var(--page);color:var(--text-primary);font:14px/1.4 var(--font-ui)}
+h1{margin:0 0 4px;font-size:20px}
+h2{margin:34px 0 4px;font-size:16px}
+.lead{margin:0 0 12px;max-width:940px;color:var(--cap);font-size:13.5px}
+.toolbar{display:flex;gap:8px;margin:12px 0 4px}
+.toolbar button{padding:6px 12px;border:1px solid var(--border-strong);border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.toolbar button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:650}
+.grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+.slot{display:flex;flex-direction:column;gap:8px;width:var(--w)}
+.cap b{display:block;font-size:14.5px}
+.cap span{display:block;color:var(--cap);font-size:12.5px}
+.cap i{display:block;margin-top:3px;font-style:normal;font-size:12.5px;color:var(--cap)}
+.cap i em{font-style:normal;font-weight:650;color:var(--ok)}.cap i s{text-decoration:none;font-weight:650;color:var(--warn)}
+button{font:inherit;color:inherit}
+svg.i{width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---- panel frame ---- */
+.fr{position:relative;display:flex;flex-direction:column;gap:6px;width:var(--w);height:680px;padding:8px;overflow:hidden;border-radius:14px;background:var(--bg-page);box-shadow:0 0 0 1px var(--border-default),0 20px 40px rgba(0,0,0,.3);font:13px/1.4 var(--font-ui)}
+.fr.short{height:auto}
+.row{display:flex;align-items:center;gap:6px;min-width:0}
+.sp{flex:1}
+.ib{display:grid;flex:none;place-items:center;width:26px;height:26px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-secondary);cursor:pointer}
+.ib:hover{background:var(--hover-tint);color:var(--text-primary)}
+.brand{font-weight:750;font-size:14px;letter-spacing:.2px;padding-left:4px}
+.pill{display:inline-flex;flex:none;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:999px;background:var(--bg-elevated);color:var(--text-secondary);font-size:12px;font-weight:600}
+.pill i{width:7px;height:7px;border-radius:2px;background:var(--ok)}
+.find{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border-radius:10px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default);color:var(--text-tertiary)}
+.find input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text-primary);font:13px var(--font-ui)}
+.find input::placeholder{color:var(--text-tertiary)}
+.find kbd{padding:0 5px;border:1px solid var(--border-default);border-radius:4px;font:10.5px var(--font-ui);color:var(--text-tertiary)}
+.card{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;border-radius:12px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default)}
+.tabs{display:flex;flex:none;align-items:center;gap:2px;height:32px;padding:0 6px;border-bottom:1px solid var(--border-default)}
+.tab{display:flex;align-items:center;gap:5px;height:100%;padding:0 9px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--text-tertiary);font-weight:600;font-size:12.5px;white-space:nowrap;cursor:pointer}
+.tab.on{border-bottom-color:var(--accent);color:var(--text-primary)}
+.tab u{padding:0 5px;border-radius:7px;background:var(--hover-tint);color:var(--text-tertiary);font-size:11px;font-weight:500;text-decoration:none}
+.tab.on u{background:var(--accent-soft);color:var(--accent-text)}
+.scroll{flex:1;min-height:0;overflow:hidden;padding:4px 0}
+
+/* chips */
+.m{display:inline-flex;flex:none;justify-content:center;width:46px;padding:2px 0;border-radius:6px;font:700 10.5px var(--font-mono)}
+.m.get{background:color-mix(in srgb,var(--i2) 15%,transparent);color:var(--i2)}
+.m.post{background:color-mix(in srgb,var(--i1) 16%,transparent);color:var(--i1)}
+.m.put{background:color-mix(in srgb,var(--i3) 16%,transparent);color:var(--i3)}
+.m.patch{background:color-mix(in srgb,var(--i4) 16%,transparent);color:var(--i4)}
+.m.del{background:color-mix(in srgb,var(--err) 15%,transparent);color:var(--err)}
+.st{flex:none;padding:1px 7px;border-radius:6px;font:700 11px var(--font-mono)}
+.st.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.st.w{background:color-mix(in srgb,var(--warn) 17%,transparent);color:var(--warn)}
+.st.e{background:color-mix(in srgb,var(--err) 15%,transparent);color:var(--err)}
+.lbl{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:0 7px 0 5px;height:20px;border-radius:6px;background:var(--accent-soft);color:var(--accent-text);font-size:12px;font-weight:650}
+.lbl.ghost{background:transparent;box-shadow:inset 0 0 0 1px var(--border-default);color:var(--text-tertiary);font-weight:500;cursor:pointer}
+.lbl.ghost:hover{color:var(--text-primary);box-shadow:inset 0 0 0 1px var(--border-strong)}
+.tag{padding:0 6px;border-radius:5px;background:var(--bg-elevated);color:var(--text-tertiary);font-size:10.5px;font-weight:650;letter-spacing:.2px}
+.tag.mcp{background:color-mix(in srgb,var(--i4) 16%,transparent);color:var(--i4)}
+mark{padding:0 1px;border-radius:3px;background:color-mix(in srgb,var(--warn) 32%,transparent);color:inherit}
+
+/* day header */
+.day{display:flex;align-items:center;gap:8px;padding:8px 12px 3px;color:var(--text-tertiary);font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
+.day::after{content:"";flex:1;height:1px;background:var(--border-default)}
+
+/* history row */
+.h{position:relative;display:flex;align-items:center;gap:9px;margin:0 4px;padding:6px 8px;border-radius:8px;cursor:pointer}
+.h:hover,.h.sel{background:var(--hover-tint)}
+.h.sel{box-shadow:inset 2px 0 0 var(--accent)}
+.h .mid{flex:1;min-width:0}
+.h .t{display:flex;align-items:center;gap:6px;min-width:0;font-weight:650;white-space:nowrap}
+.h .t span{overflow:hidden;text-overflow:ellipsis}
+.h .t.auto span{font-weight:550}
+.h .s{overflow:hidden;color:var(--text-tertiary);font:11px var(--font-mono);text-overflow:ellipsis;white-space:nowrap}
+.h .end{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:none}
+.h .when{color:var(--text-tertiary);font-size:11px}
+.h .pen{position:absolute;right:8px;top:50%;display:none;transform:translateY(-50%);width:24px;height:24px;border-radius:6px;background:var(--bg-elevated);box-shadow:0 0 0 1px var(--border-strong);color:var(--text-secondary);place-items:center}
+.h:hover .pen{display:grid}
+.h:hover .end{opacity:0}
+.edit{flex:1;min-width:0;height:24px;padding:0 6px;border:0;border-radius:6px;outline:0;background:var(--bg-page);box-shadow:0 0 0 2px var(--accent);color:var(--text-primary);font:650 13px var(--font-ui)}
+.hint{display:flex;gap:10px;padding:2px 14px 4px;color:var(--text-tertiary);font-size:11px}
+.hint kbd{padding:0 4px;border:1px solid var(--border-default);border-radius:4px;font:10.5px var(--font-ui)}
+.foot{display:flex;align-items:center;gap:8px;flex:none;padding:7px 12px;border-top:1px solid var(--border-default);color:var(--text-tertiary);font-size:11.5px}
+
+/* filter chips */
+.chips{display:flex;flex:none;gap:5px;padding:7px 8px 4px;overflow:hidden}
+.chip{display:inline-flex;align-items:center;gap:5px;flex:none;height:24px;padding:0 9px;border:0;border-radius:999px;background:var(--bg-elevated);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer}
+.chip.on{background:var(--accent-soft);color:var(--accent-text);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent)}
+.chip b{font-weight:600;color:var(--text-tertiary)}
+
+/* B: grouped by request */
+.g{margin:0 4px;border-radius:9px}
+.g .gh{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer}
+.g .gh:hover{background:var(--hover-tint)}
+.g .chev{color:var(--text-tertiary);transition:transform .12s}
+.g.open .chev{transform:rotate(90deg)}
+.g.open{background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default)}
+.spark{display:flex;align-items:flex-end;gap:2px;height:16px}
+.spark i{display:block;width:4px;border-radius:1px;background:var(--ok)}
+.spark i.w{background:var(--warn)}.spark i.e{background:var(--err)}
+.runs{padding:0 6px 6px 28px}
+.run{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;font-size:12px;cursor:pointer}
+.run:hover{background:var(--hover-tint)}
+.run .tm{width:62px;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.run .ms{color:var(--text-tertiary);font:11px var(--font-mono)}
+
+/* C: palette sheet */
+.dim{position:absolute;inset:0;background:rgba(5,7,12,.55)}
+html[data-theme="light"] .dim{background:rgba(30,40,70,.28)}
+.sheet{position:absolute;inset:44px 10px auto;display:flex;flex-direction:column;max-height:calc(100% - 64px);overflow:hidden;border-radius:14px;background:var(--bg-surface);box-shadow:0 0 0 1px var(--border-strong),var(--shadow-pop)}
+.sheet .find{border-radius:0;box-shadow:none;border-bottom:1px solid var(--border-default);height:42px}
+.sheet .find input{font-size:14px}
+
+/* D: request page */
+.bar{display:flex;align-items:center;height:34px;padding:3px;border-radius:10px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default)}
+.bar .m{height:100%;align-items:center;width:auto;padding:0 9px;font-size:12px}
+.bar .url{flex:1;margin:0 8px;font:12px var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.send{padding:0 12px;height:100%;border:0;border-radius:7px;background:var(--text-primary);color:var(--bg-surface);font-weight:700}
+.name{font-weight:700;font-size:15px;padding:0 4px}
+.rc{margin:3px 8px;padding:8px 10px;border-radius:10px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default)}
+.rc.named{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent)}
+.rc .meta{display:flex;align-items:center;gap:8px;margin-top:6px;color:var(--text-tertiary);font-size:11.5px}
+.rc .acts{display:flex;gap:4px;margin-top:7px}
+.btn{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:0;border-radius:7px;background:var(--bg-elevated);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--press-tint);color:var(--text-primary)}
+
+/* rename gestures */
+.demo{display:flex;flex-direction:column;gap:6px;width:var(--w);padding:12px 8px 14px;border-radius:14px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default);position:relative;min-height:236px}
+.pop{position:absolute;z-index:3;width:300px;padding:10px;border-radius:12px;background:var(--bg-elevated);box-shadow:0 0 0 1px var(--border-strong),var(--shadow-pop)}
+.pop .chip{background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default)}
+.pop h4{margin:0 0 6px;font-size:12px;color:var(--text-secondary);font-weight:650}
+.pop .edit{width:100%;height:30px}
+.seg{display:flex;gap:2px;margin:8px 0;padding:2px;border-radius:8px;background:var(--bg-page)}
+.seg button{flex:1;height:24px;border:0;border-radius:6px;background:transparent;color:var(--text-tertiary);font-size:11.5px;font-weight:650;cursor:pointer}
+.seg button.on{background:var(--bg-elevated);box-shadow:0 0 0 1px var(--border-strong);color:var(--text-primary)}
+.menu{position:absolute;z-index:3;width:218px;padding:4px;border-radius:10px;background:var(--bg-elevated);box-shadow:0 0 0 1px var(--border-strong),var(--shadow-pop)}
+.mi{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border-radius:6px;color:var(--text-secondary);font-size:12.5px}
+.mi.on{background:var(--accent-soft);color:var(--accent-text)}
+.mi kbd{margin-left:auto;font:11px var(--font-ui);color:var(--text-tertiary)}
+.mi.danger{color:var(--err)}
+.mi hr{flex:1;border:0;border-top:1px solid var(--border-default)}
+.decide{max-width:940px;margin-top:10px;padding:14px 16px;border-radius:12px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default)}
+.decide h3{margin:0 0 6px;font-size:14px}
+.decide li{margin:5px 0;font-size:13px;color:var(--text-secondary)}
+.decide li b{color:var(--text-primary)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="pen" viewBox="0 0 16 16"><path d="M10.5 2.5l3 3-8 8H2.5v-3z"/><path d="M9 4l3 3"/></symbol>
+  <symbol id="search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></symbol>
+  <symbol id="tagi" viewBox="0 0 16 16"><path d="M2 8.5V3a1 1 0 011-1h5.5L14 7.5 8.5 13z"/><circle cx="5.5" cy="5.5" r=".6"/></symbol>
+  <symbol id="clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></symbol>
+  <symbol id="chev" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5"/></symbol>
+  <symbol id="gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/></symbol>
+  <symbol id="star" viewBox="0 0 16 16"><path d="M8 1.8l1.9 4 4.3.5-3.2 3 .9 4.3L8 11.4 4.1 13.6 5 9.3 1.8 6.3l4.3-.5z"/></symbol>
+  <symbol id="rerun" viewBox="0 0 16 16"><path d="M13 8a5 5 0 11-1.6-3.7"/><path d="M13 2.5v3h-3"/></symbol>
+  <symbol id="copy" viewBox="0 0 16 16"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5"/><path d="M3 10.5V3.5A1 1 0 014 2.5h7"/></symbol>
+  <symbol id="trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/></symbol>
+  <symbol id="save" viewBox="0 0 16 16"><path d="M3 2.5h8l2 2v9H3z"/><path d="M5.5 2.5v3.5h4V2.5M5.5 13.5V9.5h5v4"/></symbol>
+</svg>
+
+<h1>History and rename</h1>
+<p class="lead">Every send is recorded, newest first. Any entry can be given a label, so "VAT bug repro" is easier to find than "POST /api/invoices" from three weeks ago. Four places this could live, then three ways to rename. Hover a row and click the pencil, or double-click a title, to try inline rename.</p>
+<div class="toolbar">
+  <button class="on" data-theme-btn="dark">Dark</button>
+  <button data-theme-btn="light">Light</button>
+</div>
+
+<h2>1. Where history lives</h2>
+<p class="lead">The panel is one narrow window, so each option has to work at about 430 px wide.</p>
+<div class="grid">
+
+  <!-- ============ A ============ -->
+  <div class="slot">
+    <div class="fr">
+      <div class="row"><span class="brand">Hopper</span><span class="pill"><i></i>dev</span><span class="sp"></span><button class="ib"><svg class="i"><use href="#gear"/></svg></button></div>
+      <div class="find"><svg class="i"><use href="#search"/></svg><input placeholder="Find a request or search history"><kbd>Ctrl K</kbd></div>
+      <div class="card">
+        <div class="tabs"><button class="tab on">History <u>128</u></button><button class="tab">Saved <u>24</u></button></div>
+        <div class="chips"><button class="chip on">All</button><button class="chip"><svg class="i"><use href="#tagi"/></svg>Named <b>6</b></button><button class="chip">Failed <b>9</b></button><button class="chip">Unsaved <b>14</b></button></div>
+        <div class="scroll">
+          <div class="day">Today</div>
+          <div class="h"><span class="m post">POST</span><div class="mid"><div class="t"><span class="lbl"><svg class="i"><use href="#tagi"/></svg><span class="rn">VAT bug repro</span></span></div><div class="s">Create invoice · /api/invoices</div></div><div class="end"><span class="st w">422</span><span class="when">2 min</span></div><button class="pen"><svg class="i"><use href="#pen"/></svg></button></div>
+          <div class="h"><span class="m get">GET</span><div class="mid"><div class="t auto"><span class="rn">Get user by id</span></div><div class="s">/api/users/42</div></div><div class="end"><span class="st ok">200</span><span class="when">6 min</span></div><button class="pen"><svg class="i"><use href="#pen"/></svg></button></div>
+          <div class="h sel"><span class="m get">GET</span><div class="mid"><div class="t auto"><span class="rn">httpbin.org/delay/2</span><span class="tag">UNSAVED</span></div><div class="s">https://httpbin.org/delay/2</div></div><div class="end"><span class="st ok">200</span><span class="when">39 min</span></div><button class="pen"><svg class="i"><use href="#pen"/></svg></button></div>
+          <div class="h"><span class="m patch">PATCH</span><div class="mid"><div class="t auto"><span class="rn">Update profile</span><span class="tag mcp">AGENT</span></div><div class="s">/api/users/42</div></div><div class="end"><span class="st ok">200</span><span class="when">1 h</span></div><button class="pen"><svg class="i"><use href="#pen"/></svg></button></div>
+          <div class="day">Yesterday</div>
+          <div class="h"><span class="m put">PUT</span><div class="mid"><div class="t"><span class="lbl"><svg class="i"><use href="#tagi"/></svg><span class="rn">Disable webhook before deploy</span></span></div><div class="s">Update webhook · /api/webhooks/7</div></div><div class="end"><span class="st ok">204</span><span class="when">17:40</span></div><button class="pen"><svg class="i"><use href="#pen"/></svg></button></div>
+          <div class="h"><span class="m del">DELETE</span><div class="mid"><div class="t auto"><span class="rn">Delete session</span></div><div class="s">/api/sessions/current</div></div><div class="end"><span class="st w">401</span><span class="when">16:12</span></div><button class="pen"><svg class="i"><use href="#pen"/></svg></button></div>
+          <div class="h"><span class="m get">GET</span><div class="mid"><div class="t auto"><span class="rn">List orders</span></div><div class="s">/api/orders?status=open</div></div><div class="end"><span class="st e">500</span><span class="when">15:03</span></div><button class="pen"><svg class="i"><use href="#pen"/></svg></button></div>
+          <div class="day">Last week</div>
+          <div class="h"><span class="m post">POST</span><div class="mid"><div class="t"><span class="lbl"><svg class="i"><use href="#tagi"/></svg><span class="rn">Login as admin (prod)</span></span></div><div class="s">Create session · /api/sessions</div></div><div class="end"><span class="st ok">201</span><span class="when">Oct 23</span></div><button class="pen"><svg class="i"><use href="#pen"/></svg></button></div>
+        </div>
+        <div class="foot"><span>128 requests kept</span><span class="sp"></span><span>Clear all</span></div>
+      </div>
+    </div>
+    <div class="cap"><b>A. History tab, replaces Recent</b><span>One flat list grouped by day. A label becomes the title in an accent chip; the saved request name and path drop to the second line. Unsaved and agent sends appear too, with a small badge.</span><i><em>+</em> Closest to what you asked for. Same screen you already use. <s>−</s> A request sent 30 times shows 30 rows.</i></div>
+  </div>
+
+  <!-- ============ B ============ -->
+  <div class="slot">
+    <div class="fr">
+      <div class="row"><span class="brand">Hopper</span><span class="pill"><i></i>dev</span><span class="sp"></span><button class="ib"><svg class="i"><use href="#gear"/></svg></button></div>
+      <div class="find"><svg class="i"><use href="#search"/></svg><input placeholder="Find a request or search history"><kbd>Ctrl K</kbd></div>
+      <div class="card">
+        <div class="tabs"><button class="tab on">History <u>34</u></button><button class="tab">Saved <u>24</u></button></div>
+        <div class="scroll">
+          <div class="day">Today</div>
+          <div class="g open">
+            <div class="gh"><svg class="i chev"><use href="#chev"/></svg><span class="m post">POST</span><div class="mid" style="flex:1;min-width:0"><div class="t" style="font-weight:650"><span class="rn">Create invoice</span></div><div class="s" style="color:var(--text-tertiary);font:11px var(--font-mono)">/api/invoices</div></div><div class="spark"><i style="height:12px"></i><i style="height:12px"></i><i class="w" style="height:14px"></i><i style="height:11px"></i><i class="w" style="height:16px"></i><i class="w" style="height:16px"></i></div><span class="pill" style="height:20px">6 runs</span></div>
+            <div class="runs">
+              <div class="run"><span class="tm">14:32</span><span class="st w">422</span><span class="lbl"><svg class="i"><use href="#tagi"/></svg>VAT bug repro</span><span class="sp"></span><span class="ms">212 ms</span></div>
+              <div class="run"><span class="tm">14:30</span><span class="st w">422</span><span class="lbl ghost">Add label</span><span class="sp"></span><span class="ms">198 ms</span></div>
+              <div class="run"><span class="tm">13:58</span><span class="st ok">201</span><span class="lbl"><svg class="i"><use href="#tagi"/></svg>Works with BR VAT</span><span class="sp"></span><span class="ms">340 ms</span></div>
+              <div class="run"><span class="tm">13:41</span><span class="st ok">201</span><span class="lbl ghost">Add label</span><span class="sp"></span><span class="ms">305 ms</span></div>
+              <div class="run" style="color:var(--text-tertiary)"><span class="tm">+2 earlier</span></div>
+            </div>
+          </div>
+          <div class="g"><div class="gh"><svg class="i chev"><use href="#chev"/></svg><span class="m get">GET</span><div style="flex:1;min-width:0"><div class="t" style="font-weight:650;white-space:nowrap">Get user by id</div><div style="color:var(--text-tertiary);font:11px var(--font-mono)">/api/users/{id}</div></div><div class="spark"><i style="height:12px"></i><i style="height:12px"></i><i style="height:12px"></i><i style="height:11px"></i><i style="height:12px"></i><i style="height:12px"></i><i style="height:12px"></i></div><span class="pill" style="height:20px">11 runs</span></div></div>
+          <div class="g"><div class="gh"><svg class="i chev"><use href="#chev"/></svg><span class="m get">GET</span><div style="flex:1;min-width:0"><div class="t" style="font-weight:650;white-space:nowrap">httpbin.org/delay/2 <span class="tag">UNSAVED</span></div><div style="color:var(--text-tertiary);font:11px var(--font-mono)">https://httpbin.org/delay/2</div></div><div class="spark"><i style="height:12px"></i></div><span class="pill" style="height:20px">1 run</span></div></div>
+          <div class="day">Yesterday</div>
+          <div class="g"><div class="gh"><svg class="i chev"><use href="#chev"/></svg><span class="m get">GET</span><div style="flex:1;min-width:0"><div class="t" style="font-weight:650;white-space:nowrap">List orders</div><div style="color:var(--text-tertiary);font:11px var(--font-mono)">/api/orders</div></div><div class="spark"><i style="height:12px"></i><i class="e" style="height:16px"></i><i class="e" style="height:16px"></i><i class="e" style="height:16px"></i></div><span class="pill" style="height:20px">4 runs</span></div></div>
+          <div class="g"><div class="gh"><svg class="i chev"><use href="#chev"/></svg><span class="m del">DELETE</span><div style="flex:1;min-width:0"><div class="t" style="font-weight:650;white-space:nowrap">Delete session</div><div style="color:var(--text-tertiary);font:11px var(--font-mono)">/api/sessions/current</div></div><div class="spark"><i class="w" style="height:14px"></i></div><span class="pill" style="height:20px">1 run</span></div></div>
+        </div>
+        <div class="foot"><span>34 requests · 128 runs</span></div>
+      </div>
+    </div>
+    <div class="cap"><b>B. Grouped by request</b><span>One row per request, newest activity first. Open it to see each run with its label. The sparkline shows at a glance which request has been failing.</span><i><em>+</em> Compact, shows trends. <s>−</s> Two taps to reach one run. Labels live inside a group, so a search has to look inside collapsed rows.</i></div>
+  </div>
+
+  <!-- ============ C ============ -->
+  <div class="slot">
+    <div class="fr">
+      <div class="row"><span class="brand">Hopper</span><span class="pill"><i></i>dev</span><span class="sp"></span><button class="ib"><svg class="i"><use href="#gear"/></svg></button></div>
+      <div class="find"><svg class="i"><use href="#search"/></svg><input placeholder="Find a request"><kbd>Ctrl K</kbd></div>
+      <div class="card"><div class="tabs"><button class="tab on">Recent</button><button class="tab">Saved</button></div>
+        <div class="scroll" style="opacity:.55">
+          <div class="h"><span class="m post">POST</span><div class="mid"><div class="t"><span>Create invoice</span></div><div class="s">/api/invoices</div></div><span class="st w">422</span></div>
+          <div class="h"><span class="m get">GET</span><div class="mid"><div class="t"><span>Get user by id</span></div><div class="s">/api/users/42</div></div><span class="st ok">200</span></div>
+        </div>
+      </div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="find"><svg class="i"><use href="#clock"/></svg><input value="vat"><kbd>Esc</kbd></div>
+        <div class="chips"><button class="chip on">All</button><button class="chip">Named</button><button class="chip">Failed</button><button class="chip">dev</button><button class="chip">Today</button></div>
+        <div class="hint" style="padding-top:4px"><span>3 of 128 matches</span></div>
+        <div style="padding:2px 0 6px">
+          <div class="h sel"><span class="m post">POST</span><div class="mid"><div class="t"><input class="edit" value="VAT bug repro" data-live></div><div class="s">Create invoice · /api/invoices</div></div><span class="st w">422</span></div>
+          <div class="h"><span class="m post">POST</span><div class="mid"><div class="t"><span class="lbl"><svg class="i"><use href="#tagi"/></svg><span class="rn">Works with BR <mark>VAT</mark></span></span></div><div class="s">Create invoice · /api/invoices</div></div><div class="end"><span class="st ok">201</span><span class="when">13:58</span></div></div>
+          <div class="h"><span class="m get">GET</span><div class="mid"><div class="t auto"><span class="rn">Validate <mark>VAT</mark> number</span></div><div class="s">/api/tax/<mark>vat</mark>/validate?id=PT5013</div></div><div class="end"><span class="st ok">200</span><span class="when">Oct 22</span></div></div>
+        </div>
+        <div class="foot"><span><kbd style="border:1px solid var(--border-default);border-radius:4px;padding:0 4px;font-size:10.5px">↵</kbd> open</span><span><kbd style="border:1px solid var(--border-default);border-radius:4px;padding:0 4px;font-size:10.5px">F2</kbd> rename</span><span><kbd style="border:1px solid var(--border-default);border-radius:4px;padding:0 4px;font-size:10.5px">Del</kbd> remove</span><span class="sp"></span><span>Ctrl H</span></div>
+      </div>
+    </div>
+    <div class="cap"><b>C. Search sheet (Ctrl H)</b><span>History stays out of the way until you want it. A sheet inside the panel, keyboard first, searches labels, names, URLs and status. Rename with F2 right in the result.</span><i><em>+</em> No change to the home screen; fast for people who live on the keyboard. <s>−</s> Not browsable. You have to know roughly what to type.</i></div>
+  </div>
+
+  <!-- ============ D ============ -->
+  <div class="slot">
+    <div class="fr">
+      <div class="row"><button class="ib"><svg class="i" style="transform:rotate(180deg)"><use href="#chev"/></svg></button><span class="name">Create invoice</span><span class="ib" style="color:#f5b301"><svg class="i" style="fill:currentColor"><use href="#star"/></svg></span><span class="sp"></span><span class="pill"><i></i>dev</span></div>
+      <div class="bar"><span class="m post">POST</span><span class="url">{{baseUrl}}/api/invoices</span><button class="send">Send</button></div>
+      <div class="card">
+        <div class="tabs"><button class="tab">Params</button><button class="tab">Headers <u>4</u></button><button class="tab">Body</button><button class="tab">Auth</button><button class="tab on"><svg class="i"><use href="#clock"/></svg>History <u>6</u></button></div>
+        <div class="scroll">
+          <div class="day">Named</div>
+          <div class="rc named">
+            <div class="row"><span class="st w">422</span><span class="lbl"><svg class="i"><use href="#tagi"/></svg><span class="rn">VAT bug repro</span></span><span class="sp"></span><span style="color:var(--text-tertiary);font-size:11.5px">Today 14:32</span></div>
+            <div class="meta"><span>212 ms</span><span>·</span><span>1.4 KB</span><span>·</span><span>dev</span></div>
+            <div class="acts"><button class="btn">View response</button><button class="btn"><svg class="i"><use href="#rerun"/></svg>Restore request</button><button class="btn"><svg class="i"><use href="#pen"/></svg>Rename</button></div>
+          </div>
+          <div class="rc named">
+            <div class="row"><span class="st ok">201</span><span class="lbl"><svg class="i"><use href="#tagi"/></svg><span class="rn">Works with BR VAT</span></span><span class="sp"></span><span style="color:var(--text-tertiary);font-size:11.5px">Today 13:58</span></div>
+            <div class="meta"><span>340 ms</span><span>·</span><span>0.9 KB</span><span>·</span><span>dev</span></div>
+          </div>
+          <div class="day">All runs</div>
+          <div class="rc"><div class="row"><span class="st w">422</span><span class="lbl ghost"><svg class="i"><use href="#tagi"/></svg>Add label</span><span class="sp"></span><span style="color:var(--text-tertiary);font-size:11.5px">Today 14:30</span></div><div class="meta"><span>198 ms</span><span>·</span><span>dev</span></div></div>
+          <div class="rc"><div class="row"><span class="st ok">201</span><span class="lbl ghost"><svg class="i"><use href="#tagi"/></svg>Add label</span><span class="sp"></span><span style="color:var(--text-tertiary);font-size:11.5px">Today 13:41</span></div><div class="meta"><span>305 ms</span><span>·</span><span>dev</span></div></div>
+          <div class="rc"><div class="row"><span class="st e">500</span><span class="lbl ghost"><svg class="i"><use href="#tagi"/></svg>Add label</span><span class="sp"></span><span style="color:var(--text-tertiary);font-size:11.5px">Yesterday 17:20</span></div><div class="meta"><span>1.2 s</span><span>·</span><span>rc</span><span class="tag mcp">AGENT</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><b>D. History tab inside the request</b><span>Where you already are when you send. Named runs float to the top, so labels act like bookmarks for this one request. Restore request puts that run's URL, headers and body back in the editor.</span><i><em>+</em> Great for "what did I send when it worked". <s>−</s> Only answers per request. Alone, it can't give a global history.</i></div>
+  </div>
+</div>
+
+<h2>2. How to rename</h2>
+<p class="lead">Works with any of the placements above. These can be combined; inline is the base and the menu is a second way in.</p>
+<div class="grid">
+
+  <div class="slot">
+    <div class="demo">
+      <div class="day" style="padding-top:0">Today</div>
+      <div class="h"><span class="m post">POST</span><div class="mid"><div class="t"><input class="edit" value="VAT bug repro" data-live></div><div class="s">Create invoice · /api/invoices</div></div><div class="end"><span class="st w">422</span><span class="when">2 min</span></div></div>
+      <div class="hint"><span><kbd>Enter</kbd> save</span><span><kbd>Esc</kbd> cancel</span><span>empty = back to “Create invoice”</span></div>
+      <div class="h"><span class="m get">GET</span><div class="mid"><div class="t auto"><span class="rn">Get user by id</span></div><div class="s">/api/users/42</div></div><div class="end"><span class="st ok">200</span><span class="when">6 min</span></div></div>
+    </div>
+    <div class="cap"><b>R1. Inline</b><span>Double-click the title, press F2, or click the pencil on hover. The title becomes a field, the text is selected. Enter saves, Esc cancels, empty clears the label.</span><i><em>+</em> Fastest, no extra UI. <s>−</s> Can't ask a question, so it can't offer scope.</i></div>
+  </div>
+
+  <div class="slot">
+    <div class="demo">
+      <div class="day" style="padding-top:0">Today</div>
+      <div class="h sel"><span class="m post">POST</span><div class="mid"><div class="t auto"><span class="rn">Create invoice</span></div><div class="s">/api/invoices</div></div><div class="end"><span class="st w">422</span><span class="when">2 min</span></div></div>
+      <div class="pop" style="left:52px;top:62px">
+        <h4>Label this run</h4>
+        <input class="edit" value="VAT bug repro" data-live>
+        <div class="seg"><button class="on">This run only</button><button>Rename the request</button></div>
+        <div class="row" style="flex-wrap:wrap;gap:5px"><span class="chip">before fix</span><span class="chip">after fix</span><span class="chip">prod token</span><span class="chip">repro</span></div>
+        <div class="row" style="margin-top:10px"><span class="sp"></span><button class="btn">Cancel</button><button class="btn" style="background:var(--accent);color:var(--on-accent)">Save</button></div>
+      </div>
+      <div class="h" style="margin-top:176px"><span class="m get">GET</span><div class="mid"><div class="t auto"><span class="rn">Get user by id</span></div><div class="s">/api/users/42</div></div><div class="end"><span class="st ok">200</span><span class="when">6 min</span></div></div>
+    </div>
+    <div class="cap"><b>R2. Popover</b><span>A small card anchored to the row. Chooses the scope (label only this run, or rename the saved request itself) and suggests common labels you have used before.</span><i><em>+</em> Answers the "what am I renaming" question. <s>−</s> More clicks than inline for the common case.</i></div>
+  </div>
+
+  <div class="slot">
+    <div class="demo" style="min-height:300px">
+      <div class="day" style="padding-top:0">Today</div>
+      <div class="h sel"><span class="m post">POST</span><div class="mid"><div class="t auto"><span class="rn">Create invoice</span></div><div class="s">/api/invoices</div></div><div class="end"><span class="st w">422</span><span class="when">2 min</span></div></div>
+      <div class="menu" style="left:150px;top:62px">
+        <div class="mi on"><svg class="i"><use href="#pen"/></svg>Rename<kbd>F2</kbd></div>
+        <div class="mi"><svg class="i"><use href="#rerun"/></svg>Send again<kbd>Ctrl ↵</kbd></div>
+        <div class="mi"><svg class="i"><use href="#copy"/></svg>Copy as cURL</div>
+        <div class="mi"><svg class="i"><use href="#save"/></svg>Save as request</div>
+        <div class="mi"><svg class="i"><use href="#star"/></svg>Pin to top</div>
+        <div class="mi"><hr></div>
+        <div class="mi danger"><svg class="i"><use href="#trash"/></svg>Delete from history<kbd>Del</kbd></div>
+      </div>
+    </div>
+    <div class="cap"><b>R3. Right-click menu</b><span>Rename is one entry among the actions you would want on a history row anyway: send again, copy as cURL, save an unsaved request, pin, delete.</span><i><em>+</em> Discoverable, gives history its own actions. <s>−</s> Needs R1 or R2 behind the Rename item.</i></div>
+  </div>
+</div>
+
+<div class="decide">
+  <h3>My suggestion, and what I need from you</h3>
+  <ul>
+    <li><b>A + R1 + R3</b>, with D's Named section as a later addition. A is the screen you described, R1 is the fastest rename, R3 gives history its own actions. B and C are good ideas but solve a second problem.</li>
+    <li><b>What does a rename change?</b> I'd label the run only and leave the saved request's name alone, so renaming "VAT bug repro" never hurts the collection. R2's second option exists in case you'd rather rename the request.</li>
+    <li><b>How much to keep.</b> Today Hopper keeps the newest 20 responses per saved request and nothing for unsaved sends. "All requests" needs a rule, for example 500 entries or 30 days, and labeled entries never expire.</li>
+    <li><b>Agent sends.</b> Show requests the MCP agent made, with the AGENT badge as in A, or hide them behind a filter?</li>
+  </ul>
+</div>
+
+<script>
+const root = document.documentElement;
+document.querySelectorAll("[data-theme-btn]").forEach(b => b.addEventListener("click", () => {
+  root.dataset.theme = b.dataset.themeBtn;
+  document.querySelectorAll("[data-theme-btn]").forEach(x => x.classList.toggle("on", x === b));
+}));
+
+// Inline rename: double-click a title or click the pencil, Enter saves, Esc cancels.
+function startEdit(row) {
+  const t = row.querySelector(".t");
+  if (!t || t.querySelector("input")) return;
+  const old = t.innerHTML;
+  const cur = (t.querySelector(".rn") || t).textContent.trim();
+  const inp = document.createElement("input");
+  inp.className = "edit"; inp.value = cur;
+  t.innerHTML = ""; t.appendChild(inp); inp.focus(); inp.select();
+  const done = save => {
+    if (save && inp.value.trim()) {
+      t.innerHTML = '<span class="lbl"><svg class="i"><use href="#tagi"/></svg><span class="rn"></span></span>';
+      t.querySelector(".rn").textContent = inp.value.trim();
+    } else t.innerHTML = old;
+  };
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") done(true); if (e.key === "Escape") done(false); e.stopPropagation(); });
+  inp.addEventListener("blur", () => done(true));
+}
+document.addEventListener("dblclick", e => { const r = e.target.closest(".h"); if (r && !e.target.closest("input")) startEdit(r); });
+document.addEventListener("click", e => { const p = e.target.closest(".pen"); if (p) startEdit(p.closest(".h")); });
+</script>
+</body>
+</html>

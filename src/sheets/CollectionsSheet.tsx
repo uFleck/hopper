@@ -32,7 +32,7 @@ const ACCESS_ICON: Record<AgentAccess, string> = { ask: "hand-waving", auto: "li
 
 function MoreButton({ label, ...props }: { label: string } & Record<string, unknown>) {
   return (
-    <button {...props} type="button" className="ui-iconbtn ui-iconbtn--sm" aria-label={label} title={label}>
+    <button {...props} type="button" className="ui-iconbtn ui-iconbtn--sm" aria-label={label} data-tip={label}>
       <Icon name="dots-three" />
     </button>
   );
@@ -199,9 +199,9 @@ function CollectionsBody() {
           <div className="col-row" style={{ paddingLeft: depth * 14 }}>
             <input type="checkbox" className="col-check" aria-label={`Select ${n.name}`} checked={selected.has(n.id)} onChange={() => toggle(n.id)} />
             <Chip method={n.method} />
-            <button type="button" className="col-req" onClick={() => (void openRequest(n.id), closeSheet())} title={n.name}>
+            <button type="button" className="col-req" onClick={() => (void openRequest(n.id), closeSheet())} data-tip={n.name}>
               <span className="col-name">{n.name}</span>
-              {n.orphaned && <Chip tone="warn" title="This operation is gone from the spec">orphan</Chip>}
+              {n.orphaned && <Chip tone="warn" tip="This operation is gone from the spec">orphan</Chip>}
             </button>
             <AccessChip access={n.agentAccess} suspended={n.grantSuspended} />
             <Menu label={`Request ${n.name}`} items={requestItems(n)} trigger={(p) => <MoreButton {...p} label={`Actions for ${n.name}`} />} />
@@ -222,7 +222,7 @@ function CollectionsBody() {
             <b>{c.name}</b>
             <span className="cv-muted">{count} request{count === 1 ? "" : "s"}{c.specs[0] ? ` · ${c.specs[0].name}` : ""}</span>
           </span>
-          {missing > 0 && active && <Chip tone="warn" title={`Secrets without a value in ${STAGE_LABEL[active]}`}>{missing} missing</Chip>}
+          {missing > 0 && active && <Chip tone="warn" tip={`Secrets without a value in ${STAGE_LABEL[active]}`}>{missing} missing</Chip>}
           <Icon name="caret-right" className="col-card-go" />
         </button>
       </li>
@@ -256,7 +256,7 @@ function CollectionsBody() {
             <div className="col-block-actions">
               <Button size="sm" icon="folder-plus" onClick={() => setCreating({ collection: c.slug, parent: [] })}>New folder</Button>
               {gets.length > 0 && (
-                <Button size="sm" icon="lightning" title="Set every GET request in this collection to Auto" onClick={() => void grant(gets, "auto", `All ${gets.length} GET requests in ${c.name}`)}>
+                <Button size="sm" icon="lightning" data-tip="Set every GET request in this collection to Auto" onClick={() => void grant(gets, "auto", `All ${gets.length} GET requests in ${c.name}`)}>
                   Auto for all GET
                 </Button>
               )}
@@ -278,7 +278,7 @@ function CollectionsBody() {
               {c.specs.map((sp) => (
                 <li key={sp.name} className="col-spec">
                   <Icon name="file-code" />
-                  <span className="col-spec-name" title={sp.url}>{sp.name}</span>
+                  <span className="col-spec-name" data-tip={sp.url}>{sp.name}</span>
                   <span className="col-count">{sp.operationCount} operations</span>
                   {sp.importedAt && <span className="col-date">{new Date(sp.importedAt).toLocaleDateString()}</span>}
                 </li>

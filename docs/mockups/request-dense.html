@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>Hopper request page: dense layouts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Real Hopper tokens (src/styles/tokens.css + tokens-light.css) */
+:root{
+  --font-ui:"Schibsted Grotesk","Segoe UI",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+  --bg-page:#0f1219;--bg-surface:#151922;--bg-elevated:#1d2230;
+  --border-default:#2a3042;--border-strong:#3b445c;
+  --text-primary:#eef0f6;--text-secondary:#aab1c3;--text-tertiary:#6f778d;
+  --accent:#7d98ff;--accent-text:#9bb0ff;--on-accent:#0b1030;--accent-soft:rgba(125,152,255,.16);
+  --hover-tint:rgba(255,255,255,.05);--sel-bg:rgba(125,152,255,.18);
+  --ok:#3ddc84;--warn:#f2b73a;--err:#ff6050;
+  --i1:#7d98ff;--i2:#3ddc84;--i3:#ff9b6a;--i4:#c39bff;--i5:#f2b73a;
+  --wire:#4a2c2c;--s2:#3ddc84;--s5:#ff6050;
+  --r:8px;--w:430px;
+}
+:root[data-theme="light"]{
+  --bg-page:#eef2f7;--bg-surface:#fff;--bg-elevated:#f2f4f8;
+  --border-default:#e1e5ed;--border-strong:#c8cfdb;
+  --text-primary:#141922;--text-secondary:#4a5466;--text-tertiary:#8189a0;
+  --accent:#2f55d4;--accent-text:#2f55d4;--on-accent:#fff;--accent-soft:rgba(47,85,212,.12);
+  --hover-tint:rgba(20,25,34,.05);--sel-bg:rgba(47,85,212,.14);
+  --ok:#14a05a;--warn:#d48a00;--err:#e03a2c;
+  --i1:#2f55d4;--i2:#14a05a;--i3:#c2551c;--i4:#7c4bd0;--i5:#d48a00;
+  --wire:#cbbcbc;--s2:#14a05a;--s5:#e03a2c;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 24px 40px;background:#0a0c11;color:#d8dbe6;font:14px/1.4 var(--font-ui)}
+:root[data-theme="light"] body{background:#d9dee8;color:#222}
+h1{margin:0 0 4px;font-size:20px}
+.lead{margin:0 0 14px;max-width:900px;color:#8e96ab;font-size:13.5px}
+:root[data-theme="light"] .lead{color:#555}
+.toolbar{display:flex;gap:8px;margin-bottom:18px}
+.toolbar button{padding:6px 12px;border:1px solid #3b445c;border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.toolbar button.on{background:#7d98ff;border-color:#7d98ff;color:#0b1030;font-weight:650}
+.grid{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.slot{display:flex;flex-direction:column;gap:8px;width:var(--w)}
+.cap b{display:block;font-size:15px}
+.cap span{display:block;color:#8e96ab;font-size:12.5px}
+:root[data-theme="light"] .cap span{color:#555}
+.cap em{font-style:normal;color:#3ddc84;font-weight:650}
+.cap .before{color:#ff6050}
+
+/* ---- panel frame ---- */
+.fr{position:relative;display:flex;flex-direction:column;gap:6px;width:var(--w);height:700px;padding:8px;overflow:hidden;border-radius:14px;background:var(--bg-page);box-shadow:0 0 0 1px var(--border-default),0 20px 40px rgba(0,0,0,.35);color:var(--text-primary);font:13px/1.4 var(--font-ui)}
+.grow{flex:1;min-height:0}
+button{font:inherit;color:inherit}
+.ib{display:grid;flex:none;place-items:center;width:26px;height:26px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-secondary);font-size:15px;cursor:pointer}
+.ib:hover{background:var(--hover-tint);color:var(--text-primary)}
+.star{color:#f5b301}
+.name{flex:1;min-width:0;height:26px;padding:0 4px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text-primary);font:700 15px var(--font-ui);letter-spacing:-.01em;text-overflow:ellipsis}
+.name:hover{border-color:var(--border-default)}
+.row{display:flex;align-items:center;gap:6px;min-width:0}
+.pill{display:inline-flex;flex:none;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:999px;background:var(--bg-elevated);color:var(--text-secondary);font-size:12px;font-weight:600}
+.pill i{width:7px;height:7px;border-radius:2px;background:var(--ok)}
+.pill.prod{color:var(--err)}.pill.prod i{background:var(--err)}
+.dirty{width:7px;height:7px;flex:none;border-radius:50%;background:var(--accent)}
+.crumbs{margin:-2px 0 0;padding-left:4px;color:var(--text-tertiary);font-size:11.5px}
+
+/* url bar */
+.bar{display:flex;align-items:stretch;height:36px;padding:3px;border-radius:10px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default)}
+.bar:focus-within,.bar:hover{box-shadow:inset 0 0 0 1px var(--border-strong)}
+.meth{display:flex;flex:none;align-items:center;gap:4px;padding:0 8px;border-radius:7px;background:color-mix(in srgb,var(--i2) 15%,transparent);color:var(--i2);font:700 12.5px var(--font-mono)}
+.meth small{font-size:9px;opacity:.8}
+.url{display:flex;flex:1;align-items:center;min-width:0;margin:0 8px;overflow:hidden;font:12.5px var(--font-mono);white-space:nowrap}
+.v{color:var(--accent-text)}
+.send{display:flex;flex:none;align-items:center;gap:6px;padding:0 12px;border:0;border-radius:7px;background:var(--text-primary);color:var(--bg-surface);font-weight:700;cursor:pointer}
+.send kbd{padding:0 4px;border:1px solid currentColor;border-radius:4px;font:10.5px var(--font-ui);opacity:.65}
+.send.accent{background:var(--accent);color:var(--on-accent)}
+.arm{display:flex;flex:none;align-items:center;gap:6px;margin-right:4px;padding:0 8px;border:0;border-radius:7px;background:color-mix(in srgb,var(--err) 12%,var(--bg-surface));box-shadow:inset 0 0 0 1.5px var(--err);color:var(--err);font-size:12px;font-weight:650}
+.arm b{position:relative;width:22px;height:12px;border-radius:6px;background:var(--err)}
+.arm b::after{content:"";position:absolute;top:2px;left:12px;width:8px;height:8px;border-radius:50%;background:#fff}
+.res{margin:0;padding:0 4px;overflow:hidden;color:var(--text-tertiary);font:11.5px var(--font-mono);text-overflow:ellipsis;white-space:nowrap}
+.res .ok{color:var(--text-secondary)}.res .bad{color:var(--err);text-decoration:underline wavy var(--err);text-underline-offset:3px}
+
+/* cards + tabs */
+.card{display:flex;flex-direction:column;min-width:0;overflow:hidden;border-radius:12px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default)}
+.tabs{display:flex;flex:none;align-items:center;gap:2px;height:30px;padding:0 6px;border-bottom:1px solid var(--border-default);overflow:hidden}
+.tab{display:flex;align-items:center;gap:5px;height:100%;padding:0 8px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--text-tertiary);font-weight:600;font-size:12.5px;white-space:nowrap;cursor:pointer}
+.tab:hover{color:var(--text-primary)}
+.tab.on{border-bottom-color:var(--accent);color:var(--text-primary)}
+.tab u{padding:0 5px;border-radius:7px;background:var(--hover-tint);color:var(--text-tertiary);font-size:11px;font-weight:500;text-decoration:none}
+.tab.on u{background:var(--accent-soft);color:var(--accent-text)}
+.sp{flex:1}
+.pane{display:flex;flex-direction:column;gap:3px;padding:6px 8px 8px}
+.sub{margin:2px 0 0;color:var(--text-tertiary);font-size:10.5px;font-weight:650;letter-spacing:.07em;text-transform:uppercase}
+.kv{display:grid;grid-template-columns:14px minmax(0,2fr) minmax(0,3fr) 20px;align-items:center;gap:4px}
+.kv .in{display:flex;align-items:center;height:24px;padding:0 7px;overflow:hidden;border-radius:6px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default);font:12px var(--font-mono);white-space:nowrap}
+.kv .in.ghost{border:1px dashed var(--border-strong);box-shadow:none;background:transparent;color:var(--text-tertiary)}
+.kv .ph{color:var(--text-tertiary)}
+.kv input[type=checkbox]{width:12px;height:12px;margin:0;accent-color:var(--accent)}
+.kv .x{color:var(--text-tertiary);text-align:center;cursor:pointer}
+
+/* response */
+.strip{display:flex;flex:none;align-items:center;gap:8px;height:32px;padding:0 6px 0 10px;border-bottom:1px solid var(--border-default)}
+.st{display:inline-flex;align-items:baseline;gap:5px;color:var(--ok);font-weight:750}
+.st b{font:700 15px var(--font-mono)}.st span{font-size:12px;font-weight:600}
+.meta{color:var(--text-tertiary);font-size:12px;white-space:nowrap}
+.card.lit{box-shadow:inset 3px 0 0 var(--ok),inset 0 0 0 1px var(--border-default)}
+.code{flex:1;min-height:0;margin:0;padding:6px 0;overflow:hidden;font:12px/1.55 var(--font-mono)}
+.code div{display:flex;padding-right:10px}
+.code i{flex:none;width:30px;padding-right:8px;color:var(--text-tertiary);font-style:normal;text-align:right;opacity:.6}
+.k{color:var(--i1)}.s{color:var(--ok)}.n{color:var(--i3)}.p{color:var(--text-tertiary)}
+.empty{display:grid;flex:1;place-items:center;color:var(--text-tertiary);font-size:12.5px}
+
+/* B: accordion rows */
+.acc{display:flex;flex-direction:column}
+.acc-row{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-top:1px solid var(--border-default);color:var(--text-secondary);font-weight:600;cursor:pointer}
+.acc-row:first-child{border-top:0}
+.acc-row:hover{background:var(--hover-tint)}
+.acc-row .c{font-size:10px;transition:transform .15s}
+.acc-row.on{color:var(--text-primary)}.acc-row.on .c{transform:rotate(90deg)}
+.acc-row .sum{margin-left:auto;overflow:hidden;color:var(--text-tertiary);font:11.5px var(--font-mono);font-weight:400;text-overflow:ellipsis;white-space:nowrap}
+
+/* C: collapsed summary */
+.sumbar{display:flex;align-items:center;gap:8px;height:36px;padding:0 6px 0 4px;border-radius:10px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default);cursor:pointer}
+.sumbar:hover{box-shadow:inset 0 0 0 1px var(--border-strong)}
+.sumbar .meth{height:26px;padding:0 7px}
+.sumbar .u{flex:1;min-width:0;overflow:hidden;font:12.5px var(--font-mono);text-overflow:ellipsis;white-space:nowrap}
+.sumbar .chev{color:var(--text-tertiary);font-size:11px;transition:transform .15s}
+.sumbar.open .chev{transform:rotate(180deg)}
+.drawer{display:none;flex-direction:column;gap:6px}
+.drawer.open{display:flex}
+.rsend{display:flex;flex:none;align-items:center;gap:6px;height:26px;padding:0 10px;border:0;border-radius:7px;background:var(--text-primary);color:var(--bg-surface);font-weight:700;font-size:12.5px;cursor:pointer}
+
+/* BEFORE (current build, copied from request.css) */
+.b-crumb{display:flex;align-items:center;height:30px}
+.b-back{display:inline-flex;align-items:center;gap:4px;padding:5px 10px 5px 6px;color:var(--text-secondary);font-size:14px}
+.b-circ{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding-left:36px}
+.b-wire{position:absolute;left:10px;top:16px;bottom:16px;width:4px;border-radius:2px;background:var(--s2);box-shadow:0 0 12px color-mix(in srgb,var(--s2) 60%,transparent)}
+.b-node{position:absolute;left:-36px;top:14px;width:24px;height:24px;border:3px solid var(--s2);border-radius:8px;background:var(--bg-surface)}
+.b-wrap{position:relative;min-width:0}
+.b-card{padding:12px 14px;border-radius:16px;background:var(--bg-elevated)}
+.b-env{display:flex;align-items:center;gap:10px;padding:10px 14px;color:var(--text-secondary);font-size:14px}
+.b-env i{width:10px;height:10px;border-radius:3px;background:var(--ok)}
+.b-head{display:flex;flex-direction:column;gap:8px}
+.b-name{height:32px;font:700 20px/32px var(--font-ui);letter-spacing:-.02em}
+.b-url{display:flex;align-items:stretch;height:44px;padding:3px;border-radius:12px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default)}
+.b-url .meth{width:108px;border-radius:9px;font-size:13px}
+.b-res{margin:0 2px;color:var(--text-tertiary);font:12.5px/1.45 var(--font-mono)}
+.b-send{display:flex;gap:8px}
+.b-send .s1{display:flex;flex:1;align-items:center;justify-content:center;gap:10px;height:46px;border-radius:14px;background:var(--text-primary);color:var(--bg-surface);font-size:15px;font-weight:700}
+.b-send .s2{display:grid;place-items:center;height:46px;padding:0 14px;border-radius:14px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-strong);color:var(--text-secondary);font-weight:600}
+.b-disc{margin-top:10px;display:flex;gap:8px;color:var(--text-secondary);font-size:14px;font-weight:550}
+.b-disc em{margin-left:auto;color:var(--text-tertiary);font-size:12.5px;font-style:normal;font-weight:400}
+.mark{position:absolute;right:6px;z-index:5;padding:1px 6px;border-radius:5px;background:var(--err);color:#fff;font:650 10.5px var(--font-ui)}
+</style>
+</head>
+<body>
+<h1>Hopper request page: denser layouts</h1>
+<p class="lead">Same data, same tokens, same panel (430 px is the narrow preset, 640 px is the default). The current page spends about 300 px before the first param is visible; the three options below spend 100 to 140 px. Toggle the width and the theme to check each one. In option C, click the summary bar to open the editor.</p>
+<div class="toolbar">
+  <button id="w430" class="on">430 px</button><button id="w640">640 px</button>
+  <button id="tdark" class="on">Night</button><button id="tlight">Day</button>
+</div>
+
+<div class="grid">
+
+<!-- ===================== BEFORE ===================== -->
+<div class="slot">
+  <div class="cap"><b>Before: the circuit</b><span class="before" style="display:inline">~300 px</span> of chrome above the first param. 36 px wire gutter, a card for the environment, Send on its own 46 px row.</span></span></div>
+  <div class="fr">
+    <div class="b-crumb"><span class="b-back">‹ Back</span><span class="sp"></span><button class="ib">⋯</button></div>
+    <div class="b-circ">
+      <span class="b-wire"></span>
+      <div class="b-wrap"><span class="b-node"></span><div class="b-card b-env"><i></i><span><b style="color:var(--text-primary)">local</b> environment</span></div></div>
+      <div class="b-wrap"><span class="b-node"></span>
+        <div class="b-card">
+          <div class="b-head">
+            <div class="row"><span class="b-name" style="flex:1">Get user</span><button class="ib star">★</button></div>
+            <div class="b-url"><span class="meth">GET <small>▾</small></span><span class="url"><span class="v">{{baseUrl}}</span>/users/{id}?include=profile</span></div>
+            <p class="b-res">http://localhost:8080/users/42?include=profile</p>
+            <div class="b-send"><span class="s1">Send <kbd style="border:1px solid;border-radius:4px;padding:0 5px;font-size:11px;opacity:.7;font-weight:500">Ctrl ↵</kbd></span><span class="s2">cURL</span></div>
+          </div>
+          <div class="b-disc"><span>›</span>Details<em>2 params · 1 header · no body</em></div>
+        </div>
+      </div>
+      <div class="b-wrap"><span class="b-node" style="border-color:var(--s2);background:var(--s2)"></span>
+        <div class="b-card" style="display:flex;flex-direction:column;gap:8px">
+          <div class="row"><span class="st"><b>200</b><span>OK</span></span><span class="meta">143 ms = 3 ticks · 1.2 KB</span></div>
+          <div class="row"><span class="sp"></span><button class="ib">⌕</button><button class="ib">⧉</button><button class="ib">⤢</button></div>
+          <div class="tabs" style="padding:0"><button class="tab on">Body</button><button class="tab">Headers <u>8</u></button><button class="tab">Cookies</button><button class="tab">Timeline</button></div>
+          <div class="code" style="height:70px;background:var(--bg-page);border-radius:8px"><div><i>1</i><span class="p">{</span></div><div><i>2</i><span class="k">&nbsp;&nbsp;"id"</span><span class="p">: </span><span class="n">42</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== A: BAR + TABS ===================== -->
+<div class="slot">
+  <div class="cap"><b>A. One bar, tabbed sections</b><span><em>~110 px</em> of chrome. Back, name, env, pin and menu share one row; Send lives inside the URL bar; Params, Headers, Body, Auth and Notes become one tab strip. The response is one status line.</span></div>
+  <div class="fr">
+    <div class="row"><button class="ib">‹</button><input class="name" value="Get user"><span class="pill"><i></i>local</span><button class="ib star">★</button><button class="ib">⋯</button></div>
+    <div class="bar"><span class="meth">GET <small>▾</small></span><span class="url"><span class="v">{{baseUrl}}</span>/users/{id}?include=profile</span><button class="send">Send <kbd>↵</kbd></button></div>
+    <p class="res">→ <span class="ok">http://localhost:8080/users/42?include=profile</span></p>
+
+    <div class="card" style="flex:none">
+      <div class="tabs"><button class="tab on">Params <u>2</u></button><button class="tab">Headers <u>1</u></button><button class="tab">Body <u>–</u></button><button class="tab">Auth</button><button class="tab">Notes</button></div>
+      <div class="pane">
+        <p class="sub">Path</p>
+        <div class="kv" style="grid-template-columns:minmax(0,2fr) minmax(0,3fr)"><span class="in" style="background:none;box-shadow:none;color:var(--accent-text)">{id}</span><span class="in">42</span></div>
+        <p class="sub">Query</p>
+        <div class="kv"><input type="checkbox" checked><span class="in">include</span><span class="in">profile</span><span class="x">×</span></div>
+        <div class="kv"><input type="checkbox"><span class="in" style="opacity:.55">debug</span><span class="in" style="opacity:.55">true</span><span class="x">×</span></div>
+        <div class="kv"><span></span><span class="in ghost">name</span><span class="in ghost">value</span><span></span></div>
+      </div>
+    </div>
+
+    <div class="card lit grow">
+      <div class="strip"><span class="st"><b>200</b><span>OK</span></span><span class="meta">143 ms · 1.2 KB</span><span class="sp"></span><button class="ib">⌕</button><button class="ib">⧉</button><button class="ib">⤢</button></div>
+      <div class="tabs" style="height:28px"><button class="tab on">Body</button><button class="tab">Headers <u>8</u></button><button class="tab">Cookies</button><button class="tab">Timeline</button></div>
+      <div class="code">
+        <div><i>1</i><span class="p">{</span></div>
+        <div><i>2</i><span><span class="k">&nbsp;&nbsp;"id"</span><span class="p">: </span><span class="n">42</span><span class="p">,</span></span></div>
+        <div><i>3</i><span><span class="k">&nbsp;&nbsp;"name"</span><span class="p">: </span><span class="s">"Ada Lovelace"</span><span class="p">,</span></span></div>
+        <div><i>4</i><span><span class="k">&nbsp;&nbsp;"email"</span><span class="p">: </span><span class="s">"ada@example.com"</span><span class="p">,</span></span></div>
+        <div><i>5</i><span><span class="k">&nbsp;&nbsp;"profile"</span><span class="p">: {</span></span></div>
+        <div><i>6</i><span><span class="k">&nbsp;&nbsp;&nbsp;&nbsp;"bio"</span><span class="p">: </span><span class="s">"First programmer"</span><span class="p">,</span></span></div>
+        <div><i>7</i><span><span class="k">&nbsp;&nbsp;&nbsp;&nbsp;"followers"</span><span class="p">: </span><span class="n">1815</span></span></div>
+        <div><i>8</i><span class="p">&nbsp;&nbsp;},</span></div>
+        <div><i>9</i><span><span class="k">&nbsp;&nbsp;"active"</span><span class="p">: </span><span class="n">true</span></span></div>
+        <div><i>10</i><span class="p">}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== B: DENSE ACCORDIONS ===================== -->
+<div class="slot">
+  <div class="cap"><b>B. Accordion rows with live summaries</b><span><em>~140 px</em> of chrome. Same accordion pattern the home screen now uses. Every collapsed row says what is inside it, so you rarely need to open one. Send moves to the title row and the URL gets the full width.</span></div>
+  <div class="fr">
+    <div class="row"><button class="ib">‹</button><div style="flex:1;min-width:0"><div class="row"><input class="name" value="Get user" style="flex:none;width:90px"><span class="dirty" title="Unsaved"></span></div></div><span class="pill"><i></i>local</span><button class="ib star">★</button><button class="ib">⋯</button><button class="rsend">Send <kbd style="border:1px solid;border-radius:4px;padding:0 4px;font-size:10px;opacity:.65;font-weight:500">↵</kbd></button></div>
+    <p class="crumbs">Acme API / Users</p>
+    <div class="bar"><span class="meth">GET <small>▾</small></span><span class="url"><span class="v">{{baseUrl}}</span>/users/{id}?include=profile</span><span style="display:grid;place-items:center;width:28px;color:var(--text-tertiary)" title="Copy as cURL">⧉</span></div>
+    <p class="res">→ <span class="ok">http://localhost:8080/users/42?include=profile</span></p>
+
+    <div class="card" style="flex:none">
+      <div class="acc">
+        <div class="acc-row on"><span class="c">▸</span>Params<span class="sum">id=42 · include=profile · +1 off</span></div>
+      </div>
+      <div class="pane" style="border-top:0;padding-top:2px">
+        <div class="kv"><input type="checkbox" checked><span class="in">include</span><span class="in">profile</span><span class="x">×</span></div>
+        <div class="kv"><input type="checkbox"><span class="in" style="opacity:.55">debug</span><span class="in" style="opacity:.55">true</span><span class="x">×</span></div>
+        <div class="kv"><span></span><span class="in ghost">name</span><span class="in ghost">value</span><span></span></div>
+      </div>
+      <div class="acc">
+        <div class="acc-row"><span class="c">▸</span>Headers<span class="sum">Accept: application/json</span></div>
+        <div class="acc-row"><span class="c">▸</span>Body<span class="sum">none</span></div>
+        <div class="acc-row"><span class="c">▸</span>Auth<span class="sum">inherit · Bearer {{token}}</span></div>
+        <div class="acc-row"><span class="c">▸</span>Notes<span class="sum">–</span></div>
+      </div>
+    </div>
+
+    <div class="card lit grow">
+      <div class="strip"><span class="st"><b>200</b><span>OK</span></span><span class="meta">143 ms · 1.2 KB</span><span class="sp"></span><button class="ib">⌕</button><button class="ib">⧉</button><button class="ib">⤢</button></div>
+      <div class="tabs" style="height:28px"><button class="tab on">Body</button><button class="tab">Headers <u>8</u></button><button class="tab">Cookies</button><button class="tab">Timeline</button></div>
+      <div class="code">
+        <div><i>1</i><span class="p">{</span></div>
+        <div><i>2</i><span><span class="k">&nbsp;&nbsp;"id"</span><span class="p">: </span><span class="n">42</span><span class="p">,</span></span></div>
+        <div><i>3</i><span><span class="k">&nbsp;&nbsp;"name"</span><span class="p">: </span><span class="s">"Ada Lovelace"</span><span class="p">,</span></span></div>
+        <div><i>4</i><span><span class="k">&nbsp;&nbsp;"email"</span><span class="p">: </span><span class="s">"ada@example.com"</span><span class="p">,</span></span></div>
+        <div><i>5</i><span><span class="k">&nbsp;&nbsp;"profile"</span><span class="p">: {</span></span></div>
+        <div><i>6</i><span><span class="k">&nbsp;&nbsp;&nbsp;&nbsp;"bio"</span><span class="p">: </span><span class="s">"First programmer"</span></span></div>
+        <div><i>7</i><span class="p">&nbsp;&nbsp;}</span></div>
+        <div><i>8</i><span class="p">}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== C: RESPONSE FIRST ===================== -->
+<div class="slot">
+  <div class="cap"><b>C. Response first (click the bar)</b><span><em>~70 px</em> of chrome once a response exists. The request folds into one summary bar, and the response gets the rest of the panel. Click the bar to edit; Send stays on the bar. Best for a small panel when you mostly read responses.</span></div>
+  <div class="fr" id="C">
+    <div class="row"><button class="ib">‹</button><input class="name" value="Get user"><span class="pill"><i></i>local</span><button class="ib star">★</button><button class="ib">⋯</button></div>
+    <div class="sumbar" id="cbar"><span class="meth">GET</span><span class="u"><span class="v">{{baseUrl}}</span>/users/{id}?include=profile</span><span class="meta">2 params · 1 hdr</span><span class="chev">▾</span><button class="rsend" onclick="event.stopPropagation()">Send ↵</button></div>
+
+    <div class="drawer" id="cdrawer">
+      <div class="bar"><span class="meth">GET <small>▾</small></span><span class="url"><span class="v">{{baseUrl}}</span>/users/{id}?include=profile</span></div>
+      <p class="res">→ <span class="ok">http://localhost:8080/users/42?include=profile</span></p>
+      <div class="card">
+        <div class="tabs"><button class="tab on">Params <u>2</u></button><button class="tab">Headers <u>1</u></button><button class="tab">Body <u>–</u></button><button class="tab">Auth</button><button class="tab">Notes</button></div>
+        <div class="pane">
+          <div class="kv"><input type="checkbox" checked><span class="in">include</span><span class="in">profile</span><span class="x">×</span></div>
+          <div class="kv"><input type="checkbox"><span class="in" style="opacity:.55">debug</span><span class="in" style="opacity:.55">true</span><span class="x">×</span></div>
+          <div class="kv"><span></span><span class="in ghost">name</span><span class="in ghost">value</span><span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card lit grow">
+      <div class="strip"><span class="st"><b>200</b><span>OK</span></span><span class="meta">143 ms · 1.2 KB</span><span class="sp"></span><button class="ib">⌕</button><button class="ib">⧉</button><button class="ib">⤢</button></div>
+      <div class="tabs" style="height:28px"><button class="tab on">Body</button><button class="tab">Headers <u>8</u></button><button class="tab">Cookies</button><button class="tab">Timeline</button></div>
+      <div class="code">
+        <div><i>1</i><span class="p">{</span></div>
+        <div><i>2</i><span><span class="k">&nbsp;&nbsp;"id"</span><span class="p">: </span><span class="n">42</span><span class="p">,</span></span></div>
+        <div><i>3</i><span><span class="k">&nbsp;&nbsp;"name"</span><span class="p">: </span><span class="s">"Ada Lovelace"</span><span class="p">,</span></span></div>
+        <div><i>4</i><span><span class="k">&nbsp;&nbsp;"email"</span><span class="p">: </span><span class="s">"ada@example.com"</span><span class="p">,</span></span></div>
+        <div><i>5</i><span><span class="k">&nbsp;&nbsp;"profile"</span><span class="p">: {</span></span></div>
+        <div><i>6</i><span><span class="k">&nbsp;&nbsp;&nbsp;&nbsp;"bio"</span><span class="p">: </span><span class="s">"First programmer"</span><span class="p">,</span></span></div>
+        <div><i>7</i><span><span class="k">&nbsp;&nbsp;&nbsp;&nbsp;"followers"</span><span class="p">: </span><span class="n">1815</span></span></div>
+        <div><i>8</i><span class="p">&nbsp;&nbsp;},</span></div>
+        <div><i>9</i><span><span class="k">&nbsp;&nbsp;"active"</span><span class="p">: </span><span class="n">true</span><span class="p">,</span></span></div>
+        <div><i>10</i><span><span class="k">&nbsp;&nbsp;"roles"</span><span class="p">: [</span><span class="s">"admin"</span><span class="p">, </span><span class="s">"dev"</span><span class="p">],</span></span></div>
+        <div><i>11</i><span><span class="k">&nbsp;&nbsp;"createdAt"</span><span class="p">: </span><span class="s">"2026-01-14T09:21:00Z"</span><span class="p">,</span></span></div>
+        <div><i>12</i><span><span class="k">&nbsp;&nbsp;"plan"</span><span class="p">: </span><span class="s">"pro"</span></span></div>
+        <div><i>13</i><span class="p">}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PRODUCTION STATE ===================== -->
+<div class="slot">
+  <div class="cap"><b>Production, write method (option A)</b><span>The Arm switch moves into the URL bar, left of Send. Send stays disabled until armed. The env pill and the response edge turn red so production never looks like local.</span></div>
+  <div class="fr" style="height:230px">
+    <div class="row"><button class="ib">‹</button><input class="name" value="Update user"><span class="pill prod"><i></i>production</span><button class="ib star">★</button><button class="ib">⋯</button></div>
+    <div class="bar" style="box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--err) 55%,transparent)"><span class="meth" style="background:color-mix(in srgb,var(--i4) 15%,transparent);color:var(--i4)">PATCH <small>▾</small></span><span class="url"><span class="v">{{baseUrl}}</span>/users/{id}</span><button class="arm"><b></b>Arm</button><button class="send" style="background:var(--err);color:#fff">Send <kbd>↵</kbd></button></div>
+    <p class="res">→ <span class="ok">https://api.acme.com/users/42</span></p>
+    <div class="card" style="flex:none">
+      <div class="tabs"><button class="tab">Params <u>1</u></button><button class="tab">Headers <u>2</u></button><button class="tab on">Body <u>json</u></button><button class="tab">Auth</button><button class="tab">Notes</button></div>
+      <div class="code" style="flex:none;height:56px"><div><i>1</i><span class="p">{ </span><span class="k">"plan"</span><span class="p">: </span><span class="s">"pro"</span><span class="p"> }</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== UNRESOLVED STATE ===================== -->
+<div class="slot">
+  <div class="cap"><b>Undefined variable (options A, B, C)</b><span>The warning stays one line, tucked into the resolved-URL row, with the same click-to-add behaviour as today. No extra block.</span></div>
+  <div class="fr" style="height:150px">
+    <div class="row"><button class="ib">‹</button><input class="name" value="Get user"><span class="pill"><i></i>local</span><button class="ib star">★</button><button class="ib">⋯</button></div>
+    <div class="bar"><span class="meth">GET <small>▾</small></span><span class="url"><span class="v">{{baseUrl}}</span>/users/{id}/<span style="color:var(--err);text-decoration:underline wavy var(--err);text-underline-offset:3px">{{teamId}}</span></span><button class="send" style="opacity:.9">Send <kbd>↵</kbd></button></div>
+    <p class="res" style="color:var(--warn)">⚠ Not defined in local: <span class="bad">{{teamId}}</span> · click to add</p>
+  </div>
+</div>
+
+</div>
+
+<script>
+const root=document.documentElement;
+const set=(id,on)=>document.getElementById(id).classList.toggle("on",on);
+document.getElementById("w430").onclick=()=>{root.style.setProperty("--w","430px");set("w430",1);set("w640",0)};
+document.getElementById("w640").onclick=()=>{root.style.setProperty("--w","640px");set("w430",0);set("w640",1)};
+document.getElementById("tdark").onclick=()=>{root.dataset.theme="dark";set("tdark",1);set("tlight",0)};
+document.getElementById("tlight").onclick=()=>{root.dataset.theme="light";set("tdark",0);set("tlight",1)};
+if(location.hash.includes("640"))document.getElementById("w640").click();
+if(location.hash.includes("light"))document.getElementById("tlight").click();
+const bar=document.getElementById("cbar"),dr=document.getElementById("cdrawer");
+bar.onclick=()=>{bar.classList.toggle("open");dr.classList.toggle("open")};
+</script>
+</body>
+</html>

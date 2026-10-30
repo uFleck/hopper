@@ -1,0 +1,56 @@
+/* History tab of the home screen: chips, day groups, rows. Class names carry a hist- prefix; the shared ui styles come from ui.css. */
+
+.hist { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+
+.hist-chips { display: flex; flex: none; gap: 5px; padding: 7px 8px 4px; overflow: hidden; }
+.hist-chip { display: inline-flex; align-items: center; gap: 5px; flex: none; height: 24px; padding: 0 9px; border: 0; border-radius: 999px; background: var(--bg-elevated); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; }
+.hist-chip b { color: var(--text-tertiary); font-weight: 600; }
+.hist-chip.on { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+.hist-chip.on b { color: inherit; opacity: 0.75; }
+.hist-chip svg, .hist-chip i { width: 12px; height: 12px; }
+
+.hist-scroll { flex: 1; min-height: 0; overflow: auto; padding: 2px 0 4px; }
+
+.hist-day { display: flex; align-items: center; gap: 8px; padding: 8px 12px 3px; color: var(--text-tertiary); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; }
+.hist-day::after { content: ""; flex: 1; height: 1px; background: var(--border-default); }
+
+.hist-row { position: relative; display: flex; align-items: center; gap: 9px; margin: 0 4px; padding: 6px 8px; border-radius: 8px; cursor: default; outline: 0; }
+.hist-row:hover, .hist-row:focus-visible, .hist-row.sel { background: var(--hover-tint); }
+.hist-row.sel { box-shadow: inset 2px 0 0 var(--accent); }
+.hist-mid { flex: 1; min-width: 0; }
+.hist-title { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 650; white-space: nowrap; }
+.hist-rn { overflow: hidden; text-overflow: ellipsis; }
+.hist-sub { overflow: hidden; color: var(--text-tertiary); font: 11px var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.hist-end { display: flex; flex: none; flex-direction: column; align-items: flex-end; gap: 2px; }
+.hist-when { color: var(--text-tertiary); font-size: 11px; }
+.hist-row:hover .hist-end { opacity: 0; }
+
+.hist-lbl { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 0 7px 0 5px; height: 20px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-text); font-size: 12px; font-weight: 650; }
+.hist-lbl svg { width: 12px; height: 12px; flex: none; }
+.hist-tag { padding: 0 6px; border-radius: 5px; background: var(--bg-elevated); color: var(--text-tertiary); font-size: 10.5px; font-weight: 650; letter-spacing: 0.2px; }
+.hist-tag.mcp { background: color-mix(in srgb, var(--i4) 16%, transparent); color: var(--i4); }
+.hist mark { padding: 0 1px; border-radius: 3px; background: color-mix(in srgb, var(--warn) 32%, transparent); color: inherit; }
+
+.hist-pen { position: absolute; right: 8px; top: 50%; display: none; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: var(--bg-elevated); box-shadow: 0 0 0 1px var(--border-strong); color: var(--text-secondary); transform: translateY(-50%); cursor: pointer; }
+.hist-pen svg { width: 14px; height: 14px; }
+.hist-row:hover .hist-pen, .hist-row:focus-visible .hist-pen { display: grid; }
+
+.hist-edit { flex: 1; min-width: 0; height: 24px; padding: 0 6px; border: 0; border-radius: 6px; outline: 0; background: var(--bg-page); box-shadow: 0 0 0 2px var(--accent); color: var(--text-primary); font: 650 13px var(--font-ui); }
+
+.hist-hint { display: flex; gap: 10px; padding: 2px 14px 4px; color: var(--text-tertiary); font-size: 11px; }
+
+.hist-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 34px 28px; text-align: center; color: var(--text-tertiary); font-size: 12.5px; }
+.hist-empty b { color: var(--text-primary); font-size: 13.5px; }
+.hist-empty svg { width: 26px; height: 26px; margin-bottom: 4px; opacity: 0.6; }
+
+.hist-foot { display: flex; align-items: center; gap: 8px; flex: none; padding: 7px 12px; border-top: 1px solid var(--border-default); color: var(--text-tertiary); font-size: 11.5px; }
+.hist-sp { flex: 1; }
+.hist-foot button { border: 0; background: transparent; color: var(--text-tertiary); font-size: 11.5px; cursor: pointer; }
+.hist-foot button:hover { color: var(--err); }
+
+.hist-egg-flip .hist-rn { display: inline-block; transform: rotate(180deg); }
+.hist-egg-jeb { animation: hist-jeb 4s linear infinite; }
+@keyframes hist-jeb { to { filter: hue-rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .hist-egg-jeb { animation: none; }
+}

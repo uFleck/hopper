@@ -18,7 +18,7 @@ export function EnvPicker() {
           {e.stage}
         </span>
       ),
-      trailing: gaps > 0 ? <span className="hdr-warn-dot" role="img" aria-label={`${gaps} secrets missing`} title={`${gaps} secret${gaps === 1 ? "" : "s"} missing`} /> : undefined,
+      trailing: gaps > 0 ? <span className="hdr-warn-dot" role="img" aria-label={`${gaps} secrets missing`} data-tip={`${gaps} secret${gaps === 1 ? "" : "s"} missing`} /> : undefined,
       selected: e.active,
       onSelect: () => void setActiveEnv(e.stage),
     };
@@ -29,7 +29,7 @@ export function EnvPicker() {
       label="Environment"
       items={items}
       trigger={(props) => (
-        <button {...props} type="button" className={cx("env-pill", active ? envClass(active) : "is-none")} aria-label={`Environment: ${active ?? "none"}`} title="Environment">
+        <button {...props} type="button" className={cx("env-pill", active ? envClass(active) : "is-none")} aria-label={`Environment: ${active ?? "none"}`} data-tip="Environment">
           <i aria-hidden="true" />
           <span>{active ?? "no env"}</span>
           <i className="ph ph-caret-down env-pill-caret" aria-hidden="true" />

@@ -51,7 +51,7 @@ function Cookies() {
               {rows.map((c) => (
                 <tr key={`${c.domain}${c.path}${c.name}`}>
                   <td>{c.name}</td>
-                  <td title={c.value}>{c.value.length > 24 ? `${c.value.slice(0, 24)}…` : c.value}</td>
+                  <td data-tip={c.value}>{c.value.length > 24 ? `${c.value.slice(0, 24)}…` : c.value}</td>
                   <td>{c.domain}{c.path}</td>
                   <td>{[c.secure && "secure", c.httpOnly && "httpOnly"].filter(Boolean).join(", ")}</td>
                 </tr>
@@ -97,10 +97,10 @@ function Result({ run, requestId, maximized, onMaximize }: { run: RunResult; req
           <b>{run.status}</b>
           <span>{run.statusText}</span>
         </div>
-        <p className="rv-rmeta" title={`Waiting ${formatMs(run.timing.ttfbMs)}, download ${formatMs(run.timing.downloadMs)}`}>
+        <p className="rv-rmeta" data-tip={`Waiting ${formatMs(run.timing.ttfbMs)}, download ${formatMs(run.timing.downloadMs)}`}>
           {formatMs(run.timing.totalMs)} <em>= {Math.max(1, Math.round(run.timing.totalMs / 50))} tick{run.timing.totalMs >= 75 ? "s" : ""}</em> · {sizeLabel(run.decodedBytes, run.transferredBytes)} <em>{Math.max(1, Math.ceil(run.decodedBytes / 64))} stack{run.decodedBytes > 64 ? "s" : ""}</em>
         </p>
-        {run.insecureTls && <Chip tone="err" title="This response came over a connection that did not verify the certificate">TLS verification off</Chip>}
+        {run.insecureTls && <Chip tone="err" tip="This response came over a connection that did not verify the certificate">TLS verification off</Chip>}
         {run.redirects.length > 0 && <button type="button" className="rv-linkchip" onClick={() => setTab("timeline")}>{run.redirects.length} redirect{run.redirects.length === 1 ? "" : "s"}</button>}
         <span className="rv-grow" />
         {history && history.length > 0 && requestId && (
@@ -118,7 +118,7 @@ function Result({ run, requestId, maximized, onMaximize }: { run: RunResult; req
       {run.truncated && <p className="rv-hint is-warn" role="status"><Icon name="scissors" /> The body was cut at the size limit; what you see is the start of it.</p>}
       {run.bodyFile && (
         <div className="rv-row">
-          <p className="rv-hint rv-grow" role="status" title={run.bodyFile}><Icon name="file" /> Large response: the full body is saved to a file, and your agent can read it too.</p>
+          <p className="rv-hint rv-grow" role="status" data-tip={run.bodyFile}><Icon name="file" /> Large response: the full body is saved to a file, and your agent can read it too.</p>
           <Button size="sm" icon="copy" onClick={() => void copyBodyPath()}>Copy path</Button>
         </div>
       )}

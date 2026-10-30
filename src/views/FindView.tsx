@@ -8,10 +8,18 @@ import { ResultRow, type RowItem } from "./find/ResultRow";
 import SavedTree from "./find/SavedTree";
 import { NextSteps } from "./FirstRun";
 import Pinned from "./Pinned";
+import History from "./History";
 import Recent from "./Recent";
+import UpdateBanner from "./UpdateBanner";
 import "../styles/find.css";
 
-type HomeTab = "recent" | "saved";
+type HomeTab = "recent" | "saved" | "history";
+
+const PLACEHOLDER: Record<HomeTab, string> = {
+  recent: "Search recent",
+  saved: "Find a request or route",
+  history: "Search history",
+};
 
 function SyntaxHint() {
   return (
@@ -34,11 +42,14 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
   const [moreBusy, setMoreBusy] = useState(false);
   const [pickedTab, setTab] = useState<HomeTab | null>(null);
   const recentCount = useStore((s) => s.recent.length);
+  const historyCount = useStore((s) => s.historyAll.length);
+  const [text, setText] = useState("");
   const openNodes = useOpenNodes();
 
   const saved = useMemo(() => flattenRequests(tree), [tree]);
   const savedById = useMemo(() => new Map<string, FlatRequest>(saved.map((r) => [r.id, r])), [saved]);
-  const searching = !!(query.trim() || tag || method);
+  const tab: HomeTab = pickedTab ?? (recentCount > 0 ? "recent" : "saved");
+  const searching = tab === "saved" && !!(query.trim() || tag || method);
   const specCount = tree?.collections.reduce((n, c) => n + c.specs.length, 0) ?? 0;
 
   const items = useMemo<RowItem[]>(() => {
@@ -91,22 +102,29 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
     } else if (e.key === "Enter") {
       e.preventDefault();
       items[selected]?.open();
-    } else if (e.key === "Escape" && searching) {
+    } else if (e.key === "Escape" && (searching || text)) {
       e.preventDefault();
       clearSearch();
+      setText("");
     }
+  };
+
+  const pickTab = (next: HomeTab) => {
+    clearSearch();
+    setText("");
+    setTab(next);
   };
 
   const total = result?.total ?? 0;
   const shown = result?.hits.length ?? 0;
   const canMore = searching && shown < Math.min(total, SEARCH_MAX);
   const noSpec = !!tree && specCount === 0;
-  const tab: HomeTab = pickedTab ?? (recentCount > 0 ? "recent" : "saved");
   const keys = useMemo(() => nodeKeys(tree), [tree]);
   const anyOpen = keys.some((k) => openNodes.has(k));
 
   return (
     <div className="find">
+      <UpdateBanner />
       <div className="find-bar">
         <div className="find-input">
           <Icon name="magnifying-glass" />
@@ -117,17 +135,17 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
             aria-expanded={items.length > 0}
             aria-controls="find-list"
             aria-activedescendant={items.length ? `find-opt-${selected}` : undefined}
-            aria-label="Find a request"
+            aria-label={PLACEHOLDER[tab]}
             autoComplete="off"
             spellCheck={false}
-            placeholder="Find a request or route"
-            value={query}
-            onChange={(e) => search({ query: e.target.value })}
+            placeholder={PLACEHOLDER[tab]}
+            value={tab === "saved" ? query : text}
+            onChange={(e) => (tab === "saved" ? search({ query: e.target.value }) : setText(e.target.value))}
             onKeyDown={onKeyDown}
             autoFocus
           />
           {loading && <Spinner label="Searching" />}
-          {!query && <kbd className="find-kbd" aria-hidden="true">/</kbd>}
+          {!(tab === "saved" ? query : text) && <kbd className="find-kbd" aria-hidden="true">/</kbd>}
         </div>
       </div>
 
@@ -136,16 +154,17 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
 
       {!searching && <Pinned />}
 
-      {!searching && saved.length > 0 && (
+      {(!searching || tab !== "saved") && saved.length > 0 && (
         <div className="find-tabs">
           <Segmented<HomeTab>
             size="sm"
             ariaLabel="Home list"
             value={tab}
-            onChange={setTab}
+            onChange={pickTab}
             options={[
               { value: "recent", label: "Recent" },
               { value: "saved", label: `All saved · ${saved.length}` },
+              { value: "history", label: `History · ${historyCount}` },
             ]}
           />
           {tab === "saved" && keys.length > 0 && (
@@ -165,7 +184,9 @@ export default function FindView({ inputRef }: { inputRef: RefObject<HTMLInputEl
           </div>
         )}
 
-        {!searching && saved.length > 0 && (tab === "recent" ? <Recent /> : <SavedTree collections={tree?.collections ?? []} />)}
+        {saved.length > 0 && tab === "recent" && <Recent query={text} />}
+        {saved.length > 0 && tab === "history" && <History query={text} />}
+        {!searching && saved.length > 0 && tab === "saved" && <SavedTree collections={tree?.collections ?? []} />}
 
         {searching && error && <p className="find-status is-err" role="alert">{error.message}</p>}
 

@@ -18,13 +18,13 @@ export interface MenuProps {
   ariaLabel: string;
   items: MenuItem[];
   triggerClassName?: string;
-  title?: string;
+  tip?: string;
   disabled?: boolean;
   align?: "start" | "end";
 }
 
 /** A small popover menu: Enter/Space/Down opens, arrows move, Esc closes without dismissing the panel. */
-export function Menu({ trigger, ariaLabel, items, triggerClassName, title, disabled, align = "end" }: MenuProps) {
+export function Menu({ trigger, ariaLabel, items, triggerClassName, tip, disabled, align = "end" }: MenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -61,7 +61,7 @@ export function Menu({ trigger, ariaLabel, items, triggerClassName, title, disab
 
   return (
     <div className="rv-menu" ref={root} onKeyDown={onKey}>
-      <button type="button" className={triggerClassName} aria-label={ariaLabel} title={title ?? ariaLabel} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} disabled={disabled} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className={triggerClassName} aria-label={ariaLabel} data-tip={tip ?? ariaLabel} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} disabled={disabled} onClick={() => setOpen((o) => !o)}>
         {trigger}
       </button>
       {open && (
@@ -73,7 +73,7 @@ export function Menu({ trigger, ariaLabel, items, triggerClassName, title, disab
               role="menuitem"
               className={cx("rv-menu-item", it.tone && `rv-menu-item--${it.tone}`)}
               disabled={it.disabled}
-              title={it.title}
+              data-tip={it.title}
               onClick={() => {
                 setOpen(false);
                 it.onSelect();

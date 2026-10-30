@@ -17,10 +17,12 @@ import {
   draftFromDto,
   draftMeetsDisk,
   draftSaved,
+  isDirty,
   applyEdit,
   applyMove,
   newRun,
   pruneRuns,
+  revertDraft,
   runFailed,
   runFinished,
   runProgress,
@@ -87,8 +89,8 @@ export const clearCollectionFocus = () => setState({ collectionFocus: null });
 export async function loadWorkspace() {
   const [workspace, recentWorkspaces] = await Promise.all([invoke("workspace_current"), invoke("workspace_recent")]);
   setState({ workspace, recentWorkspaces });
-  if (workspace) await Promise.all([refreshTree(), refreshRecent(), refreshEnvironments()]);
-  else setState({ tree: null, recent: [], environments: [] });
+  if (workspace) await Promise.all([refreshTree(), refreshRecent(), refreshHistory(), refreshEnvironments()]);
+  else setState({ tree: null, recent: [], historyAll: [], environments: [] });
 }
 
 export async function openWorkspace(path: string) {
@@ -111,7 +113,7 @@ export async function pickAndOpenWorkspace() {
 
 export async function closeWorkspace() {
   await guarded(() => invoke("workspace_close"));
-  setState({ ...pick(initialState(), ["draft", "route", "runs", "history", "search", "tree", "recent", "environments", "workspace"]), sheet: null });
+  setState({ ...pick(initialState(), ["draft", "route", "runs", "history", "search", "tree", "recent", "historyAll", "environments", "workspace"]), sheet: null });
   setState({ recentWorkspaces: await invoke("workspace_recent") });
 }
 
@@ -237,6 +239,8 @@ const updateDraft = (fn: (d: DraftState) => DraftState) =>
   setState((s) => (s.draft ? { draft: fn(s.draft) } : {}));
 
 export const editDraft = (patch: Partial<RequestDoc>) => updateDraft((d) => applyEdit(d, patch));
+/** "Undo all" next to Save: discards every unsaved change. */
+export const undoAll = () => updateDraft(revertDraft);
 export const setDraftLocation = (collection: string | null, folder: string[]) => updateDraft((d) => applyMove(d, collection, folder));
 
 /** Saves the draft with `expectedRevision`. On `revision_conflict` the draft shows the conflict banner instead of failing. */
@@ -367,6 +371,7 @@ export async function send(overrides?: Record<string, string>): Promise<RunResul
     }
     setState((s) => ({ runs: { ...s.runs, [runId]: runFinished(s.runs[runId] ?? newRun(runId, null, Date.now()), result) } }));
     void refreshRecent();
+    void refreshHistory();
     if (result.requestId) void loadHistory(result.requestId);
     return result;
   } catch (e) {
@@ -396,6 +401,117 @@ export async function openHistoryRun(requestId: string, id: string): Promise<Run
     draft: s.draft && s.draft.doc.id === requestId ? { ...s.draft, runId: run.runId } : s.draft,
   }));
   return run;
+}
+
+// ---------------------------------------------------------------------------------------- history
+
+/** How long a deleted run can be undone; its file is removed when this runs out. */
+export const HISTORY_UNDO_MS = 10000;
+const pendingDeletes = new Map<string, ReturnType<typeof setTimeout>>();
+const runKey = (requestId: string, id: string) => `${requestId}/${id}`;
+const newestFirst = (a: { sentAt: string }, b: { sentAt: string }) => b.sentAt.localeCompare(a.sentAt);
+
+/** Loads the workspace-wide run list. Runs waiting out an Undo toast stay hidden. */
+export async function refreshHistory() {
+  const rows = await guarded(() => invoke("history_all"));
+  if (rows) setState({ historyAll: rows.filter((r) => !pendingDeletes.has(runKey(r.requestId, r.id))) });
+}
+
+let nameTagToastShown = false;
+
+/** Sets or clears a run's label (`null` or blank removes it). The row changes at once and goes back with a toast on failure. */
+export async function labelRun(requestId: string, id: string, label: string | null) {
+  const next = label?.trim() || null;
+  const prev = getState().historyAll.find((r) => r.requestId === requestId && r.id === id);
+  if (!prev) return;
+  const put = (row: typeof prev) =>
+    setState((s) => ({ historyAll: s.historyAll.map((r) => (r.requestId === requestId && r.id === id ? row : r)) }));
+  put({ ...prev, label: next ?? undefined });
+  try {
+    await invoke("history_label", { requestId, id, label: next });
+    if (next && !prev.label && !nameTagToastShown) {
+      nameTagToastShown = true;
+      toast("Name-tagged. It will not despawn.", "success");
+    } else if (!next && prev.label) {
+      toast("Name tag removed. This run can despawn again.", "info");
+    }
+  } catch (e) {
+    put(prev);
+    toast(toHopperError(e).message, "error");
+  }
+}
+
+/** Removes a run from history at once. Its file goes when the Undo toast runs out; Undo puts the row back. */
+export function deleteRun(requestId: string, id: string) {
+  const row = getState().historyAll.find((r) => r.requestId === requestId && r.id === id);
+  if (!row) return;
+  const key = runKey(requestId, id);
+  const timer = setTimeout(async () => {
+    pendingDeletes.delete(key);
+    await guarded(() => invoke("history_delete", { requestId, id }));
+    await refreshHistory();
+  }, HISTORY_UNDO_MS);
+  pendingDeletes.set(key, timer);
+  setState((s) => ({ historyAll: s.historyAll.filter((r) => r.requestId !== requestId || r.id !== id) }));
+  toast("Run deleted", "info", {
+    ttl: HISTORY_UNDO_MS,
+    undo: {
+      label: "Undo",
+      run: () => {
+        if (pendingDeletes.get(key) !== timer) return;
+        clearTimeout(timer);
+        pendingDeletes.delete(key);
+        setState((s) => ({ historyAll: [...s.historyAll, row].sort(newestFirst) }));
+      },
+    },
+  });
+}
+
+/**
+ * Opens a history run. The request that was sent goes into the editor as unsaved changes (saved request) or as a new
+ * draft (unsaved run), with that run's response beside it. Runs without a stored request fall back to the saved
+ * request as it is now.
+ */
+export async function openRun(row: { requestId: string; id: string; saved: boolean; hasRequest: boolean }) {
+  const { requestId, id } = row;
+  const stored = row.hasRequest ? await guarded(() => invoke("history_request", { requestId, id })) : undefined;
+  const run = await guarded(() => invoke("history_get", { requestId, id }));
+  if (!stored && !row.saved) {
+    toast("This run did not keep its request, so it cannot be reopened.", "info");
+    return;
+  }
+  let draft: DraftState;
+  if (row.saved) {
+    const dto = await guarded(() => invoke("request_get", { id: requestId }));
+    if (!dto) return;
+    draft = draftFromDto(dto);
+    if (stored) {
+      const next = { ...draft, doc: { ...stored.doc, id: dto.doc.id } };
+      draft = { ...next, dirty: isDirty(next) };
+    } else {
+      draft = { ...draft, fromHistory: "no-request" };
+    }
+  } else {
+    draft = { ...draftFromDto({ doc: { ...stored!.doc, id: "" }, revision: null, collection: null, folder: [], agentAccess: "ask", grantSuspended: false, readOnly: false }), fromHistory: "unsaved" };
+  }
+  if (stored?.truncated) toast("The body was too large to keep, so it is opened without it.", "info");
+  setState((s) => ({
+    draft: run ? { ...draft, runId: run.runId } : draft,
+    route: "request",
+    runs: run ? { ...s.runs, [run.runId]: runFinished(newRun(run.runId, row.saved ? requestId : null, Date.now()), run) } : s.runs,
+  }));
+  if (row.saved) void loadHistory(requestId);
+}
+
+/** Clears the whole run history, labelled runs included. The caller asks first. */
+export async function clearAllHistory() {
+  try {
+    await invoke("history_clear", {});
+  } catch (e) {
+    toast(toHopperError(e).message, "error");
+    return;
+  }
+  setState({ historyAll: [], history: {} });
 }
 
 export async function copyCurl(masked = true): Promise<string | undefined> {
@@ -500,6 +616,7 @@ export function initStore(): () => void {
     listen("workspace://changed", () => {
       void refreshTree();
       void refreshRecent();
+      void refreshHistory();
       void refreshEnvironments();
       void refreshScopeVars();
       void reconcileDraftWithDisk();

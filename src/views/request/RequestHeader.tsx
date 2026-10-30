@@ -1,6 +1,6 @@
 import type { Method } from "../../ipc";
 import { Button, Chip, Editor, Icon, IconButton, Select, cx, type VariableOption } from "../../ui";
-import { copyCurl, deleteRequest, duplicateRequest, editDraft, toast, togglePin, usePins, type DraftState, type RunState } from "../../store";
+import { copyCurl, deleteRequest, duplicateRequest, editDraft, toast, togglePin, undoAll, usePins, type DraftState, type RunState } from "../../store";
 import { AgentChip } from "./AgentChip";
 import { resolveUrl, type ResolvedEnv, type VarInfo } from "./logic";
 import { Menu } from "./Menu";
@@ -53,8 +53,11 @@ export function RequestHeader({ draft, env, info, variables, run, needArm, armed
         <input className="rv-name" aria-label="Request name" value={doc.name} readOnly={readOnly} placeholder="Request name" spellCheck={false} onChange={(e) => editDraft({ name: e.target.value })} />
         <AgentChip requestId={saved ? doc.id : null} access={draft.base.agentAccess} suspended={draft.base.grantSuspended} />
         <IconButton icon="star" label={pinned ? "Unpin from home" : "Pin to home"} size="sm" active={pinned} className={cx("rv-pin", pinned && "is-pinned")} disabled={!saved} onClick={() => togglePin(doc.id)} />
+        {draft.dirty && saved && !readOnly && (
+          <Button size="sm" variant="ghost" icon="arrow-counter-clockwise" disabled={draft.saving} onClick={undoAll} data-tip="Discard all changes and go back to the saved version">Undo all</Button>
+        )}
         {draft.dirty && (
-          <Button size="sm" icon="floppy-disk" loading={draft.saving} disabled={readOnly} onClick={onSave} title={saved ? "Unsaved changes. Save (Ctrl+S)" : "Not saved yet. Save (Ctrl+S)"}>Save</Button>
+          <Button size="sm" icon="floppy-disk" loading={draft.saving} disabled={readOnly} onClick={onSave} data-tip={saved ? "Unsaved changes. Save (Ctrl+S)" : "Not saved yet. Save (Ctrl+S)"}>Save</Button>
         )}
         <Menu
           ariaLabel="Request actions"
@@ -92,13 +95,13 @@ export function RequestHeader({ draft, env, info, variables, run, needArm, armed
           placeholder="{{baseUrl}}/path/{id}"
         />
         {needArm && (
-          <button type="button" className={cx("rv-arm", armed && "is-on")} role="switch" aria-checked={armed} onClick={onArm} title="Arm for 5 seconds, then Send">
+          <button type="button" className={cx("rv-arm", armed && "is-on")} role="switch" aria-checked={armed} onClick={onArm} data-tip="Arm for 5 seconds, then Send">
             <span className="rv-arm-sw" aria-hidden="true" />
             Arm
           </button>
         )}
         {inFlight && <button type="button" className="rv-cancel" onClick={onCancel}>Cancel</button>}
-        <button type="button" className={cx("rv-send", needArm && armed && "is-red", inFlight && "is-busy")} disabled={!!inFlight || (needArm && !armed)} onClick={onSend} title="Send (Ctrl+Enter)">
+        <button type="button" className={cx("rv-send", needArm && armed && "is-red", inFlight && "is-busy")} disabled={!!inFlight || (needArm && !armed)} onClick={onSend} data-tip="Send (Ctrl+Enter)">
           <span className="rv-drip" aria-hidden="true" />
           <span>{inFlight ? "Sending…" : "Send"}</span>
           {!inFlight && <kbd className="ui-kbd">↵</kbd>}
@@ -106,10 +109,10 @@ export function RequestHeader({ draft, env, info, variables, run, needArm, armed
       </div>
 
       {resolvedText !== doc.url && (
-        <p className="rv-resolved" aria-label="Resolved URL" title={resolvedText}>
+        <p className="rv-resolved" aria-label="Resolved URL" data-tip={resolvedText}>
           <code>
             {resolved.segments.map((s, i) => (
-              <span key={i} className={`rv-seg rv-seg--${s.kind}`} title={s.kind === "missing" ? "Secret has no value" : undefined}>{s.text}</span>
+              <span key={i} className={`rv-seg rv-seg--${s.kind}`} data-tip={s.kind === "missing" ? "Secret has no value" : undefined}>{s.text}</span>
             ))}
           </code>
         </p>
@@ -120,7 +123,7 @@ export function RequestHeader({ draft, env, info, variables, run, needArm, armed
           <span>Path value missing: {resolved.emptyPathParams.map((n) => `{${n}}`).join(", ")}.</span>
         </p>
       )}
-      {insecure && <Chip tone="err" title="The active environment does not verify TLS certificates">TLS verification off</Chip>}
+      {insecure && <Chip tone="err" tip="The active environment does not verify TLS certificates">TLS verification off</Chip>}
     </div>
   );
 }

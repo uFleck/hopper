@@ -39,7 +39,7 @@ function Tab({ onClick }: { onClick: () => void }) {
       style={lamp ? ({ "--lampc": lamp } as CSSProperties) : undefined}
       onMouseDown={(e) => press(e, onClick)}
       aria-label={label}
-      title={`${label}. Drag to move it to the other edge.`}
+      data-tip={`${label}. Drag to move it to the other edge.`}
     >
       <Mascot state={mascot} size={32} />
       {badge > 0 && <span className={approvals ? "fh-badge is-warn" : "fh-badge"}>{badge}</span>}

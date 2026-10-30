@@ -48,7 +48,7 @@ export function BodyView({ run, codeRef, mode, onMode }: BodyViewProps) {
       <div className="rv-bodybar">
         <Segmented size="sm" ariaLabel="Body view" value={active} onChange={onMode} options={[{ value: "pretty", label: "Pretty" }, { value: "raw", label: "Raw" }, { value: "preview", label: "Preview", disabled: !previewable }]} />
       </div>
-      {active === "preview" && run.kind === "html" && <iframe className="rv-iframe" title="HTML preview" sandbox="" srcDoc={run.body} />}
+      {active === "preview" && run.kind === "html" && <iframe className="rv-iframe" aria-label="HTML preview" sandbox="" srcDoc={run.body} />}
       {active === "preview" && run.kind === "image" &&
         (run.bodyBase64 ? <div className="rv-image"><img alt="Response" src={`data:${mime};base64,${run.bodyBase64}`} /></div> : <p className="rv-hint">No image data.</p>)}
       {active !== "preview" && hasText && (run.body === "" ? <p className="rv-hint">The response has no body.</p> : large ? <LargeBody text={run.body} /> : <CodeView ref={codeRef} value={active === "raw" ? run.body : pretty} kind={active === "raw" ? "text" : run.kind} wrap={wrap.current} />)}

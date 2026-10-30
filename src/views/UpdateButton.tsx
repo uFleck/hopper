@@ -10,7 +10,7 @@ export default function UpdateButton() {
 
   if (upd.kind === "ready") {
     return (
-      <button type="button" className="ui-iconbtn hdr-upd is-ready" aria-label={`Restart to update to v${upd.version}`} title={`Restart to update to v${upd.version}`} onClick={() => void restart()}>
+      <button type="button" className="ui-iconbtn hdr-upd is-ready" aria-label={`Restart to update to v${upd.version}`} data-tip={`Restart to update to v${upd.version}`} onClick={() => void restart()}>
         <Icon name="arrow-circle-up" />
       </button>
     );
@@ -18,7 +18,7 @@ export default function UpdateButton() {
   const label =
     upd.kind === "available" ? `Update to v${upd.version}` : upd.kind === "downloading" ? (upd.progress == null ? "Downloading update" : `Downloading update ${Math.round(upd.progress * 100)}%`) : "Update failed";
   return (
-    <button type="button" className={`ui-iconbtn hdr-upd${upd.kind === "error" ? " is-bad" : ""}`} aria-label={label} title={label} onClick={() => openSheet("settings")}>
+    <button type="button" className={`ui-iconbtn hdr-upd${upd.kind === "error" ? " is-bad" : ""}`} aria-label={label} data-tip={label} onClick={() => openSheet("settings")}>
       <Icon name={upd.kind === "downloading" ? "circle-notch" : "arrow-circle-up"} className={upd.kind === "downloading" ? "hdr-spin" : undefined} />
       {upd.kind === "available" && <span className="hdr-warn-dot hdr-menu-dot" aria-hidden="true" />}
     </button>

@@ -34,10 +34,10 @@ export default function Pinned() {
         {pinned.map((r) => {
           const status = recent.find((x) => x.id === r.id)?.status;
           return (
-            <button key={r.id} type="button" className="lamp" onClick={() => void openRequest(r.id)} title={`${r.name} · ${r.collection}`}>
+            <button key={r.id} type="button" className="lamp" onClick={() => void openRequest(r.id)} data-tip={`${r.name} · ${r.collection}`}>
               <span className={cx("lamp-m", methodClass(r.method))}>{r.method}</span>
               <span className="lamp-name">{r.name}</span>
-              <span className={cx("lamp-bulb", lampClass(status))} title={status != null ? `Last result ${status}` : "Not sent yet"} aria-hidden="true" />
+              <span className={cx("lamp-bulb", lampClass(status))} data-tip={status != null ? `Last result ${status}` : "Not sent yet"} aria-hidden="true" />
             </button>
           );
         })}

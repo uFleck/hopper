@@ -30,7 +30,7 @@ export function AgentChip({ requestId, access, suspended, disabled }: AgentChipP
   return (
     <Menu
       ariaLabel={suspended ? "Agent access: changed by the agent, review and re-allow" : `Agent access: ${m.label}`}
-      title={locked && !requestId ? "Save the request first to set what the agent may do with it" : suspended ? "Changed by the agent, review and re-allow" : `Agent access: ${m.label}. ${m.hint}`}
+      data-tip={locked && !requestId ? "Save the request first to set what the agent may do with it" : suspended ? "Changed by the agent, review and re-allow" : `Agent access: ${m.label}. ${m.hint}`}
       triggerClassName={cx("rv-agent", suspended ? "tone-warn is-suspended" : m.tone)}
       disabled={locked}
       items={items}

@@ -73,7 +73,7 @@ export function ApprovalCard({ approval, position }: { approval: ApprovalRequest
       <p className="ap-state" role="status" aria-live="polite">{armed ? "Choose one. Nothing is selected for you." : "Getting ready. Buttons unlock in a moment so a stray keypress cannot approve this."}</p>
       <div className="ap-actions">
         {DECISIONS.map((d) => (
-          <Button key={d.decision} className={`ap-${d.decision}`} variant={d.variant} disabled={!armed || busy} title={d.hint} onClick={() => void decide(d.decision)}>{d.label}</Button>
+          <Button key={d.decision} className={`ap-${d.decision}`} variant={d.variant} disabled={!armed || busy} data-tip={d.hint} onClick={() => void decide(d.decision)}>{d.label}</Button>
         ))}
       </div>
     </article>

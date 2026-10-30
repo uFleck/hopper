@@ -11,6 +11,7 @@ import {
   pruneRuns,
   runFailed,
   runFinished,
+  revertDraft,
   runProgress,
 } from "./reducers";
 
@@ -71,6 +72,24 @@ describe("draft dirty tracking", () => {
     const clean = draftSaved(applyEdit(draftFromDto(dto()), { name: "B" }), dto({ revision: "v2", doc: { ...dto().doc, name: "B" } }), { ...dto().doc, name: "B" });
     expect(clean.dirty).toBe(false);
     expect(clean.conflict).toBe(false);
+  });
+});
+
+describe("revertDraft (Undo all)", () => {
+  it("takes doc, collection and folder back to the baseline and is clean", () => {
+    let d = applyEdit(draftFromDto(dto()), { name: "B", url: "/b" });
+    d = applyMove(d, "other", ["f"]);
+    expect(d.dirty).toBe(true);
+    const r = revertDraft(d);
+    expect(r.doc).toEqual(dto().doc);
+    expect(r.collection).toBe("c");
+    expect(r.folder).toEqual([]);
+    expect(r.dirty).toBe(false);
+  });
+
+  it("leaves a never-saved draft untouched", () => {
+    const d = applyEdit(draftFromDto(dto({ revision: null })), { name: "B" });
+    expect(revertDraft(d)).toBe(d);
   });
 });
 

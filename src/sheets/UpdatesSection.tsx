@@ -1,28 +1,9 @@
 import { useState, useSyncExternalStore } from "react";
 import pkg from "../../package.json";
 import { Button, Chip } from "../ui";
-import { checkForUpdates, download, getSnapshot, restart, subscribe, type ReleaseNote } from "../updater";
+import { checkForUpdates, download, getSnapshot, restart, subscribe } from "../updater";
 import { Note, Section } from "./env/controls";
-
-const shortDate = (iso: string) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-};
-
-/** One release's notes as plain text: links lose their URL, `* ` lines become list items. */
-function Release({ note }: { note: ReleaseNote }) {
-  const date = shortDate(note.date);
-  const lines = note.body
-    .split("\n")
-    .map((l) => l.trim().replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*(.+?)\*\*/g, "$1"))
-    .filter((l) => l && !/^Full Changelog/i.test(l));
-  return (
-    <section className="st-rel">
-      <h4>{`v${note.version}${date ? ` · ${date}` : ""}`}</h4>
-      <ul>{lines.map((l, i) => <li key={i}>{l.replace(/^[*-]\s+/, "")}</li>)}</ul>
-    </section>
-  );
-}
+import { Release } from "../ui/Release";
 
 /** Settings > Updates and about: checks for releases, shows the changelog, downloads, and restarts into the new version. */
 export default function UpdatesSection() {

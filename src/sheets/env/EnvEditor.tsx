@@ -65,7 +65,7 @@ export function EnvEditor({ draft, onChange, stage, live, errors, conflict, init
               <div className="sh-var-row">
                 <TextInput mono aria-label="Variable name" placeholder="baseUrl" value={v.name} readOnly={v.local || readOnly} invalid={!!errors.variables[i]} onChange={(e) => setVar(i, { name: e.target.value })} />
                 <TextInput mono aria-label={`Value of ${v.name || "variable"}`} placeholder="value" value={v.value} readOnly={v.local || readOnly} onChange={(e) => setVar(i, { value: e.target.value })} />
-                {v.local ? <Chip tone="accent" title="This value comes from your *.local.yaml file">local</Chip> : <IconButton icon="trash" label={`Remove ${v.name || "variable"}`} size="sm" tone="danger" disabled={readOnly} onClick={() => set({ variables: draft.variables.filter((_, j) => j !== i) })} />}
+                {v.local ? <Chip tone="accent" tip="This value comes from your *.local.yaml file">local</Chip> : <IconButton icon="trash" label={`Remove ${v.name || "variable"}`} size="sm" tone="danger" disabled={readOnly} onClick={() => set({ variables: draft.variables.filter((_, j) => j !== i) })} />}
               </div>
               {errors.variables[i] && <p className="ui-field-error" role="alert">{errors.variables[i]}</p>}
             </div>

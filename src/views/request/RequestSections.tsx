@@ -68,7 +68,7 @@ export function RequestSections({ doc, edit, info, variables, readOnly, onSave, 
             {t.badge != null && <u className="rv-tab-badge">{t.badge}</u>}
           </button>
         ))}
-        <button type="button" className="rv-fold" aria-label={folded ? "Open the section" : "Fold the section"} aria-expanded={!folded} title={folded ? "Open" : "Fold"} onClick={() => onChange(tab, !folded)}>
+        <button type="button" className="rv-fold" aria-label={folded ? "Open the section" : "Fold the section"} aria-expanded={!folded} data-tip={folded ? "Open" : "Fold"} onClick={() => onChange(tab, !folded)}>
           <Icon name="caret-up" />
         </button>
       </div>

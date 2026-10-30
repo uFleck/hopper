@@ -16,7 +16,7 @@ export default function Tray() {
       </span>
       <div className="tray-items">
         {recent.slice(0, 7).map((r) => (
-          <button key={r.id} type="button" className="tray-item" onClick={() => void openRequest(r.id)} title={`${r.method} ${r.name}${r.status != null ? ` · ${r.status}` : ""}`} aria-label={`${r.method} ${r.name}${r.status != null ? `, ${r.status}` : ""}`}>
+          <button key={r.id} type="button" className="tray-item" onClick={() => void openRequest(r.id)} data-tip={`${r.method} ${r.name}${r.status != null ? ` · ${r.status}` : ""}`} aria-label={`${r.method} ${r.name}${r.status != null ? `, ${r.status}` : ""}`}>
             <Sprite name={gem(r.status)} size={14} />
           </button>
         ))}

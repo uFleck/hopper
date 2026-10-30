@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>Hopper update prompt, calm version</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --font-ui:"Schibsted Grotesk","Segoe UI",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+  --bg-page:#0f1219;--bg-surface:#151922;--bg-elevated:#1d2230;
+  --border-default:#2a3042;--border-strong:#3b445c;
+  --text-primary:#eef0f6;--text-secondary:#aab1c3;--text-tertiary:#6f778d;
+  --accent:#7d98ff;--accent-text:#9bb0ff;--on-accent:#0b1030;--accent-soft:rgba(125,152,255,.14);
+  --hover-tint:rgba(255,255,255,.05);--press-tint:rgba(255,255,255,.09);
+  --ok:#3ddc84;--warn:#f2b73a;--err:#ff6050;--i2:#3ddc84;
+  --shadow-pop:0 14px 34px rgba(0,0,0,.55);
+  --page:#0a0c11;--cap:#8e96ab;--w:430px;
+}
+:root[data-theme="light"]{
+  --bg-page:#eef2f7;--bg-surface:#fff;--bg-elevated:#f2f4f8;
+  --border-default:#e1e5ed;--border-strong:#c8cfdb;
+  --text-primary:#141922;--text-secondary:#4a5466;--text-tertiary:#8189a0;
+  --accent:#2f55d4;--accent-text:#2f55d4;--on-accent:#fff;--accent-soft:rgba(47,85,212,.10);
+  --hover-tint:rgba(20,25,34,.05);--press-tint:rgba(20,25,34,.09);
+  --ok:#14a05a;--warn:#d48a00;--err:#e03a2c;--i2:#14a05a;
+  --shadow-pop:0 14px 34px rgba(30,40,70,.22);
+  --page:#d9dee8;--cap:#555;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 24px 48px;background:var(--page);color:var(--text-primary);font:14px/1.4 var(--font-ui)}
+h1{margin:0 0 4px;font-size:20px}
+h2{margin:34px 0 4px;font-size:16px}
+.lead{margin:0 0 12px;max-width:940px;color:var(--cap);font-size:13.5px}
+.toolbar{display:flex;gap:8px;margin:12px 0 4px}
+.toolbar button{padding:6px 12px;border:1px solid var(--border-strong);border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.toolbar button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:650}
+.grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+.slot{display:flex;flex-direction:column;gap:8px;width:var(--w)}
+.cap b{display:block;font-size:14.5px}
+.cap span{display:block;color:var(--cap);font-size:12.5px}
+.cap i{display:block;margin-top:3px;font-style:normal;font-size:12.5px;color:var(--cap)}
+.cap i em{font-style:normal;font-weight:650;color:var(--ok)}.cap i s{text-decoration:none;font-weight:650;color:var(--warn)}
+button{font:inherit;color:inherit}
+svg.i{width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+.fr{position:relative;display:flex;flex-direction:column;gap:6px;width:var(--w);height:360px;padding:8px;overflow:hidden;border-radius:14px;background:var(--bg-page);box-shadow:0 0 0 1px var(--border-default),0 20px 40px rgba(0,0,0,.3);font:13px/1.4 var(--font-ui)}
+.fr.auto{height:auto}
+.row{display:flex;align-items:center;gap:6px;min-width:0}
+.sp{flex:1}
+.ib{display:grid;flex:none;place-items:center;width:26px;height:26px;border-radius:7px;color:var(--text-secondary)}
+.brand{font-weight:750;font-size:14px;padding-left:4px}
+.pill{display:inline-flex;flex:none;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:999px;background:var(--bg-elevated);color:var(--text-secondary);font-size:12px;font-weight:600}
+.pill i{width:7px;height:7px;border-radius:2px;background:var(--ok)}
+.find{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border-radius:10px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default);color:var(--text-tertiary);font-size:13px}
+.card{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;border-radius:12px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default)}
+.tabs{display:flex;align-items:center;height:32px;padding:0 6px;border-bottom:1px solid var(--border-default)}
+.tab{display:flex;align-items:center;gap:5px;height:100%;padding:0 9px;border-bottom:2px solid transparent;color:var(--text-tertiary);font-weight:600;font-size:12.5px}
+.tab.on{border-bottom-color:var(--accent);color:var(--text-primary)}
+.h{display:flex;align-items:center;gap:9px;margin:4px 4px 0;padding:6px 8px;border-radius:8px;opacity:.75}
+.m{display:inline-flex;justify-content:center;width:46px;padding:2px 0;border-radius:6px;font:700 10.5px var(--font-mono);background:color-mix(in srgb,var(--i2) 15%,transparent);color:var(--i2)}
+.h b{font-weight:650}.h small{display:block;color:var(--text-tertiary);font:11px var(--font-mono)}
+.btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border:0;border-radius:8px;background:var(--bg-elevated);color:var(--text-primary);font-size:12.5px;font-weight:650;cursor:pointer;white-space:nowrap;box-shadow:inset 0 0 0 1px var(--border-strong)}
+.btn.pri{background:var(--accent);color:var(--on-accent);box-shadow:none}
+.btn.ghost{background:transparent;box-shadow:none;color:var(--text-secondary);padding:0 8px}
+.btn[disabled]{opacity:.6;cursor:default}
+
+/* ---------- U1: quiet card ---------- */
+.ban{position:relative;display:flex;align-items:center;gap:10px;overflow:hidden;padding:9px 10px 9px 14px;border-radius:10px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default)}
+.ban::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.ban .ico{display:grid;flex:none;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent-text)}
+.ban .tx{flex:1;min-width:0}
+.ban .tx b{display:block;font-size:13px;font-weight:700}
+.ban .tx span{display:block;color:var(--text-secondary);font-size:12px}
+.link{border:0;background:transparent;padding:0;color:var(--accent-text);font-size:12px;font-weight:600;cursor:pointer}
+.link:hover{text-decoration:underline}
+.ban .bar{position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--border-default)}
+.ban .bar i{display:block;height:100%;width:62%;background:var(--accent)}
+.ban.ready::before{background:var(--ok)}
+.ban.ready .ico{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.ban.err::before{background:var(--err)}
+.ban.err .ico{background:color-mix(in srgb,var(--err) 16%,transparent);color:var(--err)}
+.notes{margin:-2px 6px 0;padding:10px 12px;border-radius:0 0 10px 10px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default);font-size:12.5px;color:var(--text-secondary)}
+.notes h4{margin:0 0 3px;font-size:12px;color:var(--text-primary)}
+.notes ul{margin:0 0 8px;padding-left:18px}.notes li{margin:2px 0}
+
+/* ---------- U2: one-line bar ---------- */
+.bar1{display:flex;align-items:center;gap:8px;height:30px;padding:0 6px 0 10px;border-radius:8px;background:var(--accent-soft);color:var(--accent-text);font-size:12.5px;font-weight:650}
+.bar1 .tx{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar1 .btn{height:22px;padding:0 9px;font-size:12px;background:var(--accent);color:var(--on-accent);box-shadow:none}
+
+/* ---------- U3: header pill ---------- */
+.upill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px 0 8px;border:0;border-radius:999px;background:var(--accent-soft);color:var(--accent-text);font-size:12px;font-weight:700;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent);cursor:pointer}
+.upill b{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.pop{position:absolute;z-index:3;right:8px;top:44px;width:310px;padding:12px;border-radius:12px;background:var(--bg-elevated);box-shadow:0 0 0 1px var(--border-strong),var(--shadow-pop)}
+.pop b{display:block;font-size:13px}
+.pop .row{margin-top:10px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="up" viewBox="0 0 16 16"><path d="M8 13V3.5M4 7.2l4-4 4 4"/></symbol>
+  <symbol id="spin" viewBox="0 0 16 16"><path d="M8 2.5a5.5 5.5 0 105.5 5.5"/></symbol>
+  <symbol id="rest" viewBox="0 0 16 16"><path d="M13 8a5 5 0 11-1.6-3.7"/><path d="M13 2.5v3h-3"/></symbol>
+  <symbol id="warn" viewBox="0 0 16 16"><path d="M8 2l6.2 11H1.8z"/><path d="M8 6.5v3M8 11.4v.1"/></symbol>
+  <symbol id="gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/></symbol>
+  <symbol id="search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></symbol>
+</svg>
+
+<h1>Update prompt, calm version</h1>
+<p class="lead">No glow, shine, bounce or stripes. The prompt is a normal card on the home screen, with a thin accent edge as the only signal. Still one click to act, and the notes unfold in place.</p>
+<div class="toolbar"><button class="on" data-theme-btn="dark">Dark</button><button data-theme-btn="light">Light</button></div>
+
+<h2>1. Three treatments (an update is available)</h2>
+<div class="grid">
+  <div class="slot">
+    <div class="fr">
+      <div class="row"><span class="brand">Hopper</span><span class="pill"><i></i>dev</span><span class="sp"></span><span class="ib"><svg class="i"><use href="#gear"/></svg></span></div>
+      <div class="ban">
+        <span class="ico"><svg class="i"><use href="#up"/></svg></span>
+        <div class="tx"><b>Hopper 0.2.3 is available</b><span>Fixes the request page layout · <button class="link">What's new</button></span></div>
+        <button class="btn pri">Update</button>
+      </div>
+      <div class="find"><svg class="i"><use href="#search"/></svg>Find a request</div>
+      <div class="card"><div class="tabs"><span class="tab on">History</span><span class="tab">Saved</span></div>
+        <div class="h"><span class="m">GET</span><div><b>Get user by id</b><small>/api/users/42</small></div></div>
+        <div class="h"><span class="m">GET</span><div><b>List orders</b><small>/api/orders</small></div></div></div>
+    </div>
+    <div class="cap"><b>U1. Quiet card (my pick)</b><span>Looks like the rest of the panel, with a 3 px accent edge and an accent button. "What's new" unfolds under it.</span><i><em>+</em> Calm but clearly placed, and it has room for notes and progress. <s>−</s> About 50 px of list height while it is there.</i></div>
+  </div>
+
+  <div class="slot">
+    <div class="fr">
+      <div class="row"><span class="brand">Hopper</span><span class="pill"><i></i>dev</span><span class="sp"></span><span class="ib"><svg class="i"><use href="#gear"/></svg></span></div>
+      <div class="bar1"><svg class="i"><use href="#up"/></svg><span class="tx">Hopper 0.2.3 is available</span><button class="link">Notes</button><button class="btn">Update</button></div>
+      <div class="find"><svg class="i"><use href="#search"/></svg>Find a request</div>
+      <div class="card"><div class="tabs"><span class="tab on">History</span><span class="tab">Saved</span></div>
+        <div class="h"><span class="m">GET</span><div><b>Get user by id</b><small>/api/users/42</small></div></div>
+        <div class="h"><span class="m">GET</span><div><b>List orders</b><small>/api/orders</small></div></div></div>
+    </div>
+    <div class="cap"><b>U2. One-line bar</b><span>A tinted 30 px strip under the header with the version, a Notes link and the button.</span><i><em>+</em> Smallest footprint that is still on the page. <s>−</s> Notes open in Settings or a sheet, and errors have little room.</i></div>
+  </div>
+
+  <div class="slot">
+    <div class="fr">
+      <div class="row"><span class="brand">Hopper</span><span class="pill"><i></i>dev</span><span class="sp"></span><button class="upill"><b></b>Update 0.2.3</button><span class="ib"><svg class="i"><use href="#gear"/></svg></span></div>
+      <div class="find"><svg class="i"><use href="#search"/></svg>Find a request</div>
+      <div class="card"><div class="tabs"><span class="tab on">History</span><span class="tab">Saved</span></div>
+        <div class="h"><span class="m">GET</span><div><b>Get user by id</b><small>/api/users/42</small></div></div>
+        <div class="h"><span class="m">GET</span><div><b>List orders</b><small>/api/orders</small></div></div></div>
+      <div class="pop"><b>Hopper 0.2.3</b><span style="color:var(--text-secondary);font-size:12px">Fixes the request page layout. Adds history and labels.</span>
+        <div class="row"><button class="btn pri">Update</button><button class="btn ghost">Notes</button></div></div>
+    </div>
+    <div class="cap"><b>U3. Labelled pill in the header</b><span>The header icon becomes a text pill. Click opens a small card with the button.</span><i><em>+</em> No list space, on every screen. <s>−</s> The easiest of the three to overlook, which is what you wanted to fix.</i></div>
+  </div>
+</div>
+
+<h2>2. States of U1</h2>
+<div class="grid">
+  <div class="slot">
+    <div class="fr auto">
+      <div class="ban"><span class="ico"><svg class="i"><use href="#up"/></svg></span><div class="tx"><b>Hopper 0.2.3 is available</b><span>Fixes the request page layout · <button class="link">What's new</button></span></div><button class="btn pri">Update</button></div>
+    </div>
+    <div class="cap"><b>Available</b></div>
+  </div>
+  <div class="slot">
+    <div class="fr auto">
+      <div class="ban"><span class="ico"><svg class="i"><use href="#spin"/></svg></span><div class="tx"><b>Downloading 0.2.3</b><span>62% · you can keep working</span></div><button class="btn" disabled>Downloading</button><span class="bar"><i></i></span></div>
+    </div>
+    <div class="cap"><b>Downloading</b><span>A 2 px progress line along the bottom edge.</span></div>
+  </div>
+  <div class="slot">
+    <div class="fr auto">
+      <div class="ban ready"><span class="ico"><svg class="i"><use href="#rest"/></svg></span><div class="tx"><b>0.2.3 is ready</b><span>Restart to finish installing</span></div><button class="btn pri">Restart</button></div>
+    </div>
+    <div class="cap"><b>Ready</b><span>The edge turns green. Still one click.</span></div>
+  </div>
+  <div class="slot">
+    <div class="fr auto">
+      <div class="ban err"><span class="ico"><svg class="i"><use href="#warn"/></svg></span><div class="tx"><b>Update failed</b><span>Could not reach github.com</span></div><button class="btn">Try again</button></div>
+    </div>
+    <div class="cap"><b>Failed</b><span>Red edge, reason, retry.</span></div>
+  </div>
+  <div class="slot">
+    <div class="fr auto">
+      <div class="ban"><span class="ico"><svg class="i"><use href="#up"/></svg></span><div class="tx"><b>Hopper 0.2.3 is available</b><span>Fixes the request page layout · <button class="link">Hide notes</button></span></div><button class="btn pri">Update</button></div>
+      <div class="notes"><h4>0.2.3</h4><ul><li>History of every request, with labels</li><li>Custom right-click menus and tooltips</li></ul><h4>0.2.2</h4><ul><li>Denser request page, new variable hover card</li></ul></div>
+    </div>
+    <div class="cap"><b>What's new, unfolded</b><span>Notes open under the card, no trip to Settings.</span></div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll("[data-theme-btn]").forEach(b => b.addEventListener("click", () => {
+  document.documentElement.dataset.theme = b.dataset.themeBtn;
+  document.querySelectorAll("[data-theme-btn]").forEach(x => x.classList.toggle("on", x === b));
+}));
+</script>
+</body>
+</html>

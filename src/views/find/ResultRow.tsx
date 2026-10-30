@@ -25,8 +25,8 @@ export interface RowItem {
 export const ACCESS_TONE: Record<AgentAccess, Tone> = { ask: "neutral", auto: "ok", blocked: "err" };
 
 export function AccessChip({ access, suspended }: { access: AgentAccess; suspended?: boolean }) {
-  if (suspended) return <Chip tone="warn" title="Changed by the agent, review and re-allow">Review</Chip>;
-  return <Chip tone={ACCESS_TONE[access]} title={`Agent access: ${ACCESS_LABEL[access]}`}>{ACCESS_LABEL[access]}</Chip>;
+  if (suspended) return <Chip tone="warn" tip="Changed by the agent, review and re-allow">Review</Chip>;
+  return <Chip tone={ACCESS_TONE[access]} tip={`Agent access: ${ACCESS_LABEL[access]}`}>{ACCESS_LABEL[access]}</Chip>;
 }
 
 export function Highlighted({ text, matches }: { text: string; matches?: number[] }): ReactNode {
@@ -56,7 +56,7 @@ function ResultRowView({ item, index, selected, onHover }: RowProps) {
           <span className={cx("find-row-text", item.mono && "is-mono")}>
             <Highlighted text={item.text} matches={item.matches} />
           </span>
-          {item.tag && <Chip tone="accent" className="find-tag" title={`Controller: ${item.tag}`}>{item.tag}</Chip>}
+          {item.tag && <Chip tone="accent" className="find-tag" tip={`Controller: ${item.tag}`}>{item.tag}</Chip>}
         </div>
         {(item.sub || item.deprecated) && (
           <div className="find-row-sub">
@@ -66,14 +66,14 @@ function ResultRowView({ item, index, selected, onHover }: RowProps) {
         )}
       </div>
       <div className="find-row-marks">
-        {item.orphaned && <Chip tone="warn" title="The operation is gone from the spec">orphan</Chip>}
+        {item.orphaned && <Chip tone="warn" tip="The operation is gone from the spec">orphan</Chip>}
         {item.saved ? (
           <>
             <Icon name="bookmark-simple" className="find-saved" />
             {item.access && <AccessChip access={item.access} suspended={item.suspended} />}
           </>
         ) : (
-          item.fromSpec && <span className="find-spec" title="An operation from the spec, not saved yet">from spec</span>
+          item.fromSpec && <span className="find-spec" data-tip="An operation from the spec, not saved yet">from spec</span>
         )}
       </div>
     </li>

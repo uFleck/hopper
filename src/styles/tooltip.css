@@ -1,0 +1,17 @@
+.ui-tip {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  max-width: 240px;
+  padding: 5px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-pop);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.35;
+  pointer-events: none;
+  animation: ui-pop var(--fast) var(--ease);
+}

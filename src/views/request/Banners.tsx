@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { AgentAccess, HopperError } from "../../ipc";
 import { Button, Icon, cx } from "../../ui";
-import { keepMine, reloadDraft, setAgentAccess, type DraftState } from "../../store";
+import { keepMine, reloadDraft, saveRequest, setAgentAccess, type DraftState } from "../../store";
 
 function Banner({ tone, icon, children, actions }: { tone: "warn" | "err" | "info"; icon: string; children: ReactNode; actions?: ReactNode }) {
   return (
@@ -29,6 +29,16 @@ export function Banners({ draft }: { draft: DraftState }) {
     <>
       {draft.base.readOnly && (
         <Banner tone="info" icon="lock-simple">This file was written by a newer Hopper. You can read and send it, but not save it.</Banner>
+      )}
+      {draft.fromHistory === "unsaved" && (
+        <Banner tone="info" icon="clock-counter-clockwise" actions={<Button size="sm" loading={draft.saving} onClick={() => void saveRequest()}>Save as request</Button>}>
+          <strong>Not saved</strong> · opened from history.
+        </Banner>
+      )}
+      {draft.fromHistory === "no-request" && (
+        <Banner tone="info" icon="clock-counter-clockwise">
+          This run did not keep its request, so the saved request is shown as it is now, with that run's response.
+        </Banner>
       )}
       {draft.conflict && (
         <Banner tone="err" icon="git-diff" actions={<ReloadKeep />}>

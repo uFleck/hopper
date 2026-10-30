@@ -36,7 +36,7 @@ export function BodySection({ body, onChange, info, variables, readOnly, onSave 
           ))}
         </Select>
         {body.type === "json" && (
-          <Button size="sm" icon="text-align-left" onClick={pretty} disabled={readOnly || status?.state !== "valid"} title="Pretty-print the JSON">Pretty-print</Button>
+          <Button size="sm" icon="text-align-left" onClick={pretty} disabled={readOnly || status?.state !== "valid"} data-tip="Pretty-print the JSON">Pretty-print</Button>
         )}
       </div>
 

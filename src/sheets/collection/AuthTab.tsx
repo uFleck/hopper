@@ -132,7 +132,7 @@ export function AuthTab({ slug, name, requests }: { slug: string; name: string; 
       {dirty && (
         <div className="cv-actions">
           <Button variant="ghost" disabled={busy} onClick={() => setEdited(null)}>Discard</Button>
-          <Button variant="primary" loading={busy} disabled={!!raw} title={raw ? "Store the credential as a secret first" : undefined} onClick={() => void save()}>Save</Button>
+          <Button variant="primary" loading={busy} disabled={!!raw} data-tip={raw ? "Store the credential as a secret first" : undefined} onClick={() => void save()}>Save</Button>
         </div>
       )}
     </div>

@@ -77,14 +77,14 @@ export function VariablesTab({ slug, name }: { slug: string; name: string }) {
               </div>
               <div className="cv-cells">
                 {row.secret ? <span className="cv-cell is-none" role="cell">—</span> : (
-                  <button type="button" role="cell" className={cx("cv-cell", row.defaultValue === null ? "is-none" : "is-own", edit?.name === row.name && edit.column === "default" && "is-editing")} title={row.defaultValue ?? "No default"} onClick={() => setEdit({ name: row.name, column: "default" })}>
+                  <button type="button" role="cell" className={cx("cv-cell", row.defaultValue === null ? "is-none" : "is-own", edit?.name === row.name && edit.column === "default" && "is-editing")} data-tip={row.defaultValue ?? "No default"} onClick={() => setEdit({ name: row.name, column: "default" })}>
                     {row.defaultValue === null ? "—" : row.defaultValue || "empty"}
                   </button>
                 )}
                 {STAGES.map((s) => {
                   const c = cellText(row.cells[s]);
                   return (
-                    <button key={s} type="button" role="cell" disabled={readOnly(s)} className={cx("cv-cell", c.tone, needsValue(row.cells[s]) && s === active && "is-hot", edit?.name === row.name && edit.column === s && "is-editing")} title={c.title} onClick={() => setEdit({ name: row.name, column: s })}>
+                    <button key={s} type="button" role="cell" disabled={readOnly(s)} className={cx("cv-cell", c.tone, needsValue(row.cells[s]) && s === active && "is-hot", edit?.name === row.name && edit.column === s && "is-editing")} data-tip={c.title} onClick={() => setEdit({ name: row.name, column: s })}>
                       {row.secret && row.cells[s].kind === "set" ? "● " : row.secret && c.tone === "is-gap" ? "○ " : c.tone === "is-inherit" ? "↳ " : ""}{c.text}
                     </button>
                   );

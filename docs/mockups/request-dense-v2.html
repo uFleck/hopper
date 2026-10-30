@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>Hopper request page v2: tabs that fold, variable states, hover card</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --font-ui:"Schibsted Grotesk","Segoe UI",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+  --bg-page:#0f1219;--bg-surface:#151922;--bg-elevated:#1d2230;
+  --border-default:#2a3042;--border-strong:#3b445c;
+  --text-primary:#eef0f6;--text-secondary:#aab1c3;--text-tertiary:#6f778d;
+  --accent:#7d98ff;--accent-text:#9bb0ff;--on-accent:#0b1030;--accent-soft:rgba(125,152,255,.16);
+  --hover-tint:rgba(255,255,255,.05);--press-tint:rgba(255,255,255,.09);
+  --ok:#3ddc84;--warn:#f2b73a;--err:#ff6050;
+  --i1:#7d98ff;--i2:#3ddc84;--i3:#ff9b6a;--i4:#c39bff;--i5:#f2b73a;
+  --shadow-pop:0 14px 34px rgba(0,0,0,.55);
+  --page:#0a0c11;--cap:#8e96ab;
+  --w:430px;
+}
+:root[data-theme="light"]{
+  --bg-page:#eef2f7;--bg-surface:#fff;--bg-elevated:#f2f4f8;
+  --border-default:#e1e5ed;--border-strong:#c8cfdb;
+  --text-primary:#141922;--text-secondary:#4a5466;--text-tertiary:#8189a0;
+  --accent:#2f55d4;--accent-text:#2f55d4;--on-accent:#fff;--accent-soft:rgba(47,85,212,.12);
+  --hover-tint:rgba(20,25,34,.05);--press-tint:rgba(20,25,34,.09);
+  --ok:#14a05a;--warn:#d48a00;--err:#e03a2c;
+  --i1:#2f55d4;--i2:#14a05a;--i3:#c2551c;--i4:#7c4bd0;--i5:#d48a00;
+  --shadow-pop:0 14px 34px rgba(30,40,70,.22);
+  --page:#d9dee8;--cap:#555;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 24px 40px;background:var(--page);color:var(--text-primary);font:14px/1.4 var(--font-ui)}
+h1{margin:0 0 4px;font-size:20px}
+h2{margin:30px 0 4px;font-size:16px}
+.lead{margin:0 0 12px;max-width:940px;color:var(--cap);font-size:13.5px}
+.toolbar{display:flex;gap:8px;margin:12px 0 16px}
+.toolbar button{padding:6px 12px;border:1px solid var(--border-strong);border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.toolbar button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:650}
+.grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+.slot{display:flex;flex-direction:column;gap:8px;width:var(--w)}
+.cap b{display:block;font-size:14.5px}
+.cap span{display:block;color:var(--cap);font-size:12.5px}
+button{font:inherit;color:inherit}
+
+/* ---- panel frame ---- */
+.fr{position:relative;display:flex;flex-direction:column;gap:6px;width:var(--w);height:660px;padding:8px;overflow:hidden;border-radius:14px;background:var(--bg-page);box-shadow:0 0 0 1px var(--border-default),0 20px 40px rgba(0,0,0,.3);font:13px/1.4 var(--font-ui)}
+.grow{flex:1;min-height:0}
+.row{display:flex;align-items:center;gap:6px;min-width:0}
+.sp{flex:1}
+.ib{display:grid;flex:none;place-items:center;width:26px;height:26px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--text-secondary);font-size:15px;cursor:pointer}
+.ib:hover{background:var(--hover-tint);color:var(--text-primary)}
+.star{color:#f5b301}
+.name{flex:1;min-width:0;height:26px;padding:0 4px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text-primary);font:700 15px var(--font-ui)}
+.pill{display:inline-flex;flex:none;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:999px;background:var(--bg-elevated);color:var(--text-secondary);font-size:12px;font-weight:600}
+.pill i{width:7px;height:7px;border-radius:2px;background:var(--ok)}
+
+.bar{display:flex;align-items:stretch;height:36px;padding:3px;border-radius:10px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default)}
+.meth{display:flex;flex:none;align-items:center;gap:4px;padding:0 8px;border-radius:7px;background:color-mix(in srgb,var(--i2) 15%,transparent);color:var(--i2);font:700 12.5px var(--font-mono)}
+.meth small{font-size:9px;opacity:.8}
+.url{display:flex;flex:1;align-items:center;min-width:0;margin:0 8px;overflow:hidden;font:12.5px var(--font-mono);white-space:nowrap}
+.send{display:flex;flex:none;align-items:center;gap:6px;padding:0 12px;border:0;border-radius:7px;background:var(--text-primary);color:var(--bg-surface);font-weight:700;cursor:pointer}
+.send kbd{padding:0 4px;border:1px solid currentColor;border-radius:4px;font:10.5px var(--font-ui);opacity:.65}
+
+/* variable tokens: defined = accent chip; undefined = plain red chip, no wavy underline */
+.v{padding:1px 2px;margin:0 -2px;border-radius:5px;background:var(--accent-soft);color:var(--accent-text)}
+.v:hover,.v.hot{background:color-mix(in srgb,var(--accent) 30%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 55%,transparent)}
+.v.bad{background:color-mix(in srgb,var(--err) 13%,transparent);color:var(--err)}
+.v.bad:hover,.v.bad.hot{background:color-mix(in srgb,var(--err) 26%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--err) 55%,transparent)}
+.res{margin:0;padding:0 4px;overflow:hidden;color:var(--text-tertiary);font:11.5px var(--font-mono);text-overflow:ellipsis;white-space:nowrap}
+.res .ok{color:var(--text-secondary)}.res .bad{color:var(--err)}
+
+/* tabs that fold */
+.card{display:flex;flex-direction:column;min-width:0;overflow:hidden;border-radius:12px;background:var(--bg-surface);box-shadow:inset 0 0 0 1px var(--border-default)}
+.tabs{display:flex;flex:none;align-items:center;gap:2px;height:30px;padding:0 6px;border-bottom:1px solid var(--border-default);overflow:hidden}
+.tab{display:flex;align-items:center;gap:5px;height:100%;padding:0 8px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--text-tertiary);font-weight:600;font-size:12.5px;white-space:nowrap;cursor:pointer}
+.tab:hover{color:var(--text-primary)}
+.tab.on{border-bottom-color:var(--accent);color:var(--text-primary)}
+.tab u{padding:0 5px;border-radius:7px;background:var(--hover-tint);color:var(--text-tertiary);font-size:11px;font-weight:500;text-decoration:none}
+.tab.on u{background:var(--accent-soft);color:var(--accent-text)}
+.fold{margin-left:auto;display:grid;place-items:center;width:22px;height:22px;color:var(--text-tertiary);font-size:11px;cursor:pointer;transition:transform .15s}
+.rq.folded .fold{transform:rotate(180deg)}
+.rq.folded .tabs{border-bottom-color:transparent}
+.rq.folded .tab.on{border-bottom-color:transparent;color:var(--text-tertiary)}
+.rq.folded .tab.on u{background:var(--hover-tint);color:var(--text-tertiary)}
+.rq.folded .panes{display:none}
+.pane{display:none;flex-direction:column;gap:3px;padding:6px 8px 8px}
+.pane.show{display:flex}
+.sub{margin:2px 0 0;color:var(--text-tertiary);font-size:10.5px;font-weight:650;letter-spacing:.07em;text-transform:uppercase}
+.kv{display:grid;grid-template-columns:14px minmax(0,2fr) minmax(0,3fr) 20px;align-items:center;gap:4px}
+.kv .in{display:flex;align-items:center;height:24px;padding:0 7px;overflow:hidden;border-radius:6px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default);font:12px var(--font-mono);white-space:nowrap}
+.kv .in.ghost{border:1px dashed var(--border-strong);box-shadow:none;background:transparent;color:var(--text-tertiary)}
+.kv input[type=checkbox]{width:12px;height:12px;margin:0;accent-color:var(--accent)}
+.kv .x{color:var(--text-tertiary);text-align:center}
+.seg{display:inline-flex;gap:2px;padding:2px;border-radius:8px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default)}
+.seg b{padding:2px 9px;border-radius:6px;color:var(--text-tertiary);font-size:12px;font-weight:600}
+.seg b.on{background:var(--bg-elevated);color:var(--text-primary);box-shadow:0 0 0 1px var(--border-strong)}
+.hint{margin:0;color:var(--text-tertiary);font-size:12px}
+.note{min-height:60px;padding:6px 8px;border-radius:6px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default);color:var(--text-secondary);font-size:12.5px}
+
+/* response */
+.strip{display:flex;flex:none;align-items:center;gap:8px;height:32px;padding:0 6px 0 10px;border-bottom:1px solid var(--border-default)}
+.st{display:inline-flex;align-items:baseline;gap:5px;color:var(--ok);font-weight:750}
+.st b{font:700 15px var(--font-mono)}.st span{font-size:12px;font-weight:600}
+.meta{color:var(--text-tertiary);font-size:12px;white-space:nowrap}
+.card.lit{box-shadow:inset 3px 0 0 var(--ok),inset 0 0 0 1px var(--border-default)}
+.code{flex:1;min-height:0;margin:0;padding:6px 0;overflow:hidden;font:12px/1.55 var(--font-mono)}
+.code div{display:flex;padding-right:10px}
+.code i{flex:none;width:30px;padding-right:8px;color:var(--text-tertiary);font-style:normal;text-align:right;opacity:.6}
+.k{color:var(--i1)}.s{color:var(--ok)}.n{color:var(--i3)}.p{color:var(--text-tertiary)}
+.empty{display:grid;flex:1;place-items:center;align-content:center;gap:4px;color:var(--text-tertiary);font-size:12.5px;text-align:center}
+.empty b{color:var(--text-secondary)}
+
+/* ======= NEW hover card ======= */
+.pop{position:relative;width:272px;padding:10px;border:1px solid var(--border-strong);border-radius:12px;background:var(--bg-elevated);box-shadow:var(--shadow-pop);font:13px/1.4 var(--font-ui)}
+.pop-h{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.pop-n{min-width:0;overflow:hidden;font:700 13px var(--font-mono);text-overflow:ellipsis;white-space:nowrap}
+.pop-n::before{content:"{{";color:var(--text-tertiary);font-weight:500}.pop-n::after{content:"}}";color:var(--text-tertiary);font-weight:500}
+.sc{display:inline-flex;flex:none;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--k) 15%,transparent);color:var(--k);font-size:11.5px;font-weight:650;white-space:nowrap}
+.sc::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--k)}
+.sc small{color:inherit;font-size:11.5px;font-weight:500;opacity:.75}
+.k-request{--k:var(--i3)}.k-folder{--k:var(--i4)}.k-collection{--k:var(--i1)}.k-env{--k:var(--i2)}.k-workspace{--k:var(--i5)}
+.k-secret{--k:var(--warn)}.k-builtin{--k:var(--accent-text)}.k-none{--k:var(--err)}
+.fld{display:flex;align-items:center;gap:6px;margin-top:8px}
+.inp{display:flex;flex:1;align-items:center;min-width:0;height:28px;padding:0 8px;border:0;border-radius:7px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default);color:var(--text-primary);font:12.5px var(--font-mono);white-space:nowrap;overflow:hidden}
+.inp.focus{box-shadow:inset 0 0 0 1px var(--accent),0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)}
+.inp.ro{opacity:.7}.inp .ph{color:var(--text-tertiary)}
+.caret{display:inline-block;width:1px;height:14px;margin-left:1px;background:var(--accent-text)}
+.btn{flex:none;height:28px;padding:0 11px;border:0;border-radius:7px;background:var(--accent);color:var(--on-accent);font-size:12.5px;font-weight:700;cursor:pointer}
+.btn.ghost{background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-strong);color:var(--text-secondary);font-weight:600}
+.btn.off{opacity:.4}
+.line{margin:6px 0 0;color:var(--text-tertiary);font-size:11.5px}
+.line kbd{padding:0 4px;border:1px solid var(--border-strong);border-radius:4px;font:10.5px var(--font-ui)}
+.line.warn{color:var(--warn)}
+.line a{color:var(--accent-text);text-decoration:underline;cursor:pointer}
+.sugg{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:8px}
+.sugg>span{color:var(--text-tertiary);font-size:11.5px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border:1px solid var(--border-strong);border-radius:999px;background:var(--bg-page);font:600 12px var(--font-mono);cursor:pointer}
+.chip:hover{border-color:var(--accent);background:var(--accent-soft)}
+.chip small{color:var(--text-tertiary);font:500 10.5px var(--font-ui)}
+.scopes{display:flex;gap:2px;margin-top:6px;padding:2px;border-radius:8px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default)}
+.scopes b{flex:1;padding:3px 0;border-radius:6px;color:var(--text-tertiary);font-size:11.5px;font-weight:600;text-align:center;cursor:pointer}
+.scopes b.on{background:var(--bg-elevated);color:var(--text-primary);box-shadow:0 0 0 1px var(--border-strong)}
+.div{height:1px;margin:8px -10px 0;background:var(--border-default)}
+.secret-row{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 8px;border-radius:7px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-default);color:var(--text-secondary);font-size:12.5px}
+.secret-row .dots{font:12px var(--font-mono);letter-spacing:2px;color:var(--text-tertiary)}
+.secret-row.miss{background:color-mix(in srgb,var(--warn) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warn) 35%,transparent);color:var(--warn)}
+.gal{display:flex;flex-wrap:wrap;gap:24px 28px;align-items:flex-start}
+.gi{display:flex;flex-direction:column;gap:8px}
+.gi>.cap{width:272px}
+
+/* ======= OLD hover card (current build, from request.css) ======= */
+.vp{display:flex;flex-direction:column;gap:8px;width:340px;padding:12px;border:1px solid var(--border-strong);border-radius:14px;background:var(--bg-elevated);box-shadow:var(--shadow-pop);font-size:13.5px}
+.vp-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.vp-name{font:700 14px var(--font-mono)}.vp-name::before{content:"{{";color:var(--text-tertiary);font-weight:500}.vp-name::after{content:"}}";color:var(--text-tertiary);font-weight:500}
+.vp-kind{padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--k) 16%,transparent);color:var(--k);font-size:12px;font-weight:650}
+.vp-where{display:flex;gap:6px;margin:-2px 0 0;color:var(--text-tertiary);font-size:12.5px}
+.vp-label{color:var(--text-tertiary);font-size:11.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase}
+.vp-edit{display:flex;align-items:center;gap:8px}
+.vp-in{flex:1;height:36px;padding:0 10px;display:flex;align-items:center;border-radius:var(--r,8px);background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-strong);font:13px var(--font-mono)}
+.vp-btn{height:36px;padding:0 14px;border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);font-weight:700}
+.vp-foot{margin:0;color:var(--text-tertiary);font-size:12px}
+.vp-chips{display:flex;gap:6px}
+.vp-chip{padding:4px 10px;border:1px solid var(--border-strong);border-radius:999px;background:var(--bg-page);font:600 13px var(--font-mono)}
+.vp-scopes{display:flex;align-items:center;gap:6px}
+.vp-scope{padding:3px 10px;border:1px solid var(--border-default);border-radius:999px;color:var(--text-secondary);font-size:12.5px}
+.vp-scope.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-text);font-weight:650}
+.vp-col{display:flex;flex-direction:column;gap:6px}
+.anchor{position:absolute;z-index:5}
+</style>
+</head>
+<body>
+<h1>Hopper request page, round 2</h1>
+<p class="lead">A's tab strip, C's fold. The strip is always visible and its badges are the summary (<i>Params 2 · Headers 1 · Auth inherit</i>). Click a tab to open that section; click the active tab, or the chevron, to fold it back. Undefined variables are plain red, with no wavy underline and no warning line. Below the page mockups: the hover card redesigned, in every state, next to the current one.</p>
+<div class="toolbar">
+  <button id="w430" class="on">430 px</button><button id="w640">640 px</button>
+  <button id="tdark" class="on">Night</button><button id="tlight">Day</button>
+</div>
+
+<h2>1. Page: tabs that fold</h2>
+<div class="grid">
+
+<!-- ---------- Editing ---------- -->
+<div class="slot">
+  <div class="cap"><b>Editing: pane open</b><span>Before the first send, and whenever you open a tab. About 100 px of chrome, then your content.</span></div>
+  <div class="fr rq" id="rq1">
+    <div class="row"><button class="ib">‹</button><input class="name" value="Get user"><span class="pill"><i></i>local</span><button class="ib star">★</button><button class="ib">⋯</button></div>
+    <div class="bar"><span class="meth">GET <small>▾</small></span><span class="url"><span class="v">{{baseUrl}}</span>/users/{id}?include=profile</span><button class="send">Send <kbd>↵</kbd></button></div>
+    <p class="res">→ <span class="ok">http://localhost:8080/users/42?include=profile</span></p>
+    <div class="card" style="flex:none">
+      <div class="tabs"><button class="tab on" data-p="params">Params <u>2</u></button><button class="tab" data-p="headers">Headers <u>1</u></button><button class="tab" data-p="body">Body</button><button class="tab" data-p="auth">Auth <u>inherit</u></button><button class="tab" data-p="notes">Notes</button><span class="fold">▲</span></div>
+      <div class="panes">
+        <div class="pane show" data-p="params">
+          <p class="sub">Path</p>
+          <div class="kv" style="grid-template-columns:minmax(0,2fr) minmax(0,3fr)"><span class="in" style="background:none;box-shadow:none;color:var(--accent-text)">{id}</span><span class="in">42</span></div>
+          <p class="sub">Query</p>
+          <div class="kv"><input type="checkbox" checked><span class="in">include</span><span class="in">profile</span><span class="x">×</span></div>
+          <div class="kv"><input type="checkbox"><span class="in" style="opacity:.55">debug</span><span class="in" style="opacity:.55">true</span><span class="x">×</span></div>
+          <div class="kv"><span></span><span class="in ghost">name</span><span class="in ghost">value</span><span></span></div>
+        </div>
+        <div class="pane" data-p="headers">
+          <div class="kv"><input type="checkbox" checked><span class="in">Accept</span><span class="in">application/json</span><span class="x">×</span></div>
+          <div class="kv"><span></span><span class="in ghost">Header-Name</span><span class="in ghost">value</span><span></span></div>
+        </div>
+        <div class="pane" data-p="body"><span class="seg"><b class="on">None</b><b>JSON</b><b>Form</b><b>Raw</b></span><p class="hint">This request has no body.</p></div>
+        <div class="pane" data-p="auth"><span class="seg"><b class="on">Inherit</b><b>None</b><b>Bearer</b><b>Basic</b><b>API key</b></span><p class="hint">Uses <b style="color:var(--text-secondary)">Bearer {{token}}</b> from the Acme API collection.</p></div>
+        <div class="pane" data-p="notes"><div class="note">Returns one user. Try id 42 for the full profile.</div></div>
+      </div>
+    </div>
+    <div class="card grow"><div class="empty"><b>No response yet</b><span>Send the request. <span style="border:1px solid var(--border-strong);border-radius:4px;padding:0 4px;font-size:11px">Ctrl</span> <span style="border:1px solid var(--border-strong);border-radius:4px;padding:0 4px;font-size:11px">↵</span></span></div></div>
+  </div>
+</div>
+
+<!-- ---------- After send ---------- -->
+<div class="slot">
+  <div class="cap"><b>After send: pane folded</b><span>The tab strip stays as the summary and the response takes the rest, about 70 px of request. Click any tab to reopen it.</span></div>
+  <div class="fr rq folded" id="rq2">
+    <div class="row"><button class="ib">‹</button><input class="name" value="Get user"><span class="pill"><i></i>local</span><button class="ib star">★</button><button class="ib">⋯</button></div>
+    <div class="bar"><span class="meth">GET <small>▾</small></span><span class="url"><span class="v">{{baseUrl}}</span>/users/{id}?include=profile</span><button class="send">Send <kbd>↵</kbd></button></div>
+    <div class="card" style="flex:none">
+      <div class="tabs"><button class="tab on" data-p="params">Params <u>2</u></button><button class="tab" data-p="headers">Headers <u>1</u></button><button class="tab" data-p="body">Body</button><button class="tab" data-p="auth">Auth <u>inherit</u></button><button class="tab" data-p="notes">Notes</button><span class="fold">▲</span></div>
+      <div class="panes">
+        <div class="pane show" data-p="params">
+          <div class="kv"><input type="checkbox" checked><span class="in">include</span><span class="in">profile</span><span class="x">×</span></div>
+          <div class="kv"><input type="checkbox"><span class="in" style="opacity:.55">debug</span><span class="in" style="opacity:.55">true</span><span class="x">×</span></div>
+          <div class="kv"><span></span><span class="in ghost">name</span><span class="in ghost">value</span><span></span></div>
+        </div>
+        <div class="pane" data-p="headers"><div class="kv"><input type="checkbox" checked><span class="in">Accept</span><span class="in">application/json</span><span class="x">×</span></div><div class="kv"><span></span><span class="in ghost">Header-Name</span><span class="in ghost">value</span><span></span></div></div>
+        <div class="pane" data-p="body"><span class="seg"><b class="on">None</b><b>JSON</b><b>Form</b><b>Raw</b></span><p class="hint">This request has no body.</p></div>
+        <div class="pane" data-p="auth"><span class="seg"><b class="on">Inherit</b><b>None</b><b>Bearer</b><b>Basic</b><b>API key</b></span><p class="hint">Uses <b style="color:var(--text-secondary)">Bearer {{token}}</b> from the Acme API collection.</p></div>
+        <div class="pane" data-p="notes"><div class="note">Returns one user. Try id 42 for the full profile.</div></div>
+      </div>
+    </div>
+    <div class="card lit grow">
+      <div class="strip"><span class="st"><b>200</b><span>OK</span></span><span class="meta">143 ms · 1.2 KB</span><span class="sp"></span><button class="ib">⌕</button><button class="ib">⧉</button><button class="ib">⤢</button></div>
+      <div class="tabs" style="height:28px"><button class="tab on">Body</button><button class="tab">Headers <u>8</u></button><button class="tab">Cookies</button><button class="tab">Timeline</button></div>
+      <div class="code">
+        <div><i>1</i><span class="p">{</span></div>
+        <div><i>2</i><span><span class="k">&nbsp;&nbsp;"id"</span><span class="p">: </span><span class="n">42</span><span class="p">,</span></span></div>
+        <div><i>3</i><span><span class="k">&nbsp;&nbsp;"name"</span><span class="p">: </span><span class="s">"Ada Lovelace"</span><span class="p">,</span></span></div>
+        <div><i>4</i><span><span class="k">&nbsp;&nbsp;"email"</span><span class="p">: </span><span class="s">"ada@example.com"</span><span class="p">,</span></span></div>
+        <div><i>5</i><span><span class="k">&nbsp;&nbsp;"profile"</span><span class="p">: {</span></span></div>
+        <div><i>6</i><span><span class="k">&nbsp;&nbsp;&nbsp;&nbsp;"bio"</span><span class="p">: </span><span class="s">"First programmer"</span><span class="p">,</span></span></div>
+        <div><i>7</i><span><span class="k">&nbsp;&nbsp;&nbsp;&nbsp;"followers"</span><span class="p">: </span><span class="n">1815</span></span></div>
+        <div><i>8</i><span class="p">&nbsp;&nbsp;},</span></div>
+        <div><i>9</i><span><span class="k">&nbsp;&nbsp;"active"</span><span class="p">: </span><span class="n">true</span><span class="p">,</span></span></div>
+        <div><i>10</i><span><span class="k">&nbsp;&nbsp;"roles"</span><span class="p">: [</span><span class="s">"admin"</span><span class="p">, </span><span class="s">"dev"</span><span class="p">],</span></span></div>
+        <div><i>11</i><span><span class="k">&nbsp;&nbsp;"createdAt"</span><span class="p">: </span><span class="s">"2026-01-14T09:21:00Z"</span><span class="p">,</span></span></div>
+        <div><i>12</i><span><span class="k">&nbsp;&nbsp;"plan"</span><span class="p">: </span><span class="s">"pro"</span></span></div>
+        <div><i>13</i><span class="p">}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- Undefined + hover ---------- -->
+<div class="slot">
+  <div class="cap"><b>Undefined variable, hovered</b><span>Red text on a soft red chip, nothing else: no wavy underline, no warning line. The resolved URL keeps the same red so the problem reads in both places. Hover opens the card that fixes it.</span></div>
+  <div class="fr rq folded" id="rq3">
+    <div class="row"><button class="ib">‹</button><input class="name" value="Get team member"><span class="pill"><i></i>local</span><button class="ib star">★</button><button class="ib">⋯</button></div>
+    <div class="bar"><span class="meth">GET <small>▾</small></span><span class="url"><span class="v">{{baseUrl}}</span>/teams/<span class="v bad hot">{{teamId}}</span>/members/{id}</span><button class="send">Send <kbd>↵</kbd></button></div>
+    <p class="res">→ <span class="ok">http://localhost:8080/teams/</span><span class="bad">{{teamId}}</span><span class="ok">/members/7</span></p>
+    <div class="card" style="flex:none">
+      <div class="tabs"><button class="tab on">Params <u>1</u></button><button class="tab">Headers <u>1</u></button><button class="tab">Body</button><button class="tab">Auth <u>inherit</u></button><button class="tab">Notes</button><span class="fold">▲</span></div>
+    </div>
+    <div class="card grow"><div class="empty"><b>No response yet</b><span>Send the request.</span></div></div>
+
+    <div class="anchor" style="left:110px;top:104px">
+      <div class="pop">
+        <div class="pop-h"><code class="pop-n">teamId</code><span class="sc k-none">Not defined</span></div>
+        <div class="sugg"><span>Did you mean</span><button class="chip">teamID <small>collection</small></button></div>
+        <div class="fld"><span class="inp focus"><span class="ph">value</span><span class="caret"></span></span><button class="btn off">Add</button></div>
+        <div class="scopes"><b class="on">Collection</b><b>local env</b><b>Workspace</b></div>
+        <p class="line">Every request in Acme API sees it.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<h2>2. Hover card, redesigned</h2>
+<p class="lead">Narrower (272 px instead of 340), one row per job, and the scope is a single colored chip ("Environment · local") instead of a chip plus a location line plus a footer sentence. The value field and its Save button share a row; the helper text only appears when it has something to say.</p>
+
+<div class="gal">
+
+<div class="gi">
+  <div class="cap"><b>Defined, editable</b><span>Scope chip carries the location. Value edits in place.</span></div>
+  <div class="pop">
+    <div class="pop-h"><code class="pop-n">baseUrl</code><span class="sc k-env">Environment <small>· local</small></span></div>
+    <div class="fld"><span class="inp">http://localhost:8080</span></div>
+  </div>
+</div>
+
+<div class="gi">
+  <div class="cap"><b>Defined, being edited</b><span>Save appears on change; the hint shows only now.</span></div>
+  <div class="pop">
+    <div class="pop-h"><code class="pop-n">baseUrl</code><span class="sc k-env">Environment <small>· local</small></span></div>
+    <div class="fld"><span class="inp focus">http://localhost:9090<span class="caret"></span></span><button class="btn">Save</button></div>
+    <p class="line"><kbd>↵</kbd> save · <kbd>Esc</kbd> revert</p>
+  </div>
+</div>
+
+<div class="gi">
+  <div class="cap"><b>Defined, read-only</b><span>Greyed field and one honest line.</span></div>
+  <div class="pop">
+    <div class="pop-h"><code class="pop-n">region</code><span class="sc k-env">Environment <small>· production</small></span></div>
+    <div class="fld"><span class="inp ro">eu-west-1</span></div>
+    <p class="line">Production is read-only here.</p>
+  </div>
+</div>
+
+<div class="gi">
+  <div class="cap"><b>Collection / folder / request</b><span>Same card; only the chip color and text change.</span></div>
+  <div class="pop">
+    <div class="pop-h"><code class="pop-n">pageSize</code><span class="sc k-folder">Folder <small>· Users</small></span></div>
+    <div class="fld"><span class="inp">50</span></div>
+  </div>
+</div>
+
+<div class="gi">
+  <div class="cap"><b>Secret, has a value</b><span>The value is never shown, only that it is stored.</span></div>
+  <div class="pop">
+    <div class="pop-h"><code class="pop-n">token</code><span class="sc k-secret">Secret</span></div>
+    <div class="secret-row"><span class="dots">••••••••••</span><span class="sp"></span><span style="font-size:11.5px;color:var(--text-tertiary)">stored on this machine</span></div>
+  </div>
+</div>
+
+<div class="gi">
+  <div class="cap"><b>Secret, no value yet</b><span>Amber row with the one action that fixes it.</span></div>
+  <div class="pop">
+    <div class="pop-h"><code class="pop-n">token</code><span class="sc k-secret">Secret</span></div>
+    <div class="secret-row miss"><span>No value yet, requests send it empty</span></div>
+    <div class="fld"><button class="btn ghost" style="flex:1">Set its value in Environments</button></div>
+  </div>
+</div>
+
+<div class="gi">
+  <div class="cap"><b>Built-in</b><span>One line; no field.</span></div>
+  <div class="pop">
+    <div class="pop-h"><code class="pop-n">$uuid</code><span class="sc k-builtin">Built-in</span></div>
+    <p class="line" style="margin-top:8px;font-size:12.5px">Generated again each time the request is sent.</p>
+  </div>
+</div>
+
+<div class="gi">
+  <div class="cap"><b>Not defined, with a likely typo</b><span>Suggestions first (one click renames the text), then define it inline.</span></div>
+  <div class="pop">
+    <div class="pop-h"><code class="pop-n">teamId</code><span class="sc k-none">Not defined</span></div>
+    <div class="sugg"><span>Did you mean</span><button class="chip">teamID <small>collection</small></button><button class="chip">team_id <small>workspace</small></button></div>
+    <div class="fld"><span class="inp focus"><span class="ph">value</span><span class="caret"></span></span><button class="btn off">Add</button></div>
+    <div class="scopes"><b class="on">Collection</b><b>local env</b><b>Workspace</b></div>
+    <p class="line">Every request in Acme API sees it.</p>
+  </div>
+</div>
+
+<div class="gi">
+  <div class="cap"><b>Not defined, looks like a credential</b><span>The nudge toward a secret is a single line under the form.</span></div>
+  <div class="pop">
+    <div class="pop-h"><code class="pop-n">apiToken</code><span class="sc k-none">Not defined</span></div>
+    <div class="fld"><span class="inp focus">sk_live_51<span class="caret"></span></span><button class="btn">Add</button></div>
+    <div class="scopes"><b class="on">Collection</b><b>local env</b><b>Workspace</b></div>
+    <p class="line warn">Looks like a credential. <a>Store it as a secret</a> to keep it out of git.</p>
+  </div>
+</div>
+
+</div>
+
+<h2>3. For comparison: the current card</h2>
+<div class="gal">
+<div class="gi">
+  <div class="cap" style="width:340px"><b>Current: defined</b><span>340 px; header, location line, label, field, button and footer sentence stacked.</span></div>
+  <div class="vp">
+    <div class="vp-head"><code class="vp-name">baseUrl</code><span class="vp-kind" style="--k:var(--i2)">Environment</span></div>
+    <p class="vp-where">◎ local</p>
+    <div class="vp-col"><span class="vp-label">Value</span><div class="vp-edit"><span class="vp-in">http://localhost:8080</span><button class="vp-btn" style="opacity:.4">Save</button></div><p class="vp-foot">Edit the value here; it saves to its scope.</p></div>
+  </div>
+</div>
+<div class="gi">
+  <div class="cap" style="width:340px"><b>Current: not defined</b><span>About 230 px tall against ~150 px for the new one.</span></div>
+  <div class="vp">
+    <div class="vp-head"><code class="vp-name">teamId</code><span class="vp-kind" style="--k:var(--err)">Not defined</span></div>
+    <div class="vp-col"><span class="vp-label">Did you mean</span><div class="vp-chips"><span class="vp-chip">teamID <span style="color:var(--text-tertiary);font:500 11.5px var(--font-ui)">collection</span></span></div></div>
+    <span class="vp-label">Or define it</span>
+    <div class="vp-col"><div class="vp-edit"><span class="vp-in" style="color:var(--text-tertiary)">value</span><button class="vp-btn" style="opacity:.4">Add</button></div>
+    <div class="vp-scopes"><span class="vp-label">Save in</span><span class="vp-scope on">Collection</span><span class="vp-scope">local env</span><span class="vp-scope">Workspace</span></div>
+    <p class="vp-foot">Every request in Acme API sees it.</p></div>
+  </div>
+</div>
+</div>
+
+<script>
+const root=document.documentElement;
+const set=(id,on)=>document.getElementById(id).classList.toggle("on",on);
+document.getElementById("w430").onclick=()=>{root.style.setProperty("--w","430px");set("w430",1);set("w640",0)};
+document.getElementById("w640").onclick=()=>{root.style.setProperty("--w","640px");set("w430",0);set("w640",1)};
+document.getElementById("tdark").onclick=()=>{root.dataset.theme="dark";set("tdark",1);set("tlight",0)};
+document.getElementById("tlight").onclick=()=>{root.dataset.theme="light";set("tdark",0);set("tlight",1)};
+if(location.hash.includes("640"))document.getElementById("w640").click();
+if(location.hash.includes("light"))document.getElementById("tlight").click();
+document.querySelectorAll(".rq").forEach(fr=>{
+  const tabs=fr.querySelectorAll(".card:first-of-type .tab[data-p]");
+  const panes=fr.querySelectorAll(".pane");
+  const open=p=>{tabs.forEach(t=>t.classList.toggle("on",t.dataset.p===p));panes.forEach(x=>x.classList.toggle("show",x.dataset.p===p));fr.classList.remove("folded")};
+  tabs.forEach(t=>t.onclick=()=>{ if(t.classList.contains("on")&&!fr.classList.contains("folded"))fr.classList.add("folded"); else open(t.dataset.p)});
+  const f=fr.querySelector(".fold"); if(f)f.onclick=()=>fr.classList.toggle("folded");
+});
+</script>
+</body>
+</html>

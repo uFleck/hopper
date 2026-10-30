@@ -50,7 +50,7 @@ export function GrantsTab() {
                 <input type="checkbox" aria-label={`Select ${g.requestName}`} checked={picked.has(g.requestId)} onChange={() => toggle(g.requestId)} />
                 <span className="ag-grant-name">{g.requestName}</span>
                 <Chip tone={g.access === "auto" ? "ok" : g.access === "blocked" ? "err" : "neutral"}>{g.access}</Chip>
-                {g.suspended && <Chip tone="warn" title="The agent edited this request, so the grant is paused">changed by agent</Chip>}
+                {g.suspended && <Chip tone="warn" tip="The agent edited this request, so the grant is paused">changed by agent</Chip>}
                 <Button size="sm" onClick={() => void revoke([g.requestId])} aria-label={`Set ${g.requestName} back to Ask`}>{g.suspended ? "Reset to Ask" : "Revoke"}</Button>
               </li>
             ))}

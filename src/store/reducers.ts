@@ -23,6 +23,8 @@ export interface DraftState {
   /** The file changed on disk while the draft was dirty: the banner offers reload or keep mine. */
   external: boolean;
   runId: string | null;
+  /** Opened from a history run: `unsaved` has no saved version yet, `no-request` could not restore the request that was sent. */
+  fromHistory?: "unsaved" | "no-request";
 }
 
 export type RunPhase = "preparing" | "sending" | "receiving" | "done" | "cancelled" | "failed";
@@ -90,6 +92,13 @@ export function applyMove(d: DraftState, collection: string | null, folder: stri
   return { ...next, dirty: isDirty(next) };
 }
 
+/** Undo all: the working copy goes back to the baseline. A never-saved draft has none, so it is left alone. */
+export function revertDraft(d: DraftState): DraftState {
+  if (d.base.revision === null) return d;
+  const next = { ...d, doc: d.base.doc, collection: d.base.collection, folder: d.base.folder };
+  return { ...next, dirty: isDirty(next) };
+}
+
 /** The server accepted the save: the response becomes the new baseline (unless the user typed more while it was in flight). */
 export function draftSaved(d: DraftState, saved: RequestDto, sentDoc: RequestDoc): DraftState {
   const editedMeanwhile = !deepEqual(d.doc, sentDoc);
@@ -104,6 +113,7 @@ export function draftSaved(d: DraftState, saved: RequestDto, sentDoc: RequestDoc
     saveError: null,
     conflict: false,
     external: false,
+    fromHistory: undefined,
   };
   return { ...next, dirty: isDirty(next) };
 }

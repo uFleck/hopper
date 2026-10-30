@@ -285,3 +285,47 @@ describe("sheets, route, settings", () => {
     expect(state().runs).toEqual({});
   });
 });
+
+describe("history", () => {
+  const rowOf = (pred: (r: ReturnType<typeof state>["historyAll"][number]) => boolean) => state().historyAll.find(pred)!;
+
+  it("loads every run, labels one and takes the label off again", async () => {
+    await A.refreshHistory();
+    const row = rowOf((r) => r.saved && !r.label);
+    await A.labelRun(row.requestId, row.id, "  baseline  ");
+    expect(rowOf((r) => r.id === row.id).label).toBe("baseline");
+    await A.labelRun(row.requestId, row.id, "");
+    expect(rowOf((r) => r.id === row.id).label).toBeUndefined();
+  });
+
+  it("delete hides the row at once and Undo brings it back", async () => {
+    await A.refreshHistory();
+    const row = state().historyAll[0];
+    A.deleteRun(row.requestId, row.id);
+    expect(state().historyAll.some((r) => r.id === row.id)).toBe(false);
+    await state().toasts[state().toasts.length - 1].undo!.run();
+    expect(state().historyAll.some((r) => r.id === row.id)).toBe(true);
+  });
+
+  it("opening a saved run puts the sent request in the draft as unsaved changes", async () => {
+    await A.refreshHistory();
+    const row = rowOf((r) => r.saved && r.hasRequest);
+    await A.openRun(row);
+    expect(state().route).toBe("request");
+    expect(state().draft!.doc.id).toBe(row.requestId);
+    expect(state().draft!.base.revision).not.toBeNull();
+    expect(state().draft!.fromHistory).toBeUndefined();
+  });
+
+  it("opening an unsaved run starts a new draft that offers Save as request", async () => {
+    await A.openOperation("account-api", "account-openapi", "UserSessions_List");
+    A.editDraft({ pathParams: { id: "7" } });
+    expect(await A.send()).not.toBeNull();
+    await A.refreshHistory();
+    const row = rowOf((r) => !r.saved && r.hasRequest);
+    await A.openRun(row);
+    expect(state().draft!.fromHistory).toBe("unsaved");
+    expect(state().draft!.base.revision).toBeNull();
+    expect(state().draft!.doc.id).toBe("");
+  });
+});
