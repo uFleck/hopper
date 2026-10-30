@@ -82,6 +82,16 @@ pub(crate) fn now_rfc3339() -> String {
 }
 
 /// Request ids compare case-insensitively; the canonical form is uppercase.
+/// `host/path` of a URL, for naming a run that has no saved request.
+fn host_and_path(url: &str) -> String {
+    let rest = url.split_once("://").map_or(url, |(_, r)| r);
+    rest.split(['?', '#'])
+        .next()
+        .unwrap_or(rest)
+        .trim_end_matches('/')
+        .to_owned()
+}
+
 pub(crate) fn canon(id: &str) -> String {
     Ulid::from_string(id)
         .map(|u| u.to_string())
@@ -1975,6 +1985,91 @@ impl AppService {
         })
         .await??;
         Ok(())
+    }
+
+    /// Every run in the workspace, newest first, with the name of its request.
+    pub async fn history_all(&self) -> Result<Vec<HistoryRow>, HopperError> {
+        let open = self.open()?;
+        let o = open.clone();
+        let rows = blocking(move || {
+            let rows = o.data.history().list_all()?;
+            let store = lock(&o.store);
+            Ok::<_, userdata::UserDataError>(
+                rows.into_iter()
+                    .map(|r| {
+                        let found = store.find_request(&r.request_id);
+                        let name = found
+                            .as_ref()
+                            .map(|f| f.request.doc.name.clone())
+                            .unwrap_or_else(|| host_and_path(&r.url));
+                        HistoryRow {
+                            saved: found.is_some(),
+                            name,
+                            item: HistoryItem {
+                                id: r.id,
+                                request_id: r.request_id,
+                                env: r.env,
+                                via: r.via,
+                                sent_at: r.sent_at,
+                                method: r.method,
+                                url: r.url,
+                                status: r.status,
+                                total_ms: r.total_ms,
+                                size_bytes: r.size_bytes,
+                                label: r.label,
+                                has_request: r.has_request,
+                            },
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .await??;
+        Ok(rows)
+    }
+
+    /// Sets, changes or (with `None` or an empty string) removes the label of one run.
+    pub async fn history_label(
+        &self,
+        request_id: &str,
+        id: &str,
+        label: Option<String>,
+    ) -> Result<(), HopperError> {
+        let open = self.open()?;
+        let (rid, id, data) = (canon(request_id), id.to_owned(), open.data.clone());
+        let found =
+            blocking(move || data.history().set_label(&rid, &id, label.as_deref())).await??;
+        if found {
+            Ok(())
+        } else {
+            Err(HopperError::not_found("history entry"))
+        }
+    }
+
+    pub async fn history_delete(&self, request_id: &str, id: &str) -> Result<(), HopperError> {
+        let open = self.open()?;
+        let (rid, id, data) = (canon(request_id), id.to_owned(), open.data.clone());
+        blocking(move || data.history().delete(&rid, &id)).await??;
+        Ok(())
+    }
+
+    /// The request that was sent in one run, so the editor can load it again.
+    pub async fn history_request(
+        &self,
+        request_id: &str,
+        id: &str,
+    ) -> Result<HistoryRequest, HopperError> {
+        let open = self.open()?;
+        let (rid, id, data) = (canon(request_id), id.to_owned(), open.data.clone());
+        let entry = blocking(move || data.history().get(&rid, &id)).await??;
+        let entry = entry.ok_or_else(|| HopperError::not_found("history entry"))?;
+        let doc = entry
+            .request
+            .ok_or_else(|| HopperError::not_found("stored request"))?;
+        Ok(HistoryRequest {
+            doc: RequestDoc::from(&doc),
+            truncated: entry.request_truncated,
+        })
     }
 
     fn cookie_scope(open: &Open) -> String {

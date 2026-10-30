@@ -949,6 +949,24 @@ async fn a_server_echoing_the_secret_never_leaks_it() {
         assert!(!serde_json::to_string(&got).unwrap().contains(SECRET));
     }
 
+    // The workspace-wide list, the stored request and a label.
+    let all = h.svc.history_all().await.unwrap();
+    assert_eq!(all.len(), 2);
+    for row in &all {
+        assert!(row.saved && row.item.has_request);
+        let stored = h.svc.history_request(&id, &row.item.id).await.unwrap();
+        assert!(!serde_json::to_string(&stored).unwrap().contains(SECRET));
+    }
+    h.svc
+        .history_label(&id, &all[0].item.id, Some("keep".into()))
+        .await
+        .unwrap();
+    let relisted = h.svc.history_all().await.unwrap();
+    assert_eq!(relisted[0].item.label.as_deref(), Some("keep"));
+    assert_eq!(relisted[0].name, all[0].name);
+    h.svc.history_delete(&id, &all[1].item.id).await.unwrap();
+    assert_eq!(h.svc.history_all().await.unwrap().len(), 1);
+
     // Activity and events.
     assert!(
         !serde_json::to_string(&h.activity().await)

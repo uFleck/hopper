@@ -383,6 +383,25 @@ export interface HistoryItem {
   status: number;
   totalMs: number;
   sizeBytes: number;
+  /** A name tag: a labelled run is never pruned. */
+  label?: string;
+  /** The request that was sent is stored, so the run can be reopened. */
+  hasRequest: boolean;
+}
+
+/** A run in the workspace-wide history list. */
+export interface HistoryRow extends HistoryItem {
+  /** The saved request's name, or the host and path for a run without one. */
+  name: string;
+  /** The request still exists in a collection. */
+  saved: boolean;
+}
+
+/** The request stored with a run, as it was written (variables unresolved). */
+export interface HistoryRequest {
+  doc: RequestDoc;
+  /** The body was left out because it was too large to keep. */
+  truncated: boolean;
 }
 
 export interface CookieDto {
@@ -544,6 +563,11 @@ export interface CommandMap {
   copy_curl: { args: { target: SendTarget; masked: boolean }; result: string };
   history_list: { args: { requestId: string }; result: HistoryItem[] };
   history_get: { args: { requestId: string; id: string }; result: RunResult };
+  history_all: { args: undefined; result: HistoryRow[] };
+  /** `null` or an empty label removes it. */
+  history_label: { args: { requestId: string; id: string; label: string | null }; result: void };
+  history_delete: { args: { requestId: string; id: string }; result: void };
+  history_request: { args: { requestId: string; id: string }; result: HistoryRequest };
   history_clear: { args: { requestId?: string }; result: void };
   cookies_list: { args: undefined; result: CookieDto[] };
   cookies_clear: { args: undefined; result: void };

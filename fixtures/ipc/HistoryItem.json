@@ -1,6 +1,8 @@
 {
   "env": "staging",
+  "hasRequest": true,
   "id": "01J0000000000000000000000D",
+  "label": "VAT bug repro",
   "method": "GET",
   "requestId": "01J0000000000000000000000A",
   "sentAt": "2026-01-01T00:00:00Z",

@@ -11,6 +11,7 @@ import type {
   ApplicationEnvDto,
   Stage,
   HistoryItem,
+  HistoryRow,
   McpStatus,
   RequestDto,
   RunResult,
@@ -43,7 +44,11 @@ type Handlers = { [K in CommandName]: (args: CommandMap[K]["args"]) => CommandMa
 interface HistoryEntry {
   item: HistoryItem;
   run: RunResult;
+  request: RequestDoc;
 }
+
+const MAX_UNLABELLED = 100;
+const INLINE = "inline";
 
 let uid = 0;
 const nextId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(++uid).toString(36)}`.toUpperCase();
@@ -82,6 +87,8 @@ function fresh() {
     const run = fakeRun(r.doc, status, ms);
     pushHistory(s.history, id, run, r.doc, at);
   }
+  const named = s.history.get("01HX0000000000000000000003")?.[0];
+  if (named) named.item.label = "Orders 503 repro";
   return s;
 }
 
@@ -101,8 +108,24 @@ function pushHistory(history: Map<string, HistoryEntry[]>, requestId: string, ru
   const item: HistoryItem = {
     id: run.historyId, requestId, env: run.env, via: "ui", sentAt: new Date(at).toISOString(),
     method: doc.method, url: run.resolvedUrl, status: run.status, totalMs: run.timing.totalMs, sizeBytes: run.decodedBytes,
+    hasRequest: true,
   };
-  history.set(requestId, [{ item, run }, ...(history.get(requestId) ?? [])]);
+  history.set(requestId, [{ item, run, request: structuredClone(doc) }, ...(history.get(requestId) ?? [])]);
+  pruneHistory(history);
+}
+
+/** Keeps the newest 100 unlabelled runs; a labelled one is never dropped. */
+function pruneHistory(history: Map<string, HistoryEntry[]>) {
+  const all = [...history.values()].flat().filter((h) => !h.item.label).sort((a, b) => b.item.sentAt.localeCompare(a.item.sentAt));
+  const drop = new Set(all.slice(MAX_UNLABELLED).map((h) => h.item.id));
+  if (drop.size === 0) return;
+  for (const [k, list] of history) history.set(k, list.filter((h) => !drop.has(h.item.id)));
+}
+
+function findHistory(requestId: string, id: string) {
+  const h = s.history.get(requestId)?.find((x) => x.item.id === id);
+  if (!h) throw err("not_found", "That history entry is gone.");
+  return h;
 }
 
 let s = fresh();
@@ -375,17 +398,33 @@ const handlers: Handlers = {
   request_send: async (input) => {
     const { doc, requestId } = docOf(input.target);
     const run = await simulateSend(input, doc, activeEnv(), requestId);
-    if (requestId) pushHistory(s.history, requestId, run, doc);
+    pushHistory(s.history, requestId ?? INLINE, run, doc);
     return run;
   },
   request_cancel: ({ runId }) => cancelRun(runId),
   copy_curl: ({ target, masked }) => curl(target, masked),
   history_list: ({ requestId }) => (s.history.get(requestId) ?? []).map((h) => clone(h.item)),
-  history_get: ({ requestId, id }) => {
-    const h = s.history.get(requestId)?.find((x) => x.item.id === id);
-    if (!h) throw err("not_found", "That history entry is gone.");
-    return clone(h.run);
+  history_get: ({ requestId, id }) => clone(findHistory(requestId, id).run),
+  history_all: () =>
+    [...s.history.values()]
+      .flat()
+      .sort((a, b) => b.item.sentAt.localeCompare(a.item.sentAt))
+      .map(({ item }): HistoryRow => {
+        const saved = s.requests.get(item.requestId);
+        return { ...clone(item), name: saved?.doc.name ?? item.url.replace(/^https?:\/\//, ""), saved: !!saved };
+      }),
+  history_label: ({ requestId, id, label }) => {
+    const h = findHistory(requestId, id);
+    const next = (label ?? "").trim().slice(0, 80);
+    if (next) h.item.label = next;
+    else delete h.item.label;
+    pruneHistory(s.history);
   },
+  history_delete: ({ requestId, id }) => {
+    findHistory(requestId, id);
+    s.history.set(requestId, (s.history.get(requestId) ?? []).filter((h) => h.item.id !== id));
+  },
+  history_request: ({ requestId, id }) => ({ doc: clone(findHistory(requestId, id).request), truncated: false }),
   history_clear: ({ requestId }) => {
     if (requestId) s.history.delete(requestId);
     else s.history.clear();

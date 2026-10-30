@@ -792,6 +792,32 @@ pub struct HistoryItem {
     pub status: u16,
     pub total_ms: u64,
     pub size_bytes: u64,
+    /// A name tag: a labelled run is never pruned.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// The request that was sent is stored, so the run can be reopened.
+    pub has_request: bool,
+}
+
+/// A run in the workspace-wide history list.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryRow {
+    #[serde(flatten)]
+    pub item: HistoryItem,
+    /// The saved request's name, or the host and path for a run without one.
+    pub name: String,
+    /// The request still exists in a collection.
+    pub saved: bool,
+}
+
+/// The request stored with a run, as it was written (variables unresolved).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryRequest {
+    pub doc: RequestDoc,
+    /// The body was left out because it was too large to keep.
+    pub truncated: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1401,6 +1427,29 @@ pub fn samples() -> Vec<(&'static str, Value)> {
                 status: 200,
                 total_ms: 12,
                 size_bytes: 40,
+                label: Some("VAT bug repro".into()),
+                has_request: true,
+            }),
+        ),
+        (
+            "HistoryRow",
+            to(&HistoryRow {
+                item: HistoryItem {
+                    id: "01J0000000000000000000000D".into(),
+                    request_id: "01J0000000000000000000000A".into(),
+                    env: "staging".into(),
+                    via: Via::Ui,
+                    sent_at: "2026-01-01T00:00:00Z".into(),
+                    method: Method::Get,
+                    url: "https://api.example.com/users".into(),
+                    status: 200,
+                    total_ms: 12,
+                    size_bytes: 40,
+                    label: None,
+                    has_request: false,
+                },
+                name: "Get user".into(),
+                saved: true,
             }),
         ),
         (

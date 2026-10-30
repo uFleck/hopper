@@ -46,7 +46,53 @@ fn entry(request_id: &str, secs: i64, body: &str) -> HistoryEntry {
         response_headers: vec![("content-type".to_owned(), "application/json".to_owned())],
         body_truncated: false,
         body: body.to_owned(),
+        label: None,
+        request: None,
+        request_truncated: false,
     }
+}
+
+fn with_via(mut e: HistoryEntry, via: Via) -> HistoryEntry {
+    e.via = via;
+    e
+}
+
+fn doc(name: &str, method: Method, url: &str) -> crate::format::Request {
+    use crate::format::{Auth, Body, DocKind};
+    crate::format::Request {
+        hopper: 1,
+        kind: DocKind::Request,
+        id: String::new(),
+        name: name.into(),
+        method,
+        url: url.into(),
+        path_params: Default::default(),
+        query: vec![],
+        headers: vec![],
+        body: Body::None,
+        auth: Auth::Inherit,
+        timeout_ms: None,
+        follow_redirects: None,
+        notes: None,
+        source: None,
+        variables: Default::default(),
+        extra: Default::default(),
+    }
+}
+
+fn find_file(dir: &Path, name: &str) -> Option<PathBuf> {
+    for item in fs::read_dir(dir).ok()? {
+        let path = item.ok()?.path();
+        if path.file_name().is_some_and(|n| n == name) {
+            return Some(path);
+        }
+        if path.is_dir() {
+            if let Some(found) = find_file(&path, name) {
+                return Some(found);
+            }
+        }
+    }
+    None
 }
 
 fn grant(access: AgentAccess) -> Grant {
@@ -335,10 +381,9 @@ fn state_rejects_unsafe_request_ids_and_keeps_previous() {
 }
 
 #[test]
-fn history_keeps_newest_20_listed_newest_first() {
+fn history_lists_a_request_newest_first() {
     let (_root, ud) = open();
     let h = ud.workspace("ws-1").unwrap().history();
-    let mut ids = Vec::new();
     // Inserted out of time order on purpose: listing sorts by sentAt.
     for secs in [10, 3, 7] {
         h.add(&entry("req-x", secs, "{}")).unwrap();
@@ -350,20 +395,173 @@ fn history_keeps_newest_20_listed_newest_first() {
         .map(|e| e.sent_at)
         .collect();
     assert_eq!(listed, vec![sent(10), sent(7), sent(3)]);
+}
 
-    for secs in 0..25 {
+#[test]
+fn history_keeps_the_newest_100_unlabelled_per_origin() {
+    let (_root, ud) = open();
+    let h = ud.workspace("ws-1").unwrap().history();
+    let mut ids = Vec::new();
+    for secs in 0..(MAX_UNLABELLED as i64 + 5) {
         let e = entry("req-1", secs, "{}");
         ids.push(e.id.clone());
         h.add(&e).unwrap();
     }
-    let list = h.list("req-1").unwrap();
-    assert_eq!(list.len(), MAX_ENTRIES_PER_REQUEST);
-    assert_eq!(list[0].sent_at, sent(24));
-    assert_eq!(list[19].sent_at, sent(5));
-    assert!(h.get("req-1", &ids[0]).unwrap().is_none());
+    // Agent sends have their own allowance and do not push out the UI ones.
+    for secs in 0..3 {
+        h.add(&with_via(entry("req-1", 1000 + secs, "{}"), Via::Mcp))
+            .unwrap();
+    }
+    let all = h.list_all().unwrap();
+    assert_eq!(all.len(), MAX_UNLABELLED + 3);
+    assert_eq!(all[0].sent_at, sent(1002), "newest first");
+    assert!(h.get("req-1", &ids[0]).unwrap().is_none(), "oldest pruned");
     assert!(h.get("req-1", &ids[4]).unwrap().is_none());
-    assert!(h.get("req-1", &ids[24]).unwrap().is_some());
-    assert_eq!(h.list("req-x").unwrap().len(), 3);
+    assert!(h.get("req-1", &ids[5]).unwrap().is_some());
+    assert_eq!(h.list("req-1").unwrap().len(), MAX_UNLABELLED + 3);
+}
+
+#[test]
+fn a_label_stops_a_run_from_despawning() {
+    let (_root, ud) = open();
+    let h = ud.workspace("ws-1").unwrap().history();
+    let first = entry("req-1", 0, "{}");
+    h.add(&first).unwrap();
+    assert!(
+        h.set_label("req-1", &first.id, Some("  VAT bug repro  "))
+            .unwrap()
+    );
+    for secs in 1..=(MAX_UNLABELLED as i64 + 10) {
+        h.add(&entry("req-1", secs, "{}")).unwrap();
+    }
+    let kept = h
+        .get("req-1", &first.id)
+        .unwrap()
+        .expect("labelled run kept");
+    assert_eq!(kept.label.as_deref(), Some("VAT bug repro"));
+    let rows = h.list_all().unwrap();
+    assert_eq!(rows.len(), MAX_UNLABELLED + 1);
+    assert_eq!(
+        rows.iter().filter(|r| r.label.is_some()).count(),
+        1,
+        "only the labelled run is outside the cap"
+    );
+
+    // Removing the label puts it back under the cap, so it is the oldest to go.
+    assert!(h.set_label("req-1", &first.id, Some("   ")).unwrap());
+    assert!(h.get("req-1", &first.id).unwrap().is_none());
+    assert_eq!(h.list_all().unwrap().len(), MAX_UNLABELLED);
+}
+
+#[test]
+fn a_label_is_trimmed_cut_and_cleared_when_empty() {
+    let (_root, ud) = open();
+    let h = ud.workspace("ws-1").unwrap().history();
+    let e = entry("req-1", 0, "{}");
+    h.add(&e).unwrap();
+    let long = "x".repeat(MAX_LABEL_CHARS + 20);
+    assert!(h.set_label("req-1", &e.id, Some(&long)).unwrap());
+    let label = h.get("req-1", &e.id).unwrap().unwrap().label.unwrap();
+    assert_eq!(label.chars().count(), MAX_LABEL_CHARS);
+    assert_eq!(
+        h.list_all().unwrap()[0].label.as_deref(),
+        Some(label.as_str())
+    );
+    assert!(h.set_label("req-1", &e.id, None).unwrap());
+    assert_eq!(h.get("req-1", &e.id).unwrap().unwrap().label, None);
+    assert_eq!(h.list_all().unwrap()[0].label, None);
+    assert!(
+        !h.set_label("req-1", "01J0000000000000000000000Z", Some("x"))
+            .unwrap()
+    );
+}
+
+#[test]
+fn history_index_is_rebuilt_when_missing_or_unreadable() {
+    let (root, ud) = open();
+    let h = ud.workspace("ws-1").unwrap().history();
+    let a = entry("req-1", 1, "{}");
+    let b = entry("req-2", 2, "{}");
+    h.add(&a).unwrap();
+    h.add(&b).unwrap();
+    h.set_label("req-1", &a.id, Some("keep")).unwrap();
+
+    let index = find_file(root.path(), "index.json").expect("index written");
+    fs::write(&index, b"not json").unwrap();
+    let rows = h.list_all().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].id, b.id);
+    assert_eq!(rows[1].label.as_deref(), Some("keep"));
+
+    fs::remove_file(&index).unwrap();
+    assert_eq!(h.list_all().unwrap().len(), 2);
+    assert!(index.exists(), "rebuilt index is written back");
+}
+
+#[test]
+fn history_delete_and_clear_keep_the_index_in_step() {
+    let (_root, ud) = open();
+    let h = ud.workspace("ws-1").unwrap().history();
+    let a = entry("req-1", 1, "{}");
+    let b = entry("req-1", 2, "{}");
+    let c = entry("req-2", 3, "{}");
+    for e in [&a, &b, &c] {
+        h.add(e).unwrap();
+    }
+    h.delete("req-1", &a.id).unwrap();
+    h.delete("req-1", &a.id).unwrap();
+    assert!(h.get("req-1", &a.id).unwrap().is_none());
+    assert_eq!(h.list_all().unwrap().len(), 2);
+    h.clear("req-1").unwrap();
+    let rows = h.list_all().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].id, c.id);
+    h.clear_all().unwrap();
+    assert!(h.list_all().unwrap().is_empty());
+}
+
+#[test]
+fn a_stored_request_keeps_templates_and_blanks_literal_credentials() {
+    use crate::format::{Auth, Body};
+    let mut req = doc("Create invoice", Method::Post, "{{baseUrl}}/api/invoices");
+    req.body = Body::Json {
+        content: "{\"vatId\":\"{{vat}}\"}".into(),
+    };
+    req.auth = Auth::Bearer {
+        token: "literal-token".into(),
+    };
+    let kept = without_literal_credentials(&req);
+    assert_eq!(kept.url, "{{baseUrl}}/api/invoices");
+    assert_eq!(kept.body, req.body);
+    assert_eq!(
+        kept.auth,
+        Auth::Bearer {
+            token: String::new()
+        }
+    );
+
+    req.auth = Auth::Bearer {
+        token: "{{token}}".into(),
+    };
+    assert_eq!(without_literal_credentials(&req).auth, req.auth);
+}
+
+#[test]
+fn an_oversize_stored_request_loses_its_body_and_says_so() {
+    use crate::format::Body;
+    let (_root, ud) = open();
+    let h = ud.workspace("ws-1").unwrap().history();
+    let mut req = doc("Big", Method::Post, "https://x.test/");
+    req.body = Body::Text {
+        content: "y".repeat(MAX_REQUEST_BYTES + 1),
+    };
+    let mut e = entry("req-1", 0, "{}");
+    e.request = Some(req);
+    h.add(&e).unwrap();
+    let got = h.get("req-1", &e.id).unwrap().unwrap();
+    assert!(got.request_truncated);
+    assert_eq!(got.request.unwrap().body, Body::None);
+    assert!(h.list_all().unwrap()[0].has_request);
 }
 
 #[test]

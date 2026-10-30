@@ -30,7 +30,7 @@ use crate::{
     },
     prepare::{self, Layers, Prepared},
     store::WorkspaceStore,
-    userdata::{HistoryEntry, MAX_BODY_BYTES, Timing, Via},
+    userdata::{HistoryEntry, MAX_BODY_BYTES, Timing, Via, without_literal_credentials},
 };
 
 #[derive(Clone)]
@@ -719,6 +719,9 @@ impl Open {
                 response_headers: redacted.headers.clone(),
                 body_truncated: redacted.truncated,
                 body: text.unwrap_or_default(),
+                label: None,
+                request: Some(without_literal_credentials(&snap.request)),
+                request_truncated: false,
             };
             let (data, used) = (self.data.clone(), snap.history_id.clone());
             let guard = self.state_lock.clone();
@@ -765,6 +768,8 @@ impl Open {
                 status: e.status,
                 total_ms: e.timing.total_ms,
                 size_bytes: e.size_bytes,
+                label: e.label,
+                has_request: e.request.is_some(),
             })
             .collect())
     }

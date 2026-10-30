@@ -33,7 +33,10 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 pub use bodies::BodyFiles;
-pub use history::{History, HistoryEntry, MAX_BODY_BYTES, MAX_ENTRIES_PER_REQUEST, Timing, Via};
+pub use history::{
+    History, HistoryEntry, HistoryIndexRow, MAX_BODY_BYTES, MAX_LABEL_CHARS, MAX_REQUEST_BYTES,
+    MAX_UNLABELLED, Timing, Via, without_literal_credentials,
+};
 pub use workspace::{MAX_RECENT_REQUESTS, WorkspaceData, WsState};
 
 const SETTINGS_FILE: &str = "settings.json";
