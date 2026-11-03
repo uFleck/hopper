@@ -343,6 +343,219 @@ fn inline(method: &str, url: &str) -> RequestInput {
     serde_json::from_value(json!({ "method": method, "url": url })).unwrap()
 }
 
+fn kv(name: &str, value: &str) -> KeyValue {
+    serde_json::from_value(json!({ "name": name, "value": value })).unwrap()
+}
+
+#[tokio::test]
+async fn agents_customize_workspace_collection_and_folder() {
+    let h = H::new().await;
+    let agent = h.agent();
+    let slug = agent.create_collection("Billing").await.unwrap()["slug"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let rev = |v: &Value| v["revision"].as_str().unwrap().to_owned();
+
+    // Collection: headers merge by name and the values stay hidden.
+    let patch = |rev: String, p: CollectionPatch| UpdateCollectionArgs {
+        collection: slug.clone(),
+        expected_revision: Some(rev),
+        patch: p,
+    };
+    let r0 = rev(&agent.get_collection(&slug).await.unwrap());
+    let literal = patch(
+        r0.clone(),
+        CollectionPatch {
+            set_headers: Some(vec![kv("Authorization", "Bearer sk-live-123")]),
+            ..Default::default()
+        },
+    );
+    assert_eq!(err_code(agent.update_collection(literal).await), "denied");
+    let literal_auth = patch(
+        r0.clone(),
+        CollectionPatch {
+            auth: Some(Auth::Bearer {
+                token: "sk-live-123".into(),
+            }),
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        err_code(agent.update_collection(literal_auth).await),
+        "denied"
+    );
+    let ok_patch = patch(
+        r0,
+        CollectionPatch {
+            set_headers: Some(vec![kv("X-Tenant", "acme"), kv("X-Api-Key", "{{apiKey}}")]),
+            auth: Some(Auth::Bearer {
+                token: "{{apiKey}}".into(),
+            }),
+            ..Default::default()
+        },
+    );
+    let r1 = rev(&agent.update_collection(ok_patch).await.unwrap());
+    let again = patch(
+        r1.clone(),
+        CollectionPatch {
+            set_headers: Some(vec![kv("x-tenant", "globex")]),
+            remove_headers: Some(vec!["X-Api-Key".into()]),
+            ..Default::default()
+        },
+    );
+    agent.update_collection(again).await.unwrap();
+    let c = agent.get_collection(&slug).await.unwrap();
+    assert_eq!(c["headerNames"], json!(["x-tenant"]));
+    assert_eq!(c["authType"], "bearer");
+    // A non-credential header is readable and was replaced in place, not duplicated.
+    assert_eq!(c["headers"][0]["value"], "globex");
+
+    // Folder.
+    agent.create_folder(&slug, &[], "Invoices").await.unwrap();
+    let folder = c_folder(&agent, &slug).await;
+    let update = |p: FolderPatch, expected: Option<&str>| UpdateFolderArgs {
+        collection: slug.clone(),
+        folder: vec![folder.clone()],
+        expected_revision: expected.map(Into::into),
+        patch: p,
+    };
+    let bad = update(
+        FolderPatch {
+            set_headers: Some(vec![kv("Cookie", "session=abc")]),
+            ..Default::default()
+        },
+        None,
+    );
+    assert_eq!(err_code(agent.update_folder(bad).await), "denied");
+    let stale = update(
+        FolderPatch {
+            name: Some("Bills".into()),
+            ..Default::default()
+        },
+        Some("sha256:stale"),
+    );
+    assert_eq!(
+        err_code(agent.update_folder(stale).await),
+        "revision_conflict"
+    );
+    let good = update(
+        FolderPatch {
+            name: Some("Bills".into()),
+            set_headers: Some(vec![kv("X-Team", "payments")]),
+            auth: Some(Auth::None),
+            ..Default::default()
+        },
+        None,
+    );
+    assert_eq!(agent.update_folder(good).await.unwrap()["name"], "Bills");
+    let on_disk = std::fs::read_to_string(
+        h.root
+            .join("collections")
+            .join(&slug)
+            .join(&folder)
+            .join("folder.yaml"),
+    )
+    .unwrap();
+    assert!(on_disk.contains("Bills") && on_disk.contains("X-Team"));
+
+    // Workspace defaults.
+    let overview = agent.workspace_overview().await.unwrap();
+    let wrev = rev(&overview["workspace"]);
+    let set = |expected: Option<&str>, p: WorkspacePatch| UpdateWorkspaceArgs {
+        expected_revision: expected.map(Into::into),
+        patch: p,
+    };
+    let timeout = |ms| WorkspacePatch {
+        timeout_ms: Some(ms),
+        ..Default::default()
+    };
+    assert_eq!(
+        err_code(agent.update_workspace(set(None, timeout(5000))).await),
+        "invalid_input"
+    );
+    assert_eq!(
+        err_code(agent.update_workspace(set(Some(&wrev), timeout(0))).await),
+        "invalid_input"
+    );
+    let updated = agent
+        .update_workspace(set(
+            Some(&wrev),
+            WorkspacePatch {
+                follow_redirects: Some(false),
+                ..timeout(5000)
+            },
+        ))
+        .await
+        .unwrap();
+    assert_eq!(updated["defaults"]["timeoutMs"], 5000);
+    let after = agent.workspace_overview().await.unwrap();
+    assert_eq!(after["workspace"]["defaults"]["followRedirects"], false);
+    let wrev = rev(&after["workspace"]);
+    let cleared = agent
+        .update_workspace(set(
+            Some(&wrev),
+            WorkspacePatch {
+                reset: Some(vec!["timeoutMs".into()]),
+                ..Default::default()
+            },
+        ))
+        .await
+        .unwrap();
+    assert!(cleared["defaults"]["timeoutMs"].is_null());
+    assert_eq!(after["workspace"]["name"], overview["workspace"]["name"]);
+
+    // Reads show references and plain values, never a literal credential.
+    let folder_view = agent
+        .get_folder(&slug, std::slice::from_ref(&folder))
+        .await
+        .unwrap();
+    assert_eq!(folder_view["name"], "Bills");
+    assert_eq!(folder_view["auth"]["type"], "none");
+    assert_eq!(folder_view["headers"][0]["value"], "payments");
+    assert_eq!(
+        err_code(agent.get_folder(&slug, &["nope".into()]).await),
+        "not_found"
+    );
+    let shown = agent.get_collection(&slug).await.unwrap();
+    assert_eq!(shown["auth"]["token"], "{{apiKey}}");
+
+    // Environments: declare, drop, delete.
+    let env = |v: Value| serde_json::from_value::<EnvUpsert>(v).unwrap();
+    agent
+        .upsert_environment(env(json!({
+            "stage": "local", "application": slug,
+            "variables": {"baseUrl": "http://localhost:3000"},
+            "secrets": {"apiKey": "keyring"},
+        })))
+        .await
+        .unwrap();
+    agent
+        .upsert_environment(env(json!({
+            "stage": "local", "application": slug,
+            "removeSecrets": ["apiKey"],
+        })))
+        .await
+        .unwrap();
+    let local = agent.get_environment(stage_of("local")).await.unwrap();
+    assert_eq!(local["applications"][0]["secrets"], json!([]));
+    agent
+        .delete_environment(stage_of("local"), &slug)
+        .await
+        .unwrap();
+    assert_eq!(
+        err_code(agent.delete_environment(stage_of("local"), &slug).await),
+        "not_found"
+    );
+}
+
+async fn c_folder(agent: &AgentApi, slug: &str) -> String {
+    agent.get_collection(slug).await.unwrap()["folders"][0][0]
+        .as_str()
+        .unwrap()
+        .to_owned()
+}
+
 /// The `api` application section inside a stage view.
 pub(super) fn app_of(stage_view: &Value) -> &Value {
     stage_view["applications"]
@@ -1090,6 +1303,7 @@ async fn agents_cannot_change_trust_settings_of_an_environment() {
             remove_variables: vec![],
             secrets: BTreeMap::new(),
             tls: None,
+            remove_secrets: vec![],
             allowed_hosts: None,
             expected_revision: None,
         };
@@ -1185,6 +1399,7 @@ async fn agents_cannot_change_trust_settings_of_an_environment() {
             remove_variables: vec![],
             secrets: BTreeMap::new(),
             tls: None,
+            remove_secrets: vec![],
             allowed_hosts: None,
             expected_revision: None,
         })
@@ -1220,6 +1435,7 @@ async fn agents_cannot_change_trust_settings_of_an_environment() {
                         remove_variables: vec![],
                         secrets: BTreeMap::new(),
                         tls: None,
+                        remove_secrets: vec![],
                         allowed_hosts: None,
                         expected_revision: None,
                     })
@@ -2365,6 +2581,7 @@ async fn no_agent_tool_ever_outputs_a_secret() {
             remove_variables: vec![],
             secrets: BTreeMap::new(),
             tls: None,
+            remove_secrets: vec![],
             allowed_hosts: None,
             expected_revision: None,
         })
@@ -2552,6 +2769,7 @@ async fn session_approval_is_bound_to_the_destination_and_overrides() {
             remove_variables: vec![],
             secrets: BTreeMap::new(),
             tls: None,
+            remove_secrets: vec![],
             allowed_hosts: None,
             expected_revision: None,
         })
@@ -2703,6 +2921,7 @@ async fn env_names_match_case_insensitively_so_guards_apply() {
             variables: BTreeMap::new(),
             remove_variables: vec![],
             tls: None,
+            remove_secrets: vec![],
             allowed_hosts: None,
             expected_revision: None,
         })
@@ -2718,6 +2937,7 @@ async fn env_names_match_case_insensitively_so_guards_apply() {
             remove_variables: vec![],
             secrets: BTreeMap::new(),
             tls: None,
+            remove_secrets: vec![],
             allowed_hosts: None,
             expected_revision: None,
         })

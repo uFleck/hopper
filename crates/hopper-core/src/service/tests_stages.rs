@@ -213,6 +213,7 @@ fn upsert(stage: &str, vars: &[(&str, &str)]) -> EnvUpsert {
         remove_variables: vec![],
         secrets: BTreeMap::new(),
         tls: None,
+        remove_secrets: vec![],
         allowed_hosts: None,
         expected_revision: None,
     }

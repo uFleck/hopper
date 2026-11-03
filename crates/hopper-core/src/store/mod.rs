@@ -947,7 +947,9 @@ impl WorkspaceStore {
         found.ok_or_else(|| StoreError::NotFound("folder".to_owned()))
     }
 
-    fn update_workspace(
+    /// Edits `hopper.yaml`. The id and the name are restored after `edit`: the name is cached by
+    /// the open workspace and the recent list, so it only changes through a reopen.
+    pub fn update_workspace(
         &mut self,
         expected_revision: Option<&str>,
         edit: impl FnOnce(&mut Workspace),

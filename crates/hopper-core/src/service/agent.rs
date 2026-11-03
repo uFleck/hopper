@@ -148,14 +148,65 @@ pub struct UpdateRequestArgs {
     pub patch: RequestPatch,
 }
 
-/// Collection-level headers and auth are not in the patch: they can hold literal credentials,
-/// so only the user edits them.
+/// Collection headers and auth can hold credentials the agent never sees, so the patch merges
+/// headers by name instead of replacing the list, and `guard_credentials` refuses literal
+/// secrets: values that carry one must be `{{variable}}` references.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CollectionPatch {
     pub name: Option<String>,
     /// Names of spec links to remove. The spec's imported operations leave the search index.
     pub remove_specs: Option<Vec<String>>,
+    /// Added, or replaced when a header of the same name (any case) exists.
+    pub set_headers: Option<Vec<KeyValue>>,
+    pub remove_headers: Option<Vec<String>>,
+    pub auth: Option<Auth>,
+}
+
+/// Same rules as `CollectionPatch`, for one folder. The name is the display name only; the
+/// folder keeps its slug.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderPatch {
+    pub name: Option<String>,
+    pub set_headers: Option<Vec<KeyValue>>,
+    pub remove_headers: Option<Vec<String>>,
+    pub auth: Option<Auth>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateFolderArgs {
+    pub collection: String,
+    /// Folder slugs from the collection root.
+    pub folder: Vec<String>,
+    /// Optional, like `set_variables`: a folder has no read tool of its own.
+    #[serde(default)]
+    pub expected_revision: Option<String>,
+    #[serde(default)]
+    pub patch: FolderPatch,
+}
+
+/// Defaults every request inherits when neither it nor its collection says otherwise.
+/// The workspace name is not here: it changes only when the user renames the folder.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspacePatch {
+    /// Milliseconds, 1 to 600000.
+    pub timeout_ms: Option<u64>,
+    pub follow_redirects: Option<bool>,
+    /// Defaults to unset again: `timeoutMs` and/or `followRedirects`.
+    pub reset: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateWorkspaceArgs {
+    /// Required. Read it from `hopper_workspace` first.
+    #[serde(default)]
+    pub expected_revision: Option<String>,
+    #[serde(default)]
+    pub patch: WorkspacePatch,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -184,6 +235,9 @@ pub struct EnvUpsert {
     /// Secret name -> provider. Declares a reference; values are set by the user.
     #[serde(default)]
     pub secrets: BTreeMap<String, String>,
+    /// Secret names whose declaration is dropped. Any value the user stored stays in the keyring.
+    #[serde(default)]
+    pub remove_secrets: Vec<String>,
     #[serde(default)]
     pub tls: Option<TlsDto>,
     #[serde(default)]
@@ -305,7 +359,115 @@ fn is_url_variable(name: &str) -> bool {
 }
 
 /// Server instructions for the MCP adapter (`src-tauri/src/mcp/tools.rs` aliases this).
-pub const AGENT_INSTRUCTIONS: &str = "Hopper is a desktop HTTP client where you maintain the user's API collections. Hopper must be running for these tools to work; if the connection fails, ask the user to open Hopper (it lives in the tray). Start with hopper_workspace, then hopper_search_routes to find an endpoint and hopper_create_request (fromOperation) to save it. hopper_send_request may need the user's approval in the Hopper panel: the call waits up to 60 seconds and then returns not_approved, and requests to localhost in the `local` stage never ask; a request to any other host asks. Stages are fixed: local, dev, rc, production. An environment is a stage with one section per application (collection slug). You can set a section's variables and declare secret references; you cannot set secret values, TLS or allowed hosts, and secret values are never visible to you. In `local`, URL variables must point at localhost, 127.0.0.1 or ::1; in other stages any host is accepted, but the section's allowed hosts are first pinned to their previous list, so secrets only go to hosts the user has allowed. Collection, folder and request variables go through hopper_set_variables. Precedence: request > folder > collection > stage+application > workspace.";
+pub const AGENT_INSTRUCTIONS: &str = "Hopper is a desktop HTTP client where you maintain the user's API collections. Hopper must be running for these tools to work; if the connection fails, ask the user to open Hopper (it lives in the tray). Start with hopper_workspace, then hopper_search_routes to find an endpoint and hopper_create_request (fromOperation) to save it. hopper_send_request may need the user's approval in the Hopper panel: the call waits up to 60 seconds and then returns not_approved, and requests to localhost in the `local` stage never ask; a request to any other host asks. Stages are fixed: local, dev, rc, production. An environment is a stage with one section per application (collection slug). You can set a section's variables and declare secret references; you cannot set secret values, TLS or allowed hosts, and secret values are never visible to you. In `local`, URL variables must point at localhost, 127.0.0.1 or ::1; in other stages any host is accepted, but the section's allowed hosts are first pinned to their previous list, so secrets only go to hosts the user has allowed. Collection, folder and request variables go through hopper_set_variables. Precedence: request > folder > collection > stage+application > workspace. To shape a workspace: hopper_update_collection and hopper_update_folder set shared headers and auth (merged by header name; literal credentials are never shown back and must be written as {{variable}} references), and hopper_update_workspace sets the default timeout and redirect behaviour.";
+
+const MAX_TIMEOUT_MS: u64 = 600_000;
+
+/// True for exactly one `{{name}}` reference and nothing else.
+fn is_reference(value: &str) -> bool {
+    let Some(inner) = value
+        .trim()
+        .strip_prefix("{{")
+        .and_then(|v| v.strip_suffix("}}"))
+    else {
+        return false;
+    };
+    let inner = inner.trim();
+    !inner.is_empty()
+        && inner
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '$'))
+}
+
+/// Headers whose value is a credential by name.
+fn is_sensitive_header(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    ["auth", "cookie", "key", "token", "secret", "password"]
+        .iter()
+        .any(|w| n.contains(w))
+}
+
+/// Shared headers and auth are committed to the workspace folder: a literal credential would
+/// end up in git. Only references to variables (secrets live in the keyring) are accepted.
+fn guard_credentials(headers: &[KeyValue], auth: Option<&Auth>) -> Result<(), HopperError> {
+    let refuse = |what: String| {
+        HopperError::denied(format!("{what} must be a {{{{variable}}}} reference, not a literal value"))
+            .hint("declare a secret with hopper_upsert_environment and reference it; the user sets its value in Hopper")
+    };
+    for h in headers {
+        if h.name.trim().is_empty() {
+            return Err(HopperError::invalid("header names cannot be empty"));
+        }
+        if is_sensitive_header(&h.name) && !h.value.is_empty() && !is_reference(&h.value) {
+            return Err(refuse(format!("the value of header `{}`", h.name)));
+        }
+    }
+    let secret = match auth {
+        Some(Auth::Bearer { token }) => Some(("the bearer token", token)),
+        Some(Auth::Basic { password, .. }) => Some(("the basic auth password", password)),
+        Some(Auth::ApiKey { value, .. }) => Some(("the API key value", value)),
+        _ => None,
+    };
+    match secret {
+        Some((what, v)) if !is_reference(v) => Err(refuse(what.to_owned())),
+        _ => Ok(()),
+    }
+}
+
+const HIDDEN: &str = "<hidden: literal credential>";
+
+/// Shared headers as the agent sees them: a credential-looking header keeps its value only
+/// when it is a `{{reference}}`.
+fn masked_headers(headers: &[format::KeyValue]) -> Vec<Value> {
+    headers
+        .iter()
+        .map(|h| {
+            let shown =
+                !is_sensitive_header(&h.name) || h.value.is_empty() || is_reference(&h.value);
+            json!({
+                "name": h.name,
+                "value": if shown { h.value.as_str() } else { HIDDEN },
+                "enabled": h.enabled,
+            })
+        })
+        .collect()
+}
+
+/// Auth with every literal secret field replaced; references and the auth type stay.
+fn masked_auth(auth: &Auth) -> Result<Value, HopperError> {
+    let mut v = to_json(auth)?;
+    if let Some(o) = v.as_object_mut() {
+        for key in ["token", "username", "password", "value"] {
+            if let Some(f) = o.get_mut(key)
+                && f.as_str().is_some_and(|s| !is_reference(s))
+            {
+                *f = json!(HIDDEN);
+            }
+        }
+    }
+    Ok(v)
+}
+
+/// Merges by header name, ignoring case, without reading the values already there.
+fn merge_headers(
+    list: &mut Vec<format::KeyValue>,
+    set: Option<Vec<KeyValue>>,
+    remove: Option<Vec<String>>,
+) {
+    for name in remove.unwrap_or_default() {
+        list.retain(|h| !h.name.eq_ignore_ascii_case(name.trim()));
+    }
+    for h in set.unwrap_or_default() {
+        let h: format::KeyValue = h.into();
+        match list
+            .iter_mut()
+            .find(|e| e.name.eq_ignore_ascii_case(&h.name))
+        {
+            Some(existing) => *existing = h,
+            None => list.push(h),
+        }
+    }
+}
 
 /// Guards one agent-set value of a variable whose name ends in `url`. In `local` the value must
 /// be an http(s) URL on loopback. Other stages accept any host; the caller then pins
@@ -484,7 +646,16 @@ impl AgentApi {
                 }))
                 .collect();
             ok(json!({
-                "workspace": { "id": open.id, "name": open.name },
+                "workspace": {
+                    "id": open.id,
+                    "name": open.name,
+                    "revision": tree.workspace.revision,
+                    "defaults": {
+                        "timeoutMs": tree.workspace.doc.defaults.timeout_ms,
+                        "followRedirects": tree.workspace.doc.defaults.follow_redirects,
+                    },
+                    "variables": tree.workspace.doc.defaults.variables,
+                },
                 "formatVersion": format::CURRENT_VERSION,
                 "activeEnvironment": active,
                 "collections": collections,
@@ -909,9 +1080,12 @@ impl AgentApi {
                             "name": l.name,
                             "importedAt": l.imported_at,
                         })).collect::<Vec<_>>(),
-                        // Header values and auth can hold literal credentials: only their shape is shown.
+                        // Literal credentials are masked; everything else is shown.
                         "headerNames": doc.headers.iter().map(|h| h.name.clone()).collect::<Vec<_>>(),
+                        "headers": masked_headers(&doc.headers),
                         "authType": to_json(&doc.auth)?.get("type").cloned(),
+                        "auth": masked_auth(&doc.auth)?,
+                        "variables": doc.variables,
                     }))
                 })
                 .await??;
@@ -927,6 +1101,62 @@ impl AgentApi {
         )
     }
 
+    pub async fn get_folder(
+        &self,
+        collection: &str,
+        folder: &[String],
+    ) -> Result<Value, HopperError> {
+        let open = self.svc.open()?;
+        let target = format!("folder {}", folder.join("/"));
+        let r = async {
+            let (slug, path) = (collection.to_owned(), folder.to_vec());
+            let v = open
+                .with_store(move |s| -> Result<Value, HopperError> {
+                    let not_found = || HopperError::not_found(format!("folder {}", path.join("/")));
+                    let mut children = &s
+                        .snapshot()
+                        .collections
+                        .iter()
+                        .find(|c| c.slug == slug)
+                        .ok_or_else(|| HopperError::not_found(format!("collection {slug}")))?
+                        .children;
+                    let mut found = None;
+                    for seg in &path {
+                        let next = children.iter().find_map(|n| match n {
+                            TreeNode::Folder {
+                                slug,
+                                folder,
+                                children,
+                            } if slug == seg => Some((folder, children)),
+                            _ => None,
+                        });
+                        let (f, kids) = next.ok_or_else(not_found)?;
+                        found = Some(f);
+                        children = kids;
+                    }
+                    let f = found.ok_or_else(not_found)?;
+                    let mut count = 0;
+                    super::walk(children, &mut Vec::new(), &mut |_, _, _| count += 1);
+                    let mut subfolders = Vec::new();
+                    folder_paths(children, &mut Vec::new(), &mut subfolders);
+                    Ok(json!({
+                        "name": f.doc.name,
+                        "revision": f.revision,
+                        "readOnly": f.read_only,
+                        "requestCount": count,
+                        "subfolders": subfolders,
+                        "headers": masked_headers(&f.doc.headers),
+                        "auth": masked_auth(&f.doc.auth)?,
+                        "variables": f.doc.variables,
+                    }))
+                })
+                .await??;
+            ok(v)
+        }
+        .await;
+        self.finish(&open, "hopper_get_folder", target, r, None)
+    }
+
     pub async fn update_collection(
         &self,
         args: UpdateCollectionArgs,
@@ -938,9 +1168,18 @@ impl AgentApi {
                 HopperError::invalid("`expectedRevision` is required")
                     .hint("call get_collection and pass its `revision`")
             })?;
+            guard_credentials(
+                args.patch.set_headers.as_deref().unwrap_or_default(),
+                args.patch.auth.as_ref(),
+            )?;
             let slug = args.collection.clone();
             let removed = args.patch.remove_specs.clone().unwrap_or_default();
             let name = args.patch.name.clone();
+            let (set_headers, remove_headers, auth) = (
+                args.patch.set_headers.clone(),
+                args.patch.remove_headers.clone(),
+                args.patch.auth.clone(),
+            );
             let v = open
                 .with_store(move |s| -> Result<Value, HopperError> {
                     let specs = s
@@ -961,6 +1200,10 @@ impl AgentApi {
                             c.name = name.trim().to_owned();
                         }
                         c.specs.retain(|l| !removed.contains(&l.name));
+                        merge_headers(&mut c.headers, set_headers, remove_headers);
+                        if let Some(auth) = auth {
+                            c.auth = auth;
+                        }
                     })?;
                     Ok(json!({ "slug": slug, "revision": loaded.revision }))
                 })
@@ -1011,6 +1254,107 @@ impl AgentApi {
         }
         .await;
         self.finish(&open, "hopper_delete_folder", target, r, None)
+    }
+
+    pub async fn update_folder(&self, args: UpdateFolderArgs) -> Result<Value, HopperError> {
+        let open = self.svc.open()?;
+        let target = format!("folder {}", args.folder.join("/"));
+        let r = async {
+            guard_credentials(
+                args.patch.set_headers.as_deref().unwrap_or_default(),
+                args.patch.auth.as_ref(),
+            )?;
+            let UpdateFolderArgs {
+                collection,
+                folder,
+                expected_revision,
+                patch,
+            } = args;
+            let v = open
+                .with_store(move |s| -> Result<Value, HopperError> {
+                    let loaded = s.update_folder(
+                        &collection,
+                        &folder,
+                        |f| {
+                            if let Some(name) = patch.name {
+                                f.name = name.trim().to_owned();
+                            }
+                            merge_headers(&mut f.headers, patch.set_headers, patch.remove_headers);
+                            if let Some(auth) = patch.auth {
+                                f.auth = auth;
+                            }
+                        },
+                        expected_revision.as_deref(),
+                    )?;
+                    Ok(json!({ "name": loaded.doc.name, "revision": loaded.revision }))
+                })
+                .await??;
+            ok(v)
+        }
+        .await;
+        self.finish(&open, "hopper_update_folder", target, r, None)
+    }
+
+    pub async fn update_workspace(&self, args: UpdateWorkspaceArgs) -> Result<Value, HopperError> {
+        let open = self.svc.open()?;
+        let r = async {
+            let expected = args.expected_revision.ok_or_else(|| {
+                HopperError::invalid("`expectedRevision` is required")
+                    .hint("call hopper_workspace and pass `workspace.revision`")
+            })?;
+            let patch = args.patch;
+            if patch
+                .timeout_ms
+                .is_some_and(|t| t == 0 || t > MAX_TIMEOUT_MS)
+            {
+                return Err(HopperError::invalid(format!(
+                    "`timeoutMs` must be between 1 and {MAX_TIMEOUT_MS}"
+                )));
+            }
+            let reset = patch.reset.clone().unwrap_or_default();
+            if let Some(bad) = reset
+                .iter()
+                .find(|f| !matches!(f.as_str(), "timeoutMs" | "followRedirects"))
+            {
+                return Err(HopperError::invalid(format!(
+                    "cannot reset `{bad}`; use timeoutMs or followRedirects"
+                )));
+            }
+            let v = open
+                .with_store(move |s| -> Result<Value, HopperError> {
+                    let loaded = s.update_workspace(Some(&expected), |w| {
+                        if reset.iter().any(|f| f == "timeoutMs") {
+                            w.defaults.timeout_ms = None;
+                        }
+                        if reset.iter().any(|f| f == "followRedirects") {
+                            w.defaults.follow_redirects = None;
+                        }
+                        if let Some(t) = patch.timeout_ms {
+                            w.defaults.timeout_ms = Some(t);
+                        }
+                        if let Some(f) = patch.follow_redirects {
+                            w.defaults.follow_redirects = Some(f);
+                        }
+                    })?;
+                    Ok(json!({
+                        "revision": loaded.revision,
+                        "defaults": {
+                            "timeoutMs": loaded.doc.defaults.timeout_ms,
+                            "followRedirects": loaded.doc.defaults.follow_redirects,
+                        },
+                    }))
+                })
+                .await??;
+            ok(v)
+        }
+        .await;
+        self.finish(
+            &open,
+            "hopper_update_workspace",
+            "workspace".into(),
+            r,
+            None,
+        )
     }
 
     // ------------------------------------------------- requests, copies
@@ -1125,6 +1469,9 @@ impl AgentApi {
                             sec.variables.remove(k);
                         }
                         sec.variables.extend(args.variables);
+                        for k in &args.remove_secrets {
+                            sec.secrets.remove(k);
+                        }
                         for (k, provider) in args.secrets {
                             sec.secrets.insert(k, format::SecretDecl { provider });
                         }
@@ -1143,6 +1490,41 @@ impl AgentApi {
         .await;
         self.finish(&open, "hopper_upsert_environment", target, r, None)
     }
+
+    /// Removes one application section from a stage. Refused when the user changed the
+    /// section's trust settings (TLS or allowed hosts): deleting and recreating it would
+    /// reset them. Secret values stay in the keyring.
+    pub async fn delete_environment(
+        &self,
+        stage: Stage,
+        application: &str,
+    ) -> Result<Value, HopperError> {
+        let open = self.svc.open()?;
+        let target = format!("environment {}/{application}", stage.as_str());
+        let r = async {
+            let app = application.to_owned();
+            open.with_store(move |s| -> Result<(), HopperError> {
+                let current = s
+                    .stage_on_disk(stage)?
+                    .and_then(|n| n.doc.applications.get(&app).cloned());
+                if let Some(c) = current
+                    && (c.allowed_hosts.is_some() || c.tls.insecure_skip_verify)
+                {
+                    return Err(HopperError::denied(
+                        "this environment section has trust settings (TLS or allowed hosts) that only the user can change",
+                    )
+                    .hint("ask the user to remove it in the Hopper environments sheet"));
+                }
+                s.remove_application(stage, &app)?;
+                Ok(())
+            })
+            .await??;
+            ok(json!({ "deleted": format!("{}/{application}", stage.as_str()) }))
+        }
+        .await;
+        self.finish(&open, "hopper_delete_environment", target, r, None)
+    }
+
     /// Workspace, collection, folder or request variables. No URL guard here: these layers
     /// cannot widen allowed hosts, and a changed host changes the binding hash.
     pub async fn set_variables(&self, args: SetVariablesArgs) -> Result<Value, HopperError> {
@@ -1479,5 +1861,54 @@ impl AgentApi {
             r,
             None,
         )
+    }
+}
+
+#[cfg(test)]
+mod masking_tests {
+    use super::*;
+
+    fn kv(name: &str, value: &str) -> format::KeyValue {
+        format::KeyValue {
+            name: name.into(),
+            value: value.into(),
+            enabled: true,
+        }
+    }
+
+    #[test]
+    fn literal_credentials_are_hidden_and_references_are_not() {
+        let shown = masked_headers(&[
+            kv("X-Tenant", "acme"),
+            kv("Authorization", "Bearer sk-live-1"),
+            kv("X-Api-Key", "{{apiKey}}"),
+        ]);
+        assert_eq!(shown[0]["value"], "acme");
+        assert_eq!(shown[1]["value"], HIDDEN);
+        assert_eq!(shown[2]["value"], "{{apiKey}}");
+
+        let bearer = |t: &str| Auth::Bearer { token: t.into() };
+        assert_eq!(masked_auth(&bearer("sk-live-1")).unwrap()["token"], HIDDEN);
+        assert_eq!(
+            masked_auth(&bearer("{{apiKey}}")).unwrap()["token"],
+            "{{apiKey}}"
+        );
+        let basic = Auth::Basic {
+            username: "sk-live-1".into(),
+            password: "{{pw}}".into(),
+        };
+        let v = masked_auth(&basic).unwrap();
+        assert_eq!(
+            (v["username"].as_str(), v["password"].as_str()),
+            (Some(HIDDEN), Some("{{pw}}"))
+        );
+    }
+
+    #[test]
+    fn references_are_exactly_one_variable() {
+        assert!(is_reference(" {{ apiKey }} "));
+        assert!(!is_reference("{{a}} and {{b}}"));
+        assert!(!is_reference("Bearer {{a}}"));
+        assert!(!is_reference("{{}}"));
     }
 }

@@ -6,7 +6,8 @@ use hopper_core::service::{
     AgentApi, HopperError,
     agent::{
         AGENT_INSTRUCTIONS, CreateRequestArgs, EnvUpsert, ListRequestsArgs, ResponsePage,
-        SearchArgs, SendArgs, SetVariablesArgs, UpdateCollectionArgs, UpdateRequestArgs,
+        SearchArgs, SendArgs, SetVariablesArgs, UpdateCollectionArgs, UpdateFolderArgs,
+        UpdateRequestArgs, UpdateWorkspaceArgs,
     },
     dto::SpecSource,
 };
@@ -165,6 +166,7 @@ pub fn definitions() -> Vec<Value> {
                     "variables": {"type": "object", "additionalProperties": {"type": "string"}},
                     "removeVariables": strings("Variable names to remove"),
                     "secrets": {"type": "object", "additionalProperties": {"type": "string"}, "description": "secret name -> provider (\"keyring\")"},
+                    "removeSecrets": strings("Secret names whose declaration is dropped; stored values stay with the user"),
                     "expectedRevision": s("Revision when updating")}),
                 &["stage", "application"],
             ),
@@ -176,19 +178,57 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_get_collection",
-            "One collection: name, revision (needed for hopper_update_collection), folder paths, spec links, request count, header names and auth type. Header values and auth details are never shown.",
+            "One collection: name, revision (needed for hopper_update_collection), folder paths, spec links, request count, headers, auth and variables. Literal credentials are masked; {{references}} and non-credential values are shown.",
             schema(json!({"collection": s("Collection slug")}), &["collection"]),
         ),
         tool(
             "hopper_update_collection",
-            "Rename a collection or remove spec links from it. Pass `expectedRevision` from hopper_get_collection; a stale revision is rejected.",
+            "Rename a collection, remove spec links, or set the headers and auth every request in it inherits. Headers merge by name (existing values are never shown, so nothing is lost); header values and auth that carry credentials must be {{variable}} references. Pass `expectedRevision` from hopper_get_collection; a stale revision is rejected.",
             schema(
                 json!({"collection": s("Collection slug"),
                     "expectedRevision": s("Revision read from hopper_get_collection"),
                     "patch": {"type": "object", "properties": {
                         "name": s("New display name"),
-                        "removeSpecs": strings("Spec names to unlink; their operations leave search")}}}),
+                        "removeSpecs": strings("Spec names to unlink; their operations leave search"),
+                        "setHeaders": key_values(),
+                        "removeHeaders": strings("Header names to remove"),
+                        "auth": {"type": "object", "description": "{type: inherit|none|bearer|basic|apiKey, ...}; replaces the collection auth; secrets as {{secretName}}"}}}}),
                 &["collection", "expectedRevision", "patch"],
+            ),
+        ),
+        tool(
+            "hopper_get_folder",
+            "One folder: name, revision, request count, subfolders, headers, auth and variables. Literal credentials are masked.",
+            schema(
+                json!({"collection": s("Collection slug"), "folder": strings("Folder slugs from the collection root")}),
+                &["collection", "folder"],
+            ),
+        ),
+        tool(
+            "hopper_update_folder",
+            "Rename a folder (display name only) or set the headers and auth its requests inherit. Same rules as hopper_update_collection. `expectedRevision` is optional.",
+            schema(
+                json!({"collection": s("Collection slug"),
+                    "folder": strings("Folder slugs from the collection root"),
+                    "expectedRevision": s("Revision when updating"),
+                    "patch": {"type": "object", "properties": {
+                        "name": s("New display name"),
+                        "setHeaders": key_values(),
+                        "removeHeaders": strings("Header names to remove"),
+                        "auth": {"type": "object", "description": "{type: inherit|none|bearer|basic|apiKey, ...}; secrets as {{secretName}}"}}}}),
+                &["collection", "folder", "patch"],
+            ),
+        ),
+        tool(
+            "hopper_update_workspace",
+            "Set the workspace defaults for requests that set none: timeout and redirect behaviour. Read `workspace.revision` from hopper_workspace first. The name cannot be changed here.",
+            schema(
+                json!({"expectedRevision": s("workspace.revision from hopper_workspace"),
+                    "patch": {"type": "object", "properties": {
+                        "timeoutMs": {"type": "integer", "minimum": 1, "maximum": 600000},
+                        "followRedirects": {"type": "boolean"},
+                        "reset": strings("Defaults to unset again: timeoutMs, followRedirects")}}}),
+                &["expectedRevision", "patch"],
             ),
         ),
         tool(
@@ -236,6 +276,14 @@ pub fn definitions() -> Vec<Value> {
             schema(
                 json!({"stage": s("local, dev, rc or production")}),
                 &["stage"],
+            ),
+        ),
+        tool(
+            "hopper_delete_environment",
+            "Remove one application's section from a stage. Refused when the user set TLS or allowed-host rules on it. Secret values stay in the keyring.",
+            schema(
+                json!({"stage": s("local, dev, rc or production"), "application": s("Collection slug")}),
+                &["stage", "application"],
             ),
         ),
         tool(
@@ -360,6 +408,12 @@ struct ActiveEnvironment {
 }
 
 #[derive(Deserialize)]
+struct EnvRef {
+    stage: Stage,
+    application: String,
+}
+
+#[derive(Deserialize)]
 struct StageRef {
     stage: Stage,
 }
@@ -435,6 +489,22 @@ pub async fn call(api: &AgentApi, name: &str, args: Value) -> Option<Result<Valu
         },
         "hopper_update_collection" => match parse::<UpdateCollectionArgs>(args) {
             Ok(a) => api.update_collection(a).await,
+            Err(e) => Err(e),
+        },
+        "hopper_get_folder" => match parse::<FolderRef>(args) {
+            Ok(a) => api.get_folder(&a.collection, &a.folder).await,
+            Err(e) => Err(e),
+        },
+        "hopper_delete_environment" => match parse::<EnvRef>(args) {
+            Ok(a) => api.delete_environment(a.stage, &a.application).await,
+            Err(e) => Err(e),
+        },
+        "hopper_update_folder" => match parse::<UpdateFolderArgs>(args) {
+            Ok(a) => api.update_folder(a).await,
+            Err(e) => Err(e),
+        },
+        "hopper_update_workspace" => match parse::<UpdateWorkspaceArgs>(args) {
+            Ok(a) => api.update_workspace(a).await,
             Err(e) => Err(e),
         },
         "hopper_delete_collection" => match parse::<CollectionRef>(args) {

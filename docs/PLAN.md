@@ -253,10 +253,13 @@ What gets rewritten on a changed operation is limited to **spec-owned structure*
 | | `hopper_update_request` (`expectedRevision`), `hopper_move_request`, `hopper_create_folder` | structured patches; invalid files are rejected with schema errors |
 | | `hopper_delete_request` | moves to an in-app trash with an undo toast (like Spawner's `UndoToasts`) |
 | | `hopper_restore_request`, `hopper_duplicate_request` | restore a trashed request by its undo token; copy into the same folder as `<name> copy` (no grant) |
-| | `hopper_create_collection`, `hopper_get_collection`, `hopper_update_collection` (`expectedRevision`) | rename a collection or unlink spec links; collection headers and auth are never shown or changed by agents, since they can hold literal credentials |
+| | `hopper_create_collection`, `hopper_get_collection`, `hopper_update_collection` (`expectedRevision`) | rename a collection, unlink spec links, set shared headers (merged by name) and auth. Reads show headers, auth and variables with literal credentials masked; credentials must be `{{variable}}` references, literals are refused so they never reach the git-tracked files. Edits change the request binding hash, which suspends `Auto` grants |
+| | `hopper_get_folder`, `hopper_update_folder` | read a folder (masked like the collection); rename a folder (display name; the slug stays), set its headers and auth. Same rules as the collection; `expectedRevision` optional |
+| | `hopper_update_workspace` (`expectedRevision` from `hopper_workspace`) | default timeout (1 to 600000 ms) and redirect behaviour; `reset` unsets them. The workspace name is not editable (it is cached by the open workspace and the recent list) |
 | | `hopper_delete_collection`, `hopper_delete_folder` | only when empty (no requests, folders or spec links), so nothing is lost |
 | | `hopper_upsert_environment` | create an environment, add/change variables, **declare secret references**; cannot set secret values, cannot alter `tls` or `allowedHosts` of an existing application section |
-| Environments | `hopper_list_environments`, `hopper_get_environment` | non-secret values shown; secrets shown as `{provider, status: set | missing}`, never a value |
+| Environments | `hopper_delete_environment` | removes one application section; refused when the user set TLS or allowed-host rules on it. `hopper_upsert_environment` also takes `removeSecrets` to drop a declaration (the keyring value stays) |
+| | `hopper_list_environments`, `hopper_get_environment` | non-secret values shown; secrets shown as `{provider, status: set | missing}`, never a value |
 | | `hopper_delete_environment`, `hopper_set_active_environment` | removes the environment file (its keyring values stay with the user); sets the active environment or clears it with `null` |
 | Run | `hopper_send_request` | by request `id` or inline definition, with `environment` and optional variable overrides; returns status, redacted headers, timing, size, body truncated to ~30k chars plus a `responseId` |
 | | `hopper_get_response` | page through a stored response (`offset`, optional JSON path) |
