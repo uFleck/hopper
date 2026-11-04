@@ -169,11 +169,16 @@ async fn initialize_negotiates_and_lists_all_tools() {
         "hopper_restore_request",
         "hopper_set_variables",
         "hopper_set_active_environment",
+        "hopper_list_workspaces",
+        "hopper_open_workspace",
+        "hopper_create_workspace",
+        "hopper_rename_workspace",
+        "hopper_delete_workspace",
     ];
     expected.sort_unstable();
     // Exact on purpose: no tool reads or sets secret values, and a new one must show up here.
     assert_eq!(names, expected);
-    assert_eq!(expected.len(), 32);
+    assert_eq!(expected.len(), 37);
 
     assert_eq!(h.rpc("ping", json!({})).await["result"], json!({}));
     let unknown = h.rpc("nope", json!({})).await;

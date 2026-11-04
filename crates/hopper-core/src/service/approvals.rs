@@ -10,7 +10,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::oneshot;
 use ulid::Ulid;
 
-use super::{Open, blocking, canon, dto::*, events::Event, lock, now_rfc3339};
+use super::{AppService, Open, blocking, canon, dto::*, events::Event, lock, now_rfc3339};
 use crate::{
     format::Stage,
     policy::{AgentAccess, Grant},
@@ -56,6 +56,121 @@ impl Drop for PendingGuard {
         self.open.emit(Event::ApprovalResolved {
             id: self.id.clone(),
         });
+    }
+}
+
+/// An agent's request to delete a workspace, parked until the user answers in the panel.
+pub(crate) struct DeleteAsk {
+    pub dto: WorkspaceDeleteRequest,
+    pub tx: oneshot::Sender<bool>,
+}
+
+struct DeleteGuard {
+    svc: AppService,
+    id: String,
+}
+
+impl Drop for DeleteGuard {
+    fn drop(&mut self) {
+        lock(&self.svc.deps.delete_asks).remove(&self.id);
+        self.svc
+            .deps
+            .events
+            .emit(Event::WorkspaceDeleteResolved { id: self.id.clone() });
+    }
+}
+
+impl AppService {
+    /// Waits for the user to approve deleting the workspace at `path`. Same wait as a send
+    /// approval. Only an explicit yes in the panel returns `Ok`.
+    pub(crate) async fn ask_workspace_delete(
+        &self,
+        client: &str,
+        name: &str,
+        path: &str,
+    ) -> Result<(), HopperError> {
+        if lock(&self.deps.delete_asks).len() >= MAX_PENDING {
+            return Err(HopperError::new(
+                "rate_limited",
+                "too many approval prompts are already waiting for the user",
+            )
+            .hint("wait for the user to answer the pending prompts"));
+        }
+        let id = Ulid::generate().to_string();
+        let (tx, rx) = oneshot::channel();
+        let dto = WorkspaceDeleteRequest {
+            id: id.clone(),
+            client: client.to_owned(),
+            name: name.to_owned(),
+            path: path.to_owned(),
+            created_at: now_rfc3339(),
+            arm_after_ms: ARM_AFTER_MS,
+        };
+        lock(&self.deps.delete_asks).insert(
+            id.clone(),
+            DeleteAsk {
+                dto: dto.clone(),
+                tx,
+            },
+        );
+        let _guard = DeleteGuard {
+            svc: self.clone(),
+            id,
+        };
+        self.deps.events.emit(Event::WorkspaceDeleteRequest(dto));
+
+        let wait = Duration::from_millis(
+            self.deps
+                .tun
+                .approval_timeout_ms
+                .load(std::sync::atomic::Ordering::Relaxed),
+        );
+        match tokio::time::timeout(wait, rx).await {
+            Ok(Ok(true)) => Ok(()),
+            Ok(Ok(false)) => Err(HopperError::new(
+                "not_approved",
+                "the user declined to delete this workspace",
+            )),
+            Ok(Err(_)) => Err(HopperError::new(
+                "not_approved",
+                "the approval was cancelled",
+            )),
+            Err(_) => Err(HopperError::new(
+                "not_approved",
+                format!(
+                    "the user did not respond within {} s",
+                    wait.as_secs().max(1)
+                ),
+            )
+            .hint("ask the user to watch for the Hopper approval prompt, then try again")),
+        }
+    }
+
+    pub async fn workspace_delete_pending(
+        &self,
+    ) -> Result<Vec<WorkspaceDeleteRequest>, HopperError> {
+        let mut list: Vec<_> = lock(&self.deps.delete_asks)
+            .values()
+            .map(|a| a.dto.clone())
+            .collect();
+        list.sort_by(|a, b| a.created_at.cmp(&b.created_at).then(a.id.cmp(&b.id)));
+        Ok(list)
+    }
+
+    /// The user's answer. Deleting happens in the agent call that asked, not here.
+    pub async fn workspace_delete_respond(
+        &self,
+        id: &str,
+        approve: bool,
+    ) -> Result<(), HopperError> {
+        let expired = || {
+            HopperError::new(
+                "unknown_approval",
+                "this approval request does not exist or has expired",
+            )
+        };
+        let ask = lock(&self.deps.delete_asks).remove(id).ok_or_else(expired)?;
+        ask.tx.send(approve).map_err(|_| expired())
     }
 }
 

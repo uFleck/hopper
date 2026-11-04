@@ -440,6 +440,17 @@ export interface ApprovalRequest {
 
 export type ApprovalDecision = "allow_once" | "allow_session" | "always_allow" | "block" | "deny";
 
+/** An agent asks to delete a workspace. Nothing is deleted until the user approves in the panel. */
+export interface WorkspaceDeleteRequest {
+  id: string;
+  client: string;
+  name: string;
+  path: string;
+  createdAt: string;
+  /** The prompt ignores input until this many ms after it appeared (keystroke-capture guard). */
+  armAfterMs: number;
+}
+
 /** What an agent just added: one request (`kind: "request"`) or the operations of an imported spec. */
 export interface EndpointsAdded {
   client: string;
@@ -582,6 +593,9 @@ export interface CommandMap {
   agent_activity_list: { args: undefined; result: ActivityEntry[] };
   approval_pending: { args: undefined; result: ApprovalRequest[] };
   approval_respond: { args: { id: string; decision: ApprovalDecision }; result: void };
+  /** Lists delete requests from agents; works with no workspace open. */
+  workspace_delete_pending: { args: undefined; result: WorkspaceDeleteRequest[] };
+  workspace_delete_respond: { args: { id: string; approve: boolean }; result: void };
   mcp_status: { args: undefined; result: McpStatus };
   mcp_setup: { args: undefined; result: McpSetup };
   /** Runs `claude mcp add ...` for the user; resolves with the CLI's output. */
@@ -603,6 +617,8 @@ export interface EventMap {
   "agent://endpoints-added": EndpointsAdded;
   "agent://approval-request": ApprovalRequest;
   "agent://approval-resolved": { id: string };
+  "agent://workspace-delete-request": WorkspaceDeleteRequest;
+  "agent://workspace-delete-resolved": { id: string };
   "mcp://status": McpStatus;
   "panel://show-request": { id: string };
   /** Tray "Check for updates": the panel runs a check and shows the answer in Settings. */

@@ -5,9 +5,10 @@ use hopper_core::format::Stage;
 use hopper_core::service::{
     AgentApi, HopperError,
     agent::{
-        AGENT_INSTRUCTIONS, CreateRequestArgs, EnvUpsert, ListRequestsArgs, ResponsePage,
-        SearchArgs, SendArgs, SetVariablesArgs, UpdateCollectionArgs, UpdateFolderArgs,
-        UpdateRequestArgs, UpdateWorkspaceArgs,
+        AGENT_INSTRUCTIONS, CreateRequestArgs, CreateWorkspaceArgs, EnvUpsert, ListRequestsArgs,
+        ListWorkspacesArgs, RenameWorkspaceArgs, ResponsePage, SearchArgs, SendArgs,
+        SetVariablesArgs, UpdateCollectionArgs, UpdateFolderArgs, UpdateRequestArgs,
+        UpdateWorkspaceArgs, WorkspacePathArgs,
     },
     dto::SpecSource,
 };
@@ -221,7 +222,7 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_update_workspace",
-            "Set the workspace defaults for requests that set none: timeout and redirect behaviour. Read `workspace.revision` from hopper_workspace first. The name cannot be changed here.",
+            "Set the workspace defaults for requests that set none: timeout and redirect behaviour. Read `workspace.revision` from hopper_workspace first. To change the name use hopper_rename_workspace.",
             schema(
                 json!({"expectedRevision": s("workspace.revision from hopper_workspace"),
                     "patch": {"type": "object", "properties": {
@@ -230,6 +231,31 @@ pub fn definitions() -> Vec<Value> {
                         "reset": strings("Defaults to unset again: timeoutMs, followRedirects")}}}),
                 &["expectedRevision", "patch"],
             ),
+        ),
+        tool(
+            "hopper_list_workspaces",
+            "The workspace that is open and the ones Hopper knows (name, path, whether open, last opened). Works with no workspace open. Pass `scan: true` to also look for workspaces Hopper has not seen yet.",
+            schema(json!({"scan": {"type": "boolean", "description": "Scan the usual places (home, Documents, Downloads, Desktop); slower"}}), &[]),
+        ),
+        tool(
+            "hopper_open_workspace",
+            "Switch to another workspace by folder path. The panel changes with it, and every other tool then works on that workspace. No approval needed.",
+            schema(json!({"path": s("Folder that holds a hopper.yaml")}), &["path"]),
+        ),
+        tool(
+            "hopper_create_workspace",
+            "Create a workspace in a new or existing folder (it is created if missing) and open it. Fails if the folder already holds one. No approval needed.",
+            schema(json!({"path": s("Folder for the workspace"), "name": s("Workspace name")}), &["path", "name"]),
+        ),
+        tool(
+            "hopper_rename_workspace",
+            "Rename the open workspace.",
+            schema(json!({"name": s("New workspace name")}), &["name"]),
+        ),
+        tool(
+            "hopper_delete_workspace",
+            "Delete a workspace: removes its collections, environments and hopper.yaml, and Hopper's local state for it (grants, history, trash). The folder and any other files in it stay. The user must approve in the Hopper panel; the call waits up to 60 seconds and returns not_approved if they decline or do not answer. This cannot be undone.",
+            schema(json!({"path": s("Folder of the workspace to delete, from hopper_list_workspaces")}), &["path"]),
         ),
         tool(
             "hopper_delete_collection",
@@ -505,6 +531,26 @@ pub async fn call(api: &AgentApi, name: &str, args: Value) -> Option<Result<Valu
         },
         "hopper_update_workspace" => match parse::<UpdateWorkspaceArgs>(args) {
             Ok(a) => api.update_workspace(a).await,
+            Err(e) => Err(e),
+        },
+        "hopper_list_workspaces" => match parse::<ListWorkspacesArgs>(args) {
+            Ok(a) => api.list_workspaces(a).await,
+            Err(e) => Err(e),
+        },
+        "hopper_open_workspace" => match parse::<WorkspacePathArgs>(args) {
+            Ok(a) => api.open_workspace(&a.path).await,
+            Err(e) => Err(e),
+        },
+        "hopper_create_workspace" => match parse::<CreateWorkspaceArgs>(args) {
+            Ok(a) => api.create_workspace(&a.path, &a.name).await,
+            Err(e) => Err(e),
+        },
+        "hopper_rename_workspace" => match parse::<RenameWorkspaceArgs>(args) {
+            Ok(a) => api.rename_workspace(&a.name).await,
+            Err(e) => Err(e),
+        },
+        "hopper_delete_workspace" => match parse::<WorkspacePathArgs>(args) {
+            Ok(a) => api.delete_workspace(&a.path).await,
             Err(e) => Err(e),
         },
         "hopper_delete_collection" => match parse::<CollectionRef>(args) {

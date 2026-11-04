@@ -1,16 +1,19 @@
 import { useEffect, useRef } from "react";
 import { useStore } from "../store";
 import { ApprovalCard } from "../sheets/agent/ApprovalCard";
+import { WorkspaceDeleteCard } from "../sheets/agent/WorkspaceDeleteCard";
 import "../styles/approval.css";
 
 /** The in-panel approval tray, above everything. Not modal. Esc does nothing (the tray shakes); a decision is always an explicit click. */
 export default function ApprovalPrompt() {
   const approvals = useStore((s) => s.approvals);
+  const workspaceDeletes = useStore((s) => s.workspaceDeletes);
   const first = approvals[0];
+  const firstDelete = workspaceDeletes[0];
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!first) return;
+    if (!first && !firstDelete) return;
     const swallowEsc = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.preventDefault();
@@ -24,13 +27,18 @@ export default function ApprovalPrompt() {
     };
     window.addEventListener("keydown", swallowEsc, true);
     return () => window.removeEventListener("keydown", swallowEsc, true);
-  }, [first?.id]);
+  }, [first?.id, firstDelete?.id]);
 
-  if (!first) return null;
+  if (!first && !firstDelete) return null;
+  const total = workspaceDeletes.length + approvals.length;
   return (
     <div className="ap-layer">
       <div ref={ref} className="ap-dialog" role="alertdialog" aria-label="Approval needed" onMouseDown={(e) => e.stopPropagation()}>
-        <ApprovalCard key={first.id} approval={first} position={{ index: 1, total: approvals.length }} />
+        {firstDelete ? (
+          <WorkspaceDeleteCard key={firstDelete.id} request={firstDelete} position={{ index: 1, total }} />
+        ) : (
+          first && <ApprovalCard key={first.id} approval={first} position={{ index: 1, total }} />
+        )}
       </div>
     </div>
   );

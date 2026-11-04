@@ -1,6 +1,7 @@
 import type {
   ActivityEntry,
   ApprovalRequest,
+  WorkspaceDeleteRequest,
   EndpointsAdded,
   Stage,
   StageDto,
@@ -81,6 +82,8 @@ export interface AppState {
   history: Record<string, HistoryItem[]>;
   search: SearchState;
   approvals: ApprovalRequest[];
+  /** Agents asking to delete a workspace; shown in the panel like an approval. */
+  workspaceDeletes: WorkspaceDeleteRequest[];
   activity: ActivityEntry[];
   notices: EndpointNotice[];
   mcp: McpStatus | null;
@@ -113,6 +116,7 @@ export const initialState = (): AppState => ({
   history: {},
   search: initialSearch,
   approvals: [],
+  workspaceDeletes: [],
   activity: [],
   notices: [],
   mcp: null,
@@ -139,7 +143,7 @@ export type MascotKind = "sleeping" | "sending" | "agent" | "approval" | "error"
 
 /** What the mascot shows: approvals first, then a send in flight, recent agent activity, a failed run, else asleep. */
 export function mascotKind(s: AppState, now = Date.now()): MascotKind {
-  if (s.approvals.length) return "approval";
+  if (s.approvals.length || s.workspaceDeletes.length) return "approval";
   if (selectPendingRun(s)) return "sending";
   const last = s.activity[0];
   if (last && now - Date.parse(last.at) < 4000) return "agent";

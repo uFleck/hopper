@@ -5,7 +5,9 @@ use std::sync::Mutex;
 
 use serde_json::{Value, json};
 
-use super::dto::{ActivityEntry, ApprovalRequest, EndpointsAdded, McpStatus, Phase};
+use super::dto::{
+    ActivityEntry, ApprovalRequest, EndpointsAdded, McpStatus, Phase, WorkspaceDeleteRequest,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
@@ -28,6 +30,10 @@ pub enum Event {
         id: String,
     },
     McpStatusChanged(McpStatus),
+    WorkspaceDeleteRequest(WorkspaceDeleteRequest),
+    WorkspaceDeleteResolved {
+        id: String,
+    },
 }
 
 impl Event {
@@ -43,6 +49,8 @@ impl Event {
             Event::ApprovalResolved { .. } => "agent://approval-resolved",
             Event::ShowRequest { .. } => "panel://show-request",
             Event::McpStatusChanged(_) => "mcp://status",
+            Event::WorkspaceDeleteRequest(_) => "agent://workspace-delete-request",
+            Event::WorkspaceDeleteResolved { .. } => "agent://workspace-delete-resolved",
         }
     }
 
@@ -61,6 +69,8 @@ impl Event {
             Event::ApprovalResolved { id } => json!({ "id": id }),
             Event::ShowRequest { id } => json!({ "id": id }),
             Event::McpStatusChanged(s) => ser(s),
+            Event::WorkspaceDeleteRequest(a) => ser(a),
+            Event::WorkspaceDeleteResolved { id } => json!({ "id": id }),
         }
     }
 }

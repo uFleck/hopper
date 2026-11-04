@@ -209,6 +209,30 @@ pub struct UpdateWorkspaceArgs {
     pub patch: WorkspacePatch,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListWorkspacesArgs {
+    /// Also scan the usual places (home, Documents, Downloads, Desktop) for workspaces.
+    #[serde(default)]
+    pub scan: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct WorkspacePathArgs {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateWorkspaceArgs {
+    pub path: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RenameWorkspaceArgs {
+    pub name: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateCollectionArgs {
@@ -359,7 +383,7 @@ fn is_url_variable(name: &str) -> bool {
 }
 
 /// Server instructions for the MCP adapter (`src-tauri/src/mcp/tools.rs` aliases this).
-pub const AGENT_INSTRUCTIONS: &str = "Hopper is a desktop HTTP client where you maintain the user's API collections. Hopper must be running for these tools to work; if the connection fails, ask the user to open Hopper (it lives in the tray). Start with hopper_workspace, then hopper_search_routes to find an endpoint and hopper_create_request (fromOperation) to save it. hopper_send_request may need the user's approval in the Hopper panel: the call waits up to 60 seconds and then returns not_approved, and requests to localhost in the `local` stage never ask; a request to any other host asks. Stages are fixed: local, dev, rc, production. An environment is a stage with one section per application (collection slug). You can set a section's variables and declare secret references; you cannot set secret values, TLS or allowed hosts, and secret values are never visible to you. In `local`, URL variables must point at localhost, 127.0.0.1 or ::1; in other stages any host is accepted, but the section's allowed hosts are first pinned to their previous list, so secrets only go to hosts the user has allowed. Collection, folder and request variables go through hopper_set_variables. Precedence: request > folder > collection > stage+application > workspace. To shape a workspace: hopper_update_collection and hopper_update_folder set shared headers and auth (merged by header name; literal credentials are never shown back and must be written as {{variable}} references), and hopper_update_workspace sets the default timeout and redirect behaviour.";
+pub const AGENT_INSTRUCTIONS: &str = "Hopper is a desktop HTTP client where you maintain the user's API collections. Hopper must be running for these tools to work; if the connection fails, ask the user to open Hopper (it lives in the tray). Start with hopper_workspace, then hopper_search_routes to find an endpoint and hopper_create_request (fromOperation) to save it. hopper_send_request may need the user's approval in the Hopper panel: the call waits up to 60 seconds and then returns not_approved, and requests to localhost in the `local` stage never ask; a request to any other host asks. Stages are fixed: local, dev, rc, production. An environment is a stage with one section per application (collection slug). You can set a section's variables and declare secret references; you cannot set secret values, TLS or allowed hosts, and secret values are never visible to you. In `local`, URL variables must point at localhost, 127.0.0.1 or ::1; in other stages any host is accepted, but the section's allowed hosts are first pinned to their previous list, so secrets only go to hosts the user has allowed. Collection, folder and request variables go through hopper_set_variables. Precedence: request > folder > collection > stage+application > workspace. To shape a workspace: hopper_update_collection and hopper_update_folder set shared headers and auth (merged by header name; literal credentials are never shown back and must be written as {{variable}} references), and hopper_update_workspace sets the default timeout and redirect behaviour. Only one workspace is open at a time and it is the one every other tool works on: hopper_list_workspaces shows the known ones, hopper_open_workspace switches (the user sees the panel change) and hopper_create_workspace makes a new one. hopper_rename_workspace renames the open one. hopper_delete_workspace removes a workspace's Hopper files only after the user approves it in the Hopper panel.";
 
 const MAX_TIMEOUT_MS: u64 = 600_000;
 
@@ -1355,6 +1379,105 @@ impl AgentApi {
             r,
             None,
         )
+    }
+
+    // ---------------------------------------------------------- workspaces
+
+    /// Logs to the open workspace when there is one: these tools also run with none open.
+    fn finish_ws(&self, tool: &str, target: String, r: ToolResult) -> Result<Value, HopperError> {
+        match self.svc.open() {
+            Ok(open) => self.finish(&open, tool, target, r, None),
+            Err(_) => r.map(|(v, _)| v),
+        }
+    }
+
+    pub async fn list_workspaces(&self, args: ListWorkspacesArgs) -> Result<Value, HopperError> {
+        let r = async {
+            let current = self.svc.workspace_current().await?;
+            let known = if args.scan {
+                self.svc.workspace_discover().await?
+            } else {
+                self.svc.workspace_known().await?
+            };
+            let recent = self.svc.workspace_recent().await?;
+            let open_path = current.as_ref().map(|c| c.path.as_str());
+            let workspaces: Vec<Value> = known
+                .iter()
+                .map(|w| {
+                    json!({
+                        "name": w.name,
+                        "path": w.path,
+                        "open": open_path == Some(w.path.as_str()),
+                        "lastOpened": recent.iter().find(|r| r.path == w.path).map(|r| r.last_opened.clone()),
+                    })
+                })
+                .collect();
+            ok(json!({
+                "current": current,
+                "workspaces": workspaces,
+                "scanned": args.scan,
+                "hints": [
+                    "Switch with hopper_open_workspace, create one with hopper_create_workspace.",
+                    "Pass scan: true to look for workspaces Hopper has not seen yet.",
+                ],
+            }))
+        }
+        .await;
+        self.finish_ws("hopper_list_workspaces", "workspaces".into(), r)
+    }
+
+    /// Switches the panel to another workspace. Needs no approval.
+    pub async fn open_workspace(&self, path: &str) -> Result<Value, HopperError> {
+        let r = async {
+            let info = self.svc.workspace_open(path).await?;
+            ok(json!({ "workspace": info }))
+        }
+        .await;
+        self.finish_ws("hopper_open_workspace", path.to_owned(), r)
+    }
+
+    /// Creates a workspace in a new or existing folder and opens it. Needs no approval.
+    pub async fn create_workspace(&self, path: &str, name: &str) -> Result<Value, HopperError> {
+        let r = async {
+            let info = self.svc.workspace_init(path, name).await?;
+            ok(json!({ "workspace": info }))
+        }
+        .await;
+        self.finish_ws("hopper_create_workspace", path.to_owned(), r)
+    }
+
+    pub async fn rename_workspace(&self, name: &str) -> Result<Value, HopperError> {
+        let r = async {
+            let info = self.svc.workspace_rename(name).await?;
+            ok(json!({ "workspace": info }))
+        }
+        .await;
+        self.finish_ws("hopper_rename_workspace", "workspace".into(), r)
+    }
+
+    /// Deletes a workspace, but only after the user approves it in the Hopper panel. What goes:
+    /// its collections, environments and `hopper.yaml`, plus Hopper's local state for it. The
+    /// folder and any other files in it stay.
+    pub async fn delete_workspace(&self, path: &str) -> Result<Value, HopperError> {
+        let r = async {
+            let probe = path.to_owned();
+            let name = blocking(move || crate::discover::workspace_name(std::path::Path::new(&probe)))
+                .await?
+                .ok_or_else(|| {
+                    HopperError::new("not_found", format!("no Hopper workspace at {path}"))
+                        .hint("use hopper_list_workspaces to see the paths")
+                })?;
+            self.svc
+                .ask_workspace_delete(&self.client, &name, path)
+                .await?;
+            self.svc.workspace_delete_files(path).await?;
+            ok(json!({
+                "deleted": { "name": name, "path": path },
+                "note": "Hopper's files were removed; the folder and its other files were left alone.",
+            }))
+        }
+        .await;
+        self.finish_ws("hopper_delete_workspace", path.to_owned(), r)
     }
 
     // ------------------------------------------------- requests, copies

@@ -234,6 +234,14 @@ describe("events", () => {
     expect(state().activity[0].allowedBy).toBe("approved by user");
   });
 
+  it("workspace delete requests arrive, mascot says approval, keep clears them", async () => {
+    const d = hopperMock.requestWorkspaceDelete();
+    expect(state().workspaceDeletes.map((x) => x.id)).toEqual([d.id]);
+    expect(mascotKind(state())).toBe("approval");
+    await A.respondWorkspaceDelete(d.id, false);
+    expect(state().workspaceDeletes).toEqual([]);
+  });
+
   it("activity events prepend without duplicates; the mcp flip is re-read", async () => {
     const before = state().activity.length;
     hopperMock.activity({ target: "x" });

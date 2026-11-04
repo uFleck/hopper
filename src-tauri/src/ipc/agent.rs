@@ -3,7 +3,7 @@ use hopper_core::{
     policy::AgentAccess,
     service::dto::{
         ActivityEntry, ApprovalDecision, ApprovalRequest, GrantDto, McpSetup, McpStatus,
-        PatternRule,
+        PatternRule, WorkspaceDeleteRequest,
     },
 };
 use tauri::State;
@@ -58,6 +58,23 @@ pub async fn approval_respond(
     decision: ApprovalDecision,
 ) -> CmdResult<()> {
     state.svc.approval_respond(&id, decision).await
+}
+
+/// Works with no workspace open: the workspace an agent asks to delete need not be the open one.
+#[tauri::command]
+pub async fn workspace_delete_pending(
+    state: State<'_, AppState>,
+) -> CmdResult<Vec<WorkspaceDeleteRequest>> {
+    state.svc.workspace_delete_pending().await
+}
+
+#[tauri::command]
+pub async fn workspace_delete_respond(
+    state: State<'_, AppState>,
+    id: String,
+    approve: bool,
+) -> CmdResult<()> {
+    state.svc.workspace_delete_respond(&id, approve).await
 }
 
 #[tauri::command]

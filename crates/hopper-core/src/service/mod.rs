@@ -147,6 +147,9 @@ pub(crate) struct ServiceDeps {
     pub engine: Arc<Engine>,
     pub events: Arc<dyn EventSink>,
     pub open: Mutex<Option<Arc<Open>>>,
+    /// Agent requests to delete a workspace, waiting for the user. Not per workspace: the
+    /// target need not be the open one.
+    pub delete_asks: Mutex<HashMap<String, approvals::DeleteAsk>>,
     pub tun: Arc<Tunables>,
 }
 
@@ -943,6 +946,7 @@ impl AppService {
                 engine: deps.engine,
                 events: deps.events,
                 open: Mutex::new(None),
+                delete_asks: Mutex::new(HashMap::new()),
                 tun: Arc::new(Tunables {
                     approval_timeout_ms: AtomicU64::new(DEFAULT_APPROVAL_TIMEOUT.as_millis() as u64),
                     rate_limit: AtomicUsize::new(DEFAULT_RATE_LIMIT),
@@ -975,7 +979,7 @@ impl AppService {
     pub(crate) fn open(&self) -> Result<Arc<Open>, HopperError> {
         lock(&self.deps.open).clone().ok_or_else(|| {
             HopperError::new("no_workspace", "no workspace is open")
-                .hint("open a workspace in Hopper first")
+                .hint("open one in Hopper, or with hopper_list_workspaces and hopper_open_workspace")
         })
     }
 
@@ -1131,6 +1135,59 @@ impl AppService {
             self.deps.events.emit(Event::WorkspaceChanged);
         }
         Ok(())
+    }
+
+    /// Renames the open workspace in `hopper.yaml`. The name is cached by the open workspace and
+    /// the recent list, so the workspace is reopened; the session approvals and the activity log
+    /// carry over.
+    pub async fn workspace_rename(&self, name: &str) -> Result<WorkspaceInfo, HopperError> {
+        let old = self.open()?;
+        let name = name.to_owned();
+        old.with_store(move |s| s.rename_workspace(&name)).await??;
+        let info = self.workspace_open(&old.root.display().to_string()).await?;
+        if let Some(new) = lock(&self.deps.open).clone() {
+            *lock(&new.session) = std::mem::take(&mut *lock(&old.session));
+            *lock(&new.activity) = std::mem::take(&mut *lock(&old.activity));
+        }
+        Ok(info)
+    }
+
+    /// Deletes the Hopper files of the workspace at `path` (collections, environments,
+    /// `hopper.yaml`) and its local state, and forgets it. The folder itself and anything else in
+    /// it stay. Closes it first when it is the open one. No approval here: an agent goes through
+    /// `AgentApi::delete_workspace`, which asks the user.
+    pub async fn workspace_delete_files(&self, path: &str) -> Result<(), HopperError> {
+        let target = PathBuf::from(path);
+        let probe = target.clone();
+        let id = blocking(move || -> Result<String, HopperError> {
+            Ok(WorkspaceStore::open(&probe)?.snapshot().workspace.doc.id.clone())
+        })
+        .await??;
+
+        let current = lock(&self.deps.open).clone();
+        let is_open = match current {
+            Some(o) => {
+                let (a, b) = (o.root.clone(), target.clone());
+                blocking(move || {
+                    a == b
+                        || matches!((std::fs::canonicalize(&a), std::fs::canonicalize(&b)),
+                            (Ok(x), Ok(y)) if x == y)
+                })
+                .await?
+            }
+            None => false,
+        };
+        if is_open {
+            self.workspace_close().await?;
+        }
+        let ud = self.deps.userdata.clone();
+        blocking(move || -> Result<(), HopperError> {
+            WorkspaceStore::delete_workspace_files(&target)?;
+            ud.delete_workspace_state(&id)?;
+            ud.forget_workspace(&target)?;
+            Ok(())
+        })
+        .await?
     }
 
     pub async fn tree_get(&self) -> Result<TreeDto, HopperError> {
@@ -2310,3 +2367,5 @@ pub struct UndoToken {
 }
 #[cfg(test)]
 mod tests_stages;
+#[cfg(test)]
+mod tests_workspaces;

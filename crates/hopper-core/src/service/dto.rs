@@ -860,6 +860,18 @@ pub struct ApprovalRequest {
     pub arm_after_ms: u64,
 }
 
+/// An agent asks to delete a workspace. Only the user can say yes, in the panel.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceDeleteRequest {
+    pub id: String,
+    pub client: String,
+    pub name: String,
+    pub path: String,
+    pub created_at: String,
+    pub arm_after_ms: u64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApprovalDecision {
@@ -1466,6 +1478,17 @@ pub fn samples() -> Vec<(&'static str, Value)> {
         ),
         ("MaskedRequest", to(&masked)),
         ("ApprovalRequest", to(&approval)),
+        (
+            "WorkspaceDeleteRequest",
+            to(&WorkspaceDeleteRequest {
+                id: "01J0000000000000000000000C".into(),
+                client: "claude".into(),
+                name: "Payments".into(),
+                path: "C:\\Projects\\payments".into(),
+                created_at: "2026-02-01T00:00:00Z".into(),
+                arm_after_ms: 500,
+            }),
+        ),
         ("ApprovalDecision", to(&ApprovalDecision::AlwaysAllow)),
         ("ActivityEntry", to(&activity)),
         (

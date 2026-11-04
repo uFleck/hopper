@@ -983,6 +983,50 @@ impl WorkspaceStore {
         Ok(self.tree.workspace.clone())
     }
 
+    /// Changes the workspace name in `hopper.yaml`. The open workspace caches the name, so the
+    /// service reopens afterwards.
+    pub fn rename_workspace(&mut self, name: &str) -> Result<Loaded<Workspace>, StoreError> {
+        validate_display_name(name)?;
+        let path = self.root.join("hopper.yaml");
+        let text = read_text(&path)?;
+        let current = parse::<Workspace>(&text).map_err(format_err(&path))?;
+        if current.read_only {
+            return Err(StoreError::ReadOnly {
+                path: path.display().to_string(),
+                version: current.found_version,
+            });
+        }
+        let mut doc = current.doc;
+        doc.name = name.trim().to_owned();
+        doc.hopper = CURRENT_VERSION;
+        doc.kind = DocKind::Workspace;
+        let out = to_canonical(&doc).map_err(format_err(&path))?;
+        if out != text {
+            write_atomic(&path, out.as_bytes())?;
+        }
+        self.refresh()?;
+        Ok(self.tree.workspace.clone())
+    }
+
+    /// Removes what Hopper wrote into `root`: `collections/`, `environments/` and, last,
+    /// `hopper.yaml`. The folder and everything else in it (a repo, `.gitignore`) stay.
+    /// Policy-free: the caller decides whether this may happen.
+    pub fn delete_workspace_files(root: &Path) -> Result<(), StoreError> {
+        let marker = root.join("hopper.yaml");
+        if !marker.is_file() {
+            return Err(StoreError::NotAWorkspace(root.to_path_buf()));
+        }
+        for dir in ["collections", "environments"] {
+            let p = root.join(dir);
+            match fs::remove_dir_all(&p) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(io_err(&p)(e)),
+            }
+        }
+        fs::remove_file(&marker).map_err(io_err(&marker))
+    }
+
     /// Edits the `variables` map of one scope and returns the new revision of
     /// the file that holds it.
     pub fn upsert_variables(

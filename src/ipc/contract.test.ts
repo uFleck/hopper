@@ -38,6 +38,7 @@ const REQUIRED: Record<string, string[]> = {
   CookieDto: ["name", "value", "domain", "path", "secure", "httpOnly"],
   MaskedRequest: ["method", "url", "headers"],
   ApprovalRequest: ["id", "client", "requestName", "requestId", "stage", "application", "request", "reason", "createdAt", "armAfterMs"],
+  WorkspaceDeleteRequest: ["id", "client", "name", "path", "createdAt", "armAfterMs"],
   ActivityEntry: ["id", "at", "client", "tool", "target", "outcome"],
   GrantDto: ["requestId", "requestName", "access", "suspended"],
   McpStatus: ["running"],

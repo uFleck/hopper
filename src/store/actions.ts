@@ -575,6 +575,11 @@ export async function respondApproval(id: string, decision: ApprovalDecision) {
   if (decision === "always_allow" || decision === "block") void refreshTree();
 }
 
+export async function respondWorkspaceDelete(id: string, approve: boolean) {
+  const ok = await guarded(() => invoke("workspace_delete_respond", { id, approve }));
+  if (ok !== undefined) setState((s) => ({ workspaceDeletes: s.workspaceDeletes.filter((d) => d.id !== id) }));
+}
+
 // ------------------------------------------------------------------------------------------ settings
 
 export async function updateSettings(patch: Partial<Settings>) {
@@ -641,6 +646,10 @@ export function initStore(): () => void {
       setState((s) => ({ approvals: s.approvals.some((x) => x.id === a.id) ? s.approvals : [...s.approvals, a] })),
     ),
     listen("agent://approval-resolved", ({ id }) => setState((s) => ({ approvals: s.approvals.filter((a) => a.id !== id) }))),
+    listen("agent://workspace-delete-request", (d) =>
+      setState((s) => ({ workspaceDeletes: s.workspaceDeletes.some((x) => x.id === d.id) ? s.workspaceDeletes : [...s.workspaceDeletes, d] })),
+    ),
+    listen("agent://workspace-delete-resolved", ({ id }) => setState((s) => ({ workspaceDeletes: s.workspaceDeletes.filter((d) => d.id !== id) }))),
     listen("panel://show-request", ({ id }) => void openRequest(id)),
     listen("panel://open-sheet", ({ sheet }) => openSheet(sheet)),
     listen("mcp://status", (mcp) => setState({ mcp })),
@@ -659,6 +668,10 @@ export function initStore(): () => void {
       ]);
       if (!alive) return;
       setState({ activity: activity.slice(0, ACTIVITY_CAP), approvals });
+      // Not guarded by a workspace: a delete request can arrive with none open.
+      const workspaceDeletes = await invoke("workspace_delete_pending");
+      if (!alive) return;
+      setState({ workspaceDeletes });
       await Promise.all([loadWorkspace(), refreshMcp()]);
     } catch (e) {
       setState({ error: toHopperError(e) as HopperError });

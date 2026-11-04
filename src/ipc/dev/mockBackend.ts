@@ -7,6 +7,7 @@ import type {
   EndpointsAdded,
   ApprovalRequest,
   CommandMap,
+  WorkspaceDeleteRequest,
   CommandName,
   ApplicationEnvDto,
   Stage,
@@ -68,6 +69,7 @@ function fresh() {
     history: new Map<string, HistoryEntry[]>(),
     activity: seedActivity(),
     approvals: [] as ApprovalRequest[],
+    workspaceDeletes: [] as WorkspaceDeleteRequest[],
     mcp: { running: true, port: 47821, url: "http://127.0.0.1:47821/mcp" } as McpStatus,
     claudeConnected: false,
     scopeVars: {} as Record<string, VariablesDto>,
@@ -476,6 +478,13 @@ const handlers: Handlers = {
     pushActivity({ client: a.client, tool: "hopper_send", target: a.requestName, outcome: denied ? "denied" : "ok", allowedBy: denied ? undefined : "approved by user" });
     bus.emit("agent://approval-resolved", { id });
   },
+  workspace_delete_pending: () => clone(s.workspaceDeletes),
+  workspace_delete_respond: ({ id }) => {
+    if (!s.workspaceDeletes.some((x) => x.id === id)) throw err("not_found", "That delete request is no longer pending.");
+    s.workspaceDeletes = s.workspaceDeletes.filter((x) => x.id !== id);
+    // The mock deletes nothing: answering only clears the request.
+    bus.emit("agent://workspace-delete-resolved", { id });
+  },
   mcp_status: () => clone(s.mcp),
   mcp_setup: () => ({
     claudeConnection: s.claudeConnected ? "connected" : "none",
@@ -528,6 +537,16 @@ export const hopperMock = {
     s.approvals.push(a);
     bus.emit("agent://approval-request", a);
     return a;
+  },
+  /** A pending request to delete the open workspace, the way an agent would trigger one. */
+  requestWorkspaceDelete(over: Partial<WorkspaceDeleteRequest> = {}): WorkspaceDeleteRequest {
+    const d: WorkspaceDeleteRequest = {
+      id: nextId("wsd"), client: "Claude Code", name: "Umbler accounts", path: "C:/Projects/umbler-accounts",
+      createdAt: new Date().toISOString(), armAfterMs: 500, ...over,
+    };
+    s.workspaceDeletes.push(d);
+    bus.emit("agent://workspace-delete-request", d);
+    return d;
   },
   activity: (over: Partial<Omit<ActivityEntry, "id" | "at">> = {}) =>
     pushActivity({ client: "Claude Code", tool: "hopper_search_routes", target: "user sessions", outcome: "ok", ...over }),

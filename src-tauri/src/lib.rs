@@ -127,6 +127,8 @@ pub fn run() {
             ipc::agent::agent_activity_list,
             ipc::agent::approval_pending,
             ipc::agent::approval_respond,
+            ipc::agent::workspace_delete_pending,
+            ipc::agent::workspace_delete_respond,
             ipc::agent::mcp_status,
             ipc::agent::mcp_setup,
             ipc::agent::mcp_connect_claude,

@@ -207,6 +207,28 @@ impl UserData {
         write_json(&self.base, SETTINGS_FILE, &s)
     }
 
+    /// Drops `path` from the recent and known lists.
+    pub fn forget_workspace(&self, path: &Path) -> Result<(), UserDataError> {
+        let _g = lock(&self.lock);
+        let file = self.base.join(SETTINGS_FILE);
+        let mut s: Settings = read_json(&file)?;
+        s.recent_workspaces.retain(|r| r.path != path);
+        s.known_workspaces.retain(|k| k.path != path);
+        write_json(&self.base, SETTINGS_FILE, &s)
+    }
+
+    /// Removes the local state of a deleted workspace (grants, history, trash, rules).
+    pub fn delete_workspace_state(&self, workspace_id: &str) -> Result<(), UserDataError> {
+        let _g = lock(&self.lock);
+        check_key("workspace id", workspace_id)?;
+        let dir = self.base.join("workspaces").join(workspace_id);
+        match fs::remove_dir_all(&dir) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(io_at(&dir)(e)),
+        }
+    }
+
     /// The MCP bearer token: 64 lowercase hex characters (32 random bytes, from two
     /// UUID v4 values). Created on first call and kept; a malformed file is replaced.
     pub fn mcp_token(&self) -> Result<String, UserDataError> {

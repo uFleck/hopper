@@ -78,8 +78,10 @@ impl EventSink for TauriSink {
         let _ = self.app.emit(e.name(), e.payload());
         match &e {
             // The panel opens by itself, so no OS toast. Approvals never take focus.
-            Event::ApprovalRequest(_) => panel::dispatch(&self.app, PanelEvent::ApprovalNeeded),
-            Event::ApprovalResolved { .. } => {
+            Event::ApprovalRequest(_) | Event::WorkspaceDeleteRequest(_) => {
+                panel::dispatch(&self.app, PanelEvent::ApprovalNeeded)
+            }
+            Event::ApprovalResolved { .. } | Event::WorkspaceDeleteResolved { .. } => {
                 panel::dispatch(&self.app, PanelEvent::ApprovalResolved)
             }
             Event::EndpointsAdded(a) => {
