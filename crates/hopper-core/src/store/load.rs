@@ -211,7 +211,8 @@ impl Loader<'_> {
     }
 
     /// Folders and requests of one directory: `order` stems first, the rest
-    /// alphabetical by stem (directory name or file name without `.req.yaml`).
+    /// folders first, then requests, each alphabetical by stem (directory name
+    /// or file name without `.req.yaml`).
     fn children(&mut self, dir: &Path, rel: &str, order: &[String]) -> io::Result<Vec<TreeNode>> {
         let mut items: Vec<(String, TreeNode)> = Vec::new();
         for entry in entries(dir)? {
@@ -438,7 +439,11 @@ fn scalar_string(v: &serde_yaml_ng::Value) -> Option<String> {
 }
 
 fn order_children(mut items: Vec<(String, TreeNode)>, order: &[String]) -> Vec<TreeNode> {
-    items.sort_by(|a, b| a.0.cmp(&b.0));
+    items.sort_by(|a, b| {
+        let a_request = matches!(a.1, TreeNode::Request { .. });
+        let b_request = matches!(b.1, TreeNode::Request { .. });
+        a_request.cmp(&b_request).then_with(|| a.0.cmp(&b.0))
+    });
     let mut out = Vec::with_capacity(items.len());
     for stem in order {
         if let Some(pos) = items.iter().position(|(s, _)| s == stem) {

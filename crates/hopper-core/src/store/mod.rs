@@ -17,9 +17,9 @@
 //! adapter that serves agents must require a revision. `UserData` and
 //! `WorkspaceData` handles must never be given to the MCP adapter.
 //!
-//! Tree order: in a folder, `folder.order` stems come first, then everything
-//! else alphabetical by stem (directory name or file name minus `.req.yaml`),
-//! folders and requests interleaved. Collections and environments are
+//! Tree order: in a folder, `folder.order` stems come first, then folders
+//! alphabetical by stem (directory name), then requests alphabetical by stem
+//! (file name minus `.req.yaml`). Collections and environments are
 //! alphabetical.
 
 mod fsops;
