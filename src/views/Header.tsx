@@ -44,7 +44,7 @@ export default function Header() {
 
   return (
     <header className="panel-header hdr">
-      <span className="hdr-drag" onMouseDown={startDrag} data-tip="Drag to the other screen edge">
+      <span className="hdr-drag" onMouseDown={startDrag}>
         <Mascot state={mascot} />
       </span>
       <div className="panel-title">
