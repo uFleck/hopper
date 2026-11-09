@@ -1142,6 +1142,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
         matches: vec![1, 2],
         score: 12.5,
         agent_access: AgentAccess::Ask,
+        operation_id: None,
     };
     let hit_op = SearchHit::Operation {
         collection: "api".into(),
@@ -1155,6 +1156,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
         matches: vec![],
         score: 3.0,
         saved_request_id: None,
+        operation_id: None,
     };
     let search_result = SearchResult {
         hits: vec![hit_saved.clone(), hit_op],

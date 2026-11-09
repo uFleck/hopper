@@ -80,9 +80,11 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_search_routes",
-            "Fuzzy search over spec operations and saved requests. Syntax: `post users`, `tag:Admin`, `#GetUserById`, `path:/api/users/{id}`.",
+            "Fuzzy search over spec operations and saved requests. Cheapest for finding a route: `match: \"route\"` with a small `limit` returns only method, path, operationId and the handle per hit (`requestId`, or `spec` + `key` for hopper_get_operation). Syntax: `post users`, `tag:Admin`, `#GetUserById`, `path:/api/users/{id}`.",
             schema(
-                json!({"query": s("Search text"), "collection": s("Collection slug"), "tag": s("Tag"), "method": method(), "limit": n("Max hits (default 20)")}),
+                json!({"query": s("Search text"), "collection": s("Collection slug"), "tag": s("Tag"), "method": method(),
+                    "limit": n("Max hits (default 20, max 50); use 5 when you only need the top route"),
+                    "match": {"type": "string", "enum": ["full", "route"], "description": "route: method, path, operationId and handle per hit only. full (default): every hit field"}}),
                 &["query"],
             ),
         ),
@@ -328,22 +330,25 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_send_request",
-            "Send a saved request (`id`) or an inline `request` in an environment. May wait for the user's approval in the panel; returns status, redacted headers, timing, size, a truncated body and a `responseId`. A body over 1 MiB is also saved whole (redacted) to `bodyFile`; read it with a script instead of paging.",
+            "Send a saved request (`id`) or an inline `request` in an environment. May wait for the user's approval in the panel. Returns status, redacted headers, timing, size, a body cut at 30,000 chars (`bodyTruncated` says so) and a `responseId`. Cheapest when you need one fact: pass `fields: [\"status\"]`, or `fields` with `path` (a JSON pointer such as /data/id) to get just that value. A body over 1 MiB is also saved whole (redacted) to `bodyFile`; read it with a script instead of paging.",
             schema(
                 json!({"id": s("Saved request id"),
                     "request": {"type": "object", "properties": inline, "required": ["method", "url"]},
                     "collection": s("Collection whose inherited headers/auth an inline request uses"),
                     "folder": strings("Folder slugs"),
                     "environment": s("Environment name (default: the active one)"),
-                    "overrides": {"type": "object", "additionalProperties": {"type": "string"}}}),
+                    "overrides": {"type": "object", "additionalProperties": {"type": "string"}},
+                    "path": s("JSON pointer into the body, e.g. /items/0/id; the body returned is that part"),
+                    "fields": strings("Keep only these top-level keys of the result, e.g. [\"status\"]. Add \"responseId\" to keep the handle for hopper_get_response")}),
                 &[],
             ),
         ),
         tool(
             "hopper_get_response",
-            "Page through a stored response by `responseId`, optionally selecting a JSON pointer. Works on the whole body even when it is larger than what send_request returned; use `path` to pull just the part you need.",
+            "Page through a stored response by `responseId`. Cheapest for one value: `path` (a JSON pointer, e.g. /items/0/id) returns just that part, and `fields` keeps only the keys you name, e.g. [\"status\"]. Without them it returns a page of the whole body (`hasMore` and `nextOffset` say whether to read on).",
             schema(
-                json!({"responseId": s("From hopper_send_request"), "offset": n("Character offset"), "limit": n("Characters per page"), "path": s("JSON pointer, e.g. /items/0/id")}),
+                json!({"responseId": s("From hopper_send_request"), "offset": n("Character offset"), "limit": n("Characters per page"), "path": s("JSON pointer, e.g. /items/0/id"),
+                    "fields": strings("Keep only these top-level keys, e.g. [\"status\"] or [\"text\"]")}),
                 &["responseId"],
             ),
         ),
