@@ -978,8 +978,9 @@ impl AppService {
 
     pub(crate) fn open(&self) -> Result<Arc<Open>, HopperError> {
         lock(&self.deps.open).clone().ok_or_else(|| {
-            HopperError::new("no_workspace", "no workspace is open")
-                .hint("open one in Hopper, or with hopper_list_workspaces and hopper_open_workspace")
+            HopperError::new("no_workspace", "no workspace is open").hint(
+                "open one in Hopper, or with hopper_list_workspaces and hopper_open_workspace",
+            )
         })
     }
 
@@ -1160,7 +1161,12 @@ impl AppService {
         let target = PathBuf::from(path);
         let probe = target.clone();
         let id = blocking(move || -> Result<String, HopperError> {
-            Ok(WorkspaceStore::open(&probe)?.snapshot().workspace.doc.id.clone())
+            Ok(WorkspaceStore::open(&probe)?
+                .snapshot()
+                .workspace
+                .doc
+                .id
+                .clone())
         })
         .await??;
 
