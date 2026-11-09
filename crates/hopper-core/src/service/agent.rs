@@ -33,6 +33,44 @@ pub const MAX_BODY_CHARS: usize = 30_000;
 const DEFAULT_SEARCH_LIMIT: usize = 20;
 const MAX_LIST: usize = 200;
 
+/// The part of a JSON body that a pointer names. A string comes back as is; anything else as pretty JSON.
+fn pick_pointer(text: &str, pointer: &str) -> Result<String, HopperError> {
+    let json: Value =
+        serde_json::from_str(text).map_err(|_| HopperError::invalid("the body is not JSON"))?;
+    let found = json
+        .pointer(pointer)
+        .ok_or_else(|| HopperError::not_found(format!("JSON path {pointer}")))?;
+    Ok(match found {
+        Value::String(s) => s.clone(),
+        other => serde_json::to_string_pretty(other).unwrap_or_default(),
+    })
+}
+
+/// Keeps only the named top-level keys of a result object. `None` returns it whole.
+/// An unknown key is an error that lists the keys there are.
+fn project(value: Value, fields: Option<&[String]>) -> Result<Value, HopperError> {
+    let Some(fields) = fields else {
+        return Ok(value);
+    };
+    let Value::Object(map) = value else {
+        return Ok(value);
+    };
+    if let Some(bad) = fields.iter().find(|f| !map.contains_key(f.as_str())) {
+        let mut keys: Vec<&str> = map.keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        return Err(HopperError::invalid(format!(
+            "unknown field `{bad}`; the fields are: {}",
+            keys.join(", ")
+        )));
+    }
+    Ok(Value::Object(
+        fields
+            .iter()
+            .map(|f| (f.clone(), map[f.as_str()].clone()))
+            .collect(),
+    ))
+}
+
 #[derive(Clone)]
 pub struct AgentApi {
     svc: AppService,
@@ -53,6 +91,17 @@ pub struct SearchArgs {
     pub method: Option<Method>,
     #[serde(default)]
     pub limit: Option<usize>,
+    /// `full` (default) returns every hit field; `route` returns only the route and its handle.
+    #[serde(default, rename = "match")]
+    pub match_mode: MatchMode,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MatchMode {
+    #[default]
+    Full,
+    Route,
 }
 
 /// A request as the agent writes it. `id` is never accepted.
@@ -309,6 +358,12 @@ pub struct SendArgs {
     pub environment: Option<Stage>,
     #[serde(default)]
     pub overrides: BTreeMap<String, String>,
+    /// JSON pointer (`/items/0/id`) into the redacted body; the body returned is that part.
+    #[serde(default)]
+    pub path: Option<String>,
+    /// Keep only these top-level keys of the result (`["status"]`, `["status", "body"]`).
+    #[serde(default)]
+    pub fields: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -322,6 +377,9 @@ pub struct ResponsePage {
     /// JSON pointer (`/items/0/id`) applied to the redacted body.
     #[serde(default)]
     pub path: Option<String>,
+    /// Keep only these top-level keys of the result (`["status"]`, `["text"]`).
+    #[serde(default)]
+    pub fields: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -733,6 +791,12 @@ impl AgentApi {
                         o.remove("agentAccess");
                     }
                 }
+            }
+            if args.match_mode == MatchMode::Route
+                && let Some(o) = v.as_object_mut()
+            {
+                let routes: Vec<_> = result.hits.iter().map(crate::search::Hit::route).collect();
+                o.insert("hits".into(), to_json(&routes)?);
             }
             ok(v)
         })();
@@ -1834,7 +1898,27 @@ impl AgentApi {
                 )
                 .await?;
             let cached = sent.cached.clone();
-            let (body, chars, cut) = match cached.as_ref().and_then(|c| c.text.as_deref()) {
+            // `path` selects a part of the body. Without it the body is the cached text, as before.
+            let picked = match &args.path {
+                None => None,
+                Some(pointer) => {
+                    let full = match cached.as_ref().and_then(|c| c.body_file.clone()) {
+                        Some(file) => blocking(move || std::fs::read(file))
+                            .await
+                            .ok()
+                            .and_then(Result::ok)
+                            .map(|b| String::from_utf8_lossy(&b).into_owned()),
+                        None => cached.as_ref().and_then(|c| c.text.clone()),
+                    };
+                    let full =
+                        full.ok_or_else(|| HopperError::invalid("the response body is not text"))?;
+                    Some(pick_pointer(&full, pointer)?)
+                }
+            };
+            let text = picked
+                .as_deref()
+                .or_else(|| cached.as_ref().and_then(|c| c.text.as_deref()));
+            let (body, chars, cut) = match text {
                 Some(text) => {
                     let total = text.chars().count();
                     (
@@ -1865,7 +1949,10 @@ impl AgentApi {
                 "requestId": res.request_id,
                 "note": if body.is_none() { Some("the body is not text; it is not returned") } else if cut { Some("the body was cut; use get_response with a JSON pointer `path` or paging, or read `bodyFile` (the full redacted body) with a script") } else { None },
             });
-            Ok((v, sent.allowed_by.map(str::to_owned)))
+            Ok((
+                project(v, args.fields.as_deref())?,
+                sent.allowed_by.map(str::to_owned),
+            ))
         }
         .await;
         let detail = r
@@ -1902,23 +1989,13 @@ impl AgentApi {
                 .ok_or_else(|| HopperError::invalid("the response body is not text"))?;
             let selected: String = match &page.path {
                 None => text.to_owned(),
-                Some(p) => {
-                    let json: Value = serde_json::from_str(text)
-                        .map_err(|_| HopperError::invalid("the body is not JSON"))?;
-                    let found = json
-                        .pointer(p)
-                        .ok_or_else(|| HopperError::not_found(format!("JSON path {p}")))?;
-                    match found {
-                        Value::String(s) => s.clone(),
-                        other => serde_json::to_string_pretty(other).unwrap_or_default(),
-                    }
-                }
+                Some(p) => pick_pointer(text, p)?,
             };
             let limit = page.limit.unwrap_or(MAX_BODY_CHARS).min(MAX_BODY_CHARS);
             let total = selected.chars().count();
             let slice: String = selected.chars().skip(page.offset).take(limit).collect();
             let end = page.offset + slice.chars().count();
-            ok(json!({
+            let out = json!({
                 "responseId": page.response_id,
                 "path": page.path,
                 "offset": page.offset,
@@ -1933,7 +2010,8 @@ impl AgentApi {
                 "sizeBytes": cached.size_bytes,
                 "bodyTruncated": cached.truncated,
                 "bodyFile": cached.body_file.as_ref().map(|p| p.display().to_string()),
-            }))
+            });
+            ok(project(out, page.fields.as_deref())?)
         })();
         self.finish(
             &open,

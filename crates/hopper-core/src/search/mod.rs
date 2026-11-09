@@ -99,6 +99,9 @@ pub enum Hit {
         matches: Vec<u32>,
         score: f64,
         agent_access: AgentAccess,
+        /// Kept out of the full JSON; `match: route` returns it.
+        #[serde(skip)]
+        operation_id: Option<String>,
     },
     Operation {
         collection: String,
@@ -114,6 +117,9 @@ pub enum Hit {
         score: f64,
         #[serde(skip_serializing_if = "Option::is_none")]
         saved_request_id: Option<String>,
+        /// Kept out of the full JSON; `match: route` returns it.
+        #[serde(skip)]
+        operation_id: Option<String>,
     },
 }
 
@@ -129,6 +135,66 @@ impl Hit {
             Hit::Saved { score, .. } | Hit::Operation { score, .. } => *score,
         }
     }
+
+    /// The compact view for `match: route`: where the hit is, plus the handle to act on it.
+    pub fn route(&self) -> RouteHit {
+        match self {
+            Hit::Saved {
+                request_id,
+                method,
+                path,
+                collection,
+                operation_id,
+                ..
+            } => RouteHit {
+                kind: "saved",
+                collection: collection.clone(),
+                method: *method,
+                path: path.clone(),
+                operation_id: operation_id.clone(),
+                spec: None,
+                key: None,
+                request_id: Some(request_id.clone()),
+            },
+            Hit::Operation {
+                collection,
+                spec,
+                key,
+                method,
+                path,
+                operation_id,
+                ..
+            } => RouteHit {
+                kind: "operation",
+                collection: collection.clone(),
+                method: *method,
+                path: path.clone(),
+                operation_id: operation_id.clone(),
+                spec: Some(spec.clone()),
+                key: Some(key.clone()),
+                request_id: None,
+            },
+        }
+    }
+}
+
+/// One hit as `match: route` returns it. `spec` + `key` feed `hopper_get_operation`;
+/// `requestId` feeds `hopper_get_request` and `hopper_send_request`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteHit {
+    pub kind: &'static str,
+    pub collection: String,
+    pub method: Method,
+    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operation_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spec: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -512,6 +578,7 @@ impl SearchIndex {
                 matches,
                 score,
                 agent_access: *access,
+                operation_id: doc.op_id.as_ref().map(|f| f.text.clone()),
             },
             Kind::Op {
                 spec,
@@ -530,6 +597,7 @@ impl SearchIndex {
                 matches,
                 score,
                 saved_request_id: None,
+                operation_id: doc.op_id.as_ref().map(|f| f.text.clone()),
             },
         }
     }

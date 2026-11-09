@@ -1606,6 +1606,7 @@ async fn unlinking_a_spec_removes_its_operations_from_search() {
         tag: None,
         method: None,
         limit: None,
+        match_mode: Default::default(),
     };
     let hits = |v: Value| v["hits"].as_array().map_or(0, Vec::len);
     assert!(hits(agent.search_routes(search("pets")).await.unwrap()) > 0);
@@ -1908,10 +1909,32 @@ async fn spec_import_from_file_feeds_search_and_survives_a_reopen() {
             tag: None,
             method: None,
             limit: None,
+            match_mode: Default::default(),
         })
         .await
         .unwrap();
     assert!(agent_view["hits"][0].get("agentAccess").is_none());
+    // `match: route` keeps the route and its handle, and drops the scoring fields.
+    let routes = h
+        .agent()
+        .search_routes(SearchArgs {
+            query: "create pet".into(),
+            collection: None,
+            tag: None,
+            method: None,
+            limit: Some(1),
+            match_mode: crate::service::agent::MatchMode::Route,
+        })
+        .await
+        .unwrap();
+    let hit = &routes["hits"][0];
+    assert_eq!(hit["kind"], "saved");
+    assert_eq!(hit["requestId"], rid.as_str());
+    assert_eq!(hit["method"], "POST");
+    for dropped in ["score", "matches", "name", "agentAccess"] {
+        assert!(hit.get(dropped).is_none(), "{dropped} is in route mode");
+    }
+    assert_eq!(routes["hits"].as_array().unwrap().len(), 1);
 
     let op = h
         .agent()
@@ -2100,6 +2123,7 @@ async fn large_bodies_are_capped_and_paged() {
         offset,
         limit: Some(40_000),
         path: None,
+        fields: None,
     };
     let p1 = h.agent().get_response(page(0)).await.unwrap();
     assert_eq!(
@@ -2170,6 +2194,60 @@ async fn bodies_over_the_cache_cap_are_kept_whole_on_disk() {
         .await
         .unwrap();
     assert!(small["bodyFile"].is_null());
+}
+
+#[tokio::test]
+async fn fields_and_path_return_only_the_asked_part() {
+    let h = H::new().await;
+    h.env("local", &[]).await;
+    h.activate("local").await;
+    let status_only = h
+        .agent()
+        .send_request(SendArgs {
+            request: Some(inline("GET", "{{baseUrl}}/huge")),
+            collection: Some("api".into()),
+            fields: Some(vec!["status".into()]),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(status_only, json!({"status": 200}));
+
+    let one_value = h
+        .agent()
+        .send_request(SendArgs {
+            request: Some(inline("GET", "{{baseUrl}}/huge")),
+            collection: Some("api".into()),
+            path: Some("/items/5/n".into()),
+            fields: Some(vec!["responseId".into(), "body".into(), "bodyChars".into()]),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(one_value["body"], "5");
+    assert_eq!(one_value.as_object().unwrap().len(), 3);
+
+    let rid = one_value["responseId"].as_str().unwrap();
+    let stored = h
+        .agent()
+        .get_response(ResponsePage {
+            response_id: rid.into(),
+            fields: Some(vec!["status".into()]),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(stored, json!({"status": 200}));
+
+    let unknown = h
+        .agent()
+        .get_response(ResponsePage {
+            response_id: rid.into(),
+            fields: Some(vec!["nope".into()]),
+            ..Default::default()
+        })
+        .await;
+    assert!(unknown.is_err(), "an unknown field is refused, not ignored");
 }
 
 #[tokio::test]
@@ -2517,6 +2595,7 @@ async fn no_agent_tool_ever_outputs_a_secret() {
             tag: None,
             method: None,
             limit: None,
+            match_mode: Default::default(),
         })
         .await,
     );
