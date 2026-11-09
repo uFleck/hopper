@@ -588,7 +588,7 @@ fn slugs() {
 }
 
 #[test]
-fn children_order_is_folder_order_then_alphabetical() {
+fn children_order_is_explicit_order_then_folders_then_requests() {
     let (_tmp, root, mut store) = new_store();
     let c = store.create_collection("C").unwrap();
     let f = store.create_folder(&c, &[], "F").unwrap();
@@ -606,7 +606,7 @@ fn children_order_is_folder_order_then_alphabetical() {
     };
     assert_eq!(
         names(children),
-        ["a-req", "aa-sub/", "b-req", "c-req", "d-req"]
+        ["aa-sub/", "a-req", "b-req", "c-req", "d-req"]
     );
 
     let folder_file = root.join("collections/c/f/folder.yaml");
@@ -625,7 +625,7 @@ fn children_order_is_folder_order_then_alphabetical() {
     };
     assert_eq!(
         names(children),
-        ["d-req", "b-req", "a-req", "aa-sub/", "c-req"]
+        ["d-req", "b-req", "aa-sub/", "a-req", "c-req"]
     );
 }
 

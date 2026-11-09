@@ -237,17 +237,26 @@ pub fn definitions() -> Vec<Value> {
         tool(
             "hopper_list_workspaces",
             "The workspace that is open and the ones Hopper knows (name, path, whether open, last opened). Works with no workspace open. Pass `scan: true` to also look for workspaces Hopper has not seen yet.",
-            schema(json!({"scan": {"type": "boolean", "description": "Scan the usual places (home, Documents, Downloads, Desktop); slower"}}), &[]),
+            schema(
+                json!({"scan": {"type": "boolean", "description": "Scan the usual places (home, Documents, Downloads, Desktop); slower"}}),
+                &[],
+            ),
         ),
         tool(
             "hopper_open_workspace",
             "Switch to another workspace by folder path. The panel changes with it, and every other tool then works on that workspace. No approval needed.",
-            schema(json!({"path": s("Folder that holds a hopper.yaml")}), &["path"]),
+            schema(
+                json!({"path": s("Folder that holds a hopper.yaml")}),
+                &["path"],
+            ),
         ),
         tool(
             "hopper_create_workspace",
             "Create a workspace in a new or existing folder (it is created if missing) and open it. Fails if the folder already holds one. No approval needed.",
-            schema(json!({"path": s("Folder for the workspace"), "name": s("Workspace name")}), &["path", "name"]),
+            schema(
+                json!({"path": s("Folder for the workspace"), "name": s("Workspace name")}),
+                &["path", "name"],
+            ),
         ),
         tool(
             "hopper_rename_workspace",
@@ -257,7 +266,10 @@ pub fn definitions() -> Vec<Value> {
         tool(
             "hopper_delete_workspace",
             "Delete a workspace: removes its collections, environments and hopper.yaml, and Hopper's local state for it (grants, history, trash). The folder and any other files in it stay. The user must approve in the Hopper panel; the call waits up to 60 seconds and returns not_approved if they decline or do not answer. This cannot be undone.",
-            schema(json!({"path": s("Folder of the workspace to delete, from hopper_list_workspaces")}), &["path"]),
+            schema(
+                json!({"path": s("Folder of the workspace to delete, from hopper_list_workspaces")}),
+                &["path"],
+            ),
         ),
         tool(
             "hopper_delete_collection",

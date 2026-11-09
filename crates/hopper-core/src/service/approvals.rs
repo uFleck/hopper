@@ -73,10 +73,9 @@ struct DeleteGuard {
 impl Drop for DeleteGuard {
     fn drop(&mut self) {
         lock(&self.svc.deps.delete_asks).remove(&self.id);
-        self.svc
-            .deps
-            .events
-            .emit(Event::WorkspaceDeleteResolved { id: self.id.clone() });
+        self.svc.deps.events.emit(Event::WorkspaceDeleteResolved {
+            id: self.id.clone(),
+        });
     }
 }
 
@@ -169,7 +168,9 @@ impl AppService {
                 "this approval request does not exist or has expired",
             )
         };
-        let ask = lock(&self.deps.delete_asks).remove(id).ok_or_else(expired)?;
+        let ask = lock(&self.deps.delete_asks)
+            .remove(id)
+            .ok_or_else(expired)?;
         ask.tx.send(approve).map_err(|_| expired())
     }
 }

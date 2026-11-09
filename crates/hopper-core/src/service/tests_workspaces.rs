@@ -63,7 +63,11 @@ async fn list_create_and_open_switch_the_open_workspace() {
     );
 
     // A folder that already holds a workspace cannot be created again.
-    assert!(api.create_workspace(&path_str(&dir), "Again").await.is_err());
+    assert!(
+        api.create_workspace(&path_str(&dir), "Again")
+            .await
+            .is_err()
+    );
     // A folder without one cannot be opened.
     let empty = h.tmp.path().join("empty");
     fs::create_dir_all(&empty).unwrap();
@@ -110,7 +114,10 @@ async fn delete_waits_for_the_user_and_leaves_the_folder() {
     assert!(!dir.join("hopper.yaml").exists());
     assert!(!dir.join("collections").exists());
     assert!(!dir.join("environments").exists());
-    assert_eq!(fs::read_to_string(dir.join("notes.txt")).unwrap(), "keep me");
+    assert_eq!(
+        fs::read_to_string(dir.join("notes.txt")).unwrap(),
+        "keep me"
+    );
     // It was the open workspace, so none is open now, and it is no longer listed.
     assert!(h.svc.workspace_current().await.unwrap().is_none());
     let known = h.svc.workspace_known().await.unwrap();
@@ -126,7 +133,10 @@ async fn declining_or_ignoring_the_prompt_deletes_nothing() {
     let (a, p) = (h.agent(), path_str(&h.root));
     let task = tokio::spawn(async move { a.delete_workspace(&p).await });
     let ask = next_delete_ask(&h).await;
-    h.svc.workspace_delete_respond(&ask.id, false).await.unwrap();
+    h.svc
+        .workspace_delete_respond(&ask.id, false)
+        .await
+        .unwrap();
     let e = task.await.unwrap().unwrap_err();
     assert_eq!(e.code, "not_approved");
     assert!(h.root.join("hopper.yaml").exists());
