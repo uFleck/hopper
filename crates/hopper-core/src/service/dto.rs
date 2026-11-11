@@ -949,11 +949,11 @@ pub struct McpStatus {
     pub error: Option<String>,
 }
 
-/// Whether Claude Code's user config already has a `hopper` server pointing at this Hopper.
+/// Whether an agent's own config already has a `hopper` server pointing at this Hopper.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ClaudeConnection {
-    /// No `hopper` entry (or Claude Code is not installed).
+pub enum AgentConnection {
+    /// No `hopper` entry (or the agent is not installed).
     None,
     /// An entry with this server's URL and token.
     Connected,
@@ -961,12 +961,26 @@ pub enum ClaudeConnection {
     Stale,
 }
 
+/// One agent Hopper can install its MCP server into.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpAgentSetup {
+    /// Stable id the UI sends back to `mcp_connect`: `claude-code`, `opencode`.
+    pub id: String,
+    pub name: String,
+    /// The agent's config or its CLI was found on this machine.
+    pub detected: bool,
+    pub connection: AgentConnection,
+    /// Copy-paste command that installs the entry. Contains the MCP token.
+    pub command: String,
+    /// Copy-paste JSON for the agent's own config file. Contains the MCP token.
+    pub json_config: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct McpSetup {
-    pub claude_command: String,
-    pub json_config: String,
-    pub claude_connection: ClaudeConnection,
+    pub agents: Vec<McpAgentSetup>,
 }
 
 // ----------------------------------------------------------------- settings
@@ -1512,11 +1526,27 @@ pub fn samples() -> Vec<(&'static str, Value)> {
             }),
         ),
         (
+            "McpAgentSetup",
+            to(&McpAgentSetup {
+                id: "opencode".into(),
+                name: "OpenCode".into(),
+                detected: true,
+                connection: AgentConnection::Connected,
+                command: "opencode mcp add hopper".into(),
+                json_config: "{}".into(),
+            }),
+        ),
+        (
             "McpSetup",
             to(&McpSetup {
-                claude_command: "claude mcp add hopper".into(),
-                json_config: "{}".into(),
-                claude_connection: ClaudeConnection::Connected,
+                agents: vec![McpAgentSetup {
+                    id: "opencode".into(),
+                    name: "OpenCode".into(),
+                    detected: true,
+                    connection: AgentConnection::Connected,
+                    command: "opencode mcp add hopper".into(),
+                    json_config: "{}".into(),
+                }],
             }),
         ),
         (

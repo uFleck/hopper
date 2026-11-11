@@ -131,7 +131,7 @@ pub fn run() {
             ipc::agent::workspace_delete_respond,
             ipc::agent::mcp_status,
             ipc::agent::mcp_setup,
-            ipc::agent::mcp_connect_claude,
+            ipc::agent::mcp_connect,
             ipc::settings::settings_get,
             ipc::settings::settings_set,
         ])

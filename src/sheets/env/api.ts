@@ -18,6 +18,7 @@ export const listLegacyEnvironments = () => invoke("environment_legacy_list");
 export const migrateLegacy = (stem: string, stage: Stage, application: string) => invoke("environment_migrate_legacy", { stem, stage, application });
 export const listGrants = () => invoke("agent_grants_list");
 export const getMcpSetup = () => invoke("mcp_setup");
-export const connectClaudeCode = () => invoke("mcp_connect_claude");
+/** Runs the agent's own `mcp add`; `agent` is the id from `McpSetup`. */
+export const connectAgent = (agent: string) => invoke("mcp_connect", { agent });
 
 export const REVEAL_SECONDS = 10;

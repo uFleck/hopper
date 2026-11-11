@@ -1,5 +1,12 @@
 {
-  "claudeCommand": "claude mcp add hopper",
-  "claudeConnection": "connected",
-  "jsonConfig": "{}"
+  "agents": [
+    {
+      "command": "opencode mcp add hopper",
+      "connection": "connected",
+      "detected": true,
+      "id": "opencode",
+      "jsonConfig": "{}",
+      "name": "OpenCode"
+    }
+  ]
 }

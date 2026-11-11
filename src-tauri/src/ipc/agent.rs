@@ -84,15 +84,11 @@ pub fn mcp_status(state: State<'_, AppState>) -> CmdResult<McpStatus> {
 
 #[tauri::command]
 pub fn mcp_setup(state: State<'_, AppState>) -> CmdResult<McpSetup> {
-    let config = mcp::read_claude_config();
-    mcp::setup(
-        &state.mcp.status(),
-        &state.userdata.mcp_token()?,
-        config.as_deref(),
-    )
+    mcp::setup(&state.mcp.status(), &state.userdata.mcp_token()?)
 }
 
+/// Runs the agent's own `mcp add` for the user; `agent` is one of the ids in `McpSetup`.
 #[tauri::command]
-pub async fn mcp_connect_claude(state: State<'_, AppState>) -> CmdResult<String> {
-    mcp::connect_claude(&state.mcp.status(), &state.userdata.mcp_token()?).await
+pub async fn mcp_connect(state: State<'_, AppState>, agent: String) -> CmdResult<String> {
+    mcp::connect(&state.mcp.status(), &state.userdata.mcp_token()?, &agent).await
 }

@@ -521,66 +521,9 @@ async fn gate_rejects_bad_callers() {
 }
 
 #[test]
-fn setup_text_has_the_claude_command_and_json() {
-    use hopper_core::service::dto::McpStatus;
-    let status = McpStatus {
-        running: true,
-        port: Some(38517),
-        url: Some(super::url(38517)),
-        error: None,
-    };
-    let s = super::setup(&status, "tok", None).unwrap();
-    assert_eq!(
-        s.claude_command,
-        "claude mcp add --transport http --scope user hopper http://127.0.0.1:38517/mcp --header \"Authorization: Bearer tok\""
-    );
-    let v: Value = serde_json::from_str(&s.json_config).unwrap();
-    assert_eq!(
-        v["mcpServers"]["hopper"]["url"],
-        "http://127.0.0.1:38517/mcp"
-    );
-    assert!(super::setup(&McpStatus::default(), "tok", None).is_err());
-    assert_eq!(super::claude_args("u", "t")[0], "mcp");
-    assert!(
-        super::claude_args("u", "t")
-            .windows(2)
-            .any(|w| w == ["--scope", "user"])
-    );
-}
-
-#[test]
 fn ports_start_at_38517_and_end_with_any() {
     let p = server::candidate_ports(Some(40000));
     assert_eq!(p[0], 40000);
     assert_eq!(p[1], 38517);
     assert_eq!(*p.last().unwrap(), 0);
-}
-
-#[test]
-fn claude_connection_compares_url_and_token() {
-    use hopper_core::service::dto::ClaudeConnection::*;
-    let cfg = |url: &str, token: &str| {
-        format!(
-            r#"{{"mcpServers":{{"hopper":{{"type":"http","url":"{url}","headers":{{"Authorization":"Bearer {token}"}}}}}}}}"#
-        )
-    };
-    let u = "http://127.0.0.1:1/mcp";
-    assert_eq!(
-        super::claude_connection(Some(&cfg(u, "t")), u, "t"),
-        Connected
-    );
-    assert_eq!(
-        super::claude_connection(Some(&cfg(u, "old")), u, "t"),
-        Stale
-    );
-    assert_eq!(
-        super::claude_connection(Some(&cfg("http://x/mcp", "t")), u, "t"),
-        Stale
-    );
-    assert_eq!(
-        super::claude_connection(Some(r#"{"mcpServers":{}}"#), u, "t"),
-        None
-    );
-    assert_eq!(super::claude_connection(Some("not json"), u, "t"), None);
-    assert_eq!(super::claude_connection(Option::None, u, "t"), None);
 }

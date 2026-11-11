@@ -42,7 +42,8 @@ const REQUIRED: Record<string, string[]> = {
   ActivityEntry: ["id", "at", "client", "tool", "target", "outcome"],
   GrantDto: ["requestId", "requestName", "access", "suspended"],
   McpStatus: ["running"],
-  McpSetup: ["claudeCommand", "jsonConfig", "claudeConnection"],
+  McpAgentSetup: ["id", "name", "detected", "connection", "command", "jsonConfig"],
+  McpSetup: ["agents"],
   Settings: ["hotkey", "dockSide", "widthPreset", "theme", "alwaysShowTab", "startWithWindows"],
   RecentItem: ["id", "name", "method", "status"],
 };

@@ -1,0 +1,8 @@
+{
+  "command": "opencode mcp add hopper",
+  "connection": "connected",
+  "detected": true,
+  "id": "opencode",
+  "jsonConfig": "{}",
+  "name": "OpenCode"
+}

@@ -489,14 +489,25 @@ export interface McpStatus {
   error?: string;
 }
 
-/** `stale`: Claude Code has a `hopper` entry whose URL or token no longer matches this server. */
-export type ClaudeConnection = "none" | "connected" | "stale";
+/** `stale`: the agent has a `hopper` entry whose URL or token no longer matches this server. */
+export type AgentConnection = "none" | "connected" | "stale";
+
+/** One agent Hopper can install its MCP server into. */
+export interface McpAgentSetup {
+  /** `claude-code`, `opencode`: the id to send back to `mcp_connect`. */
+  id: string;
+  name: string;
+  /** The agent's CLI or its config was found on this machine. */
+  detected: boolean;
+  connection: AgentConnection;
+  /** Install command with the bearer token, for copy-paste. Contains the MCP token, not a user secret. */
+  command: string;
+  /** JSON for the agent's own config file, for when its CLI is missing. Contains the MCP token. */
+  jsonConfig: string;
+}
 
 export interface McpSetup {
-  claudeConnection: ClaudeConnection;
-  /** `claude mcp add ...` with the bearer token, for copy-paste. Contains the MCP token, not a user secret. */
-  claudeCommand: string;
-  jsonConfig: string;
+  agents: McpAgentSetup[];
 }
 
 // ------------------------------------------------------------------------------------------ settings
@@ -598,8 +609,8 @@ export interface CommandMap {
   workspace_delete_respond: { args: { id: string; approve: boolean }; result: void };
   mcp_status: { args: undefined; result: McpStatus };
   mcp_setup: { args: undefined; result: McpSetup };
-  /** Runs `claude mcp add ...` for the user; resolves with the CLI's output. */
-  mcp_connect_claude: { args: undefined; result: string };
+  /** Runs the agent's own `mcp add` for the user; resolves with the CLI's output. */
+  mcp_connect: { args: { agent: string }; result: string };
 
   // settings
   settings_get: { args: undefined; result: Settings };

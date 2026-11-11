@@ -4,7 +4,7 @@ A Postman-like companion for internal HTTP APIs, built with Tauri 2 + React. Hop
 
 Status: phase 1 (MVP) is implemented and tested: panel, search over OpenAPI specs, request editor and response viewer, environments with keyring secrets, the engine, the MCP server with per-request agent access (Ask / Auto / Blocked) and in-panel approvals. Not yet verified on a real desktop: the panel's Windows behaviours, tray, hotkey and focus handoff (manual checklist in `docs/spikes.md`). The plan is in `docs/PLAN.md`.
 
-MCP: Hopper serves Streamable HTTP on `127.0.0.1` (port from 38517) with a per-install bearer token; the Agent sheet shows the exact `claude mcp add` command.
+MCP: Hopper serves Streamable HTTP on `127.0.0.1` (port from 38517) with a per-install bearer token; the Agent sheet installs Hopper into each installed agent (Claude Code, OpenCode) with that agent's own CLI, and shows the exact command and JSON for any other client.
 
 ## Development
 

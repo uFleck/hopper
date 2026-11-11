@@ -134,7 +134,7 @@ export function NextSteps({ specImported }: { specImported: boolean }) {
   const [importing, setImporting] = useState(!specImported);
   const [connected, setConnected] = useState(false);
   useEffect(() => {
-    invoke("mcp_setup").then((s) => setConnected(s.claudeConnection === "connected"), () => {});
+    invoke("mcp_setup").then((s) => setConnected(s.agents.some((a) => a.connection === "connected")), () => {});
   }, []);
   return (
     <div className="steps">
@@ -155,7 +155,7 @@ export function NextSteps({ specImported }: { specImported: boolean }) {
             <span className="step-name">{connected ? "Agent connected" : "Connect an agent"}</span>
             <Button size="sm" icon="robot" onClick={() => openAgentSheet("connect")}>{connected ? "Agent setup" : "Open agent setup"}</Button>
           </div>
-          <p className="step-sub">Let Claude Code or another MCP client search and send requests. You choose what it may send.</p>
+          <p className="step-sub">Let Claude Code, OpenCode or another MCP client search and send requests. You choose what it may send.</p>
         </li>
       </ol>
     </div>

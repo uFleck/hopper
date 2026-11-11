@@ -14,6 +14,7 @@ import type {
   HistoryItem,
   HistoryRow,
   McpStatus,
+  McpAgentSetup,
   RequestDto,
   RunResult,
   SendTarget,
@@ -71,7 +72,7 @@ function fresh() {
     approvals: [] as ApprovalRequest[],
     workspaceDeletes: [] as WorkspaceDeleteRequest[],
     mcp: { running: true, port: 47821, url: "http://127.0.0.1:47821/mcp" } as McpStatus,
-    claudeConnected: false,
+    connectedAgents: new Set<string>(),
     scopeVars: {} as Record<string, VariablesDto>,
     collectionAuth: {} as Record<string, { auth: Auth; rev: string }>,
     revision: 1,
@@ -486,14 +487,34 @@ const handlers: Handlers = {
     bus.emit("agent://workspace-delete-resolved", { id });
   },
   mcp_status: () => clone(s.mcp),
-  mcp_setup: () => ({
-    claudeConnection: s.claudeConnected ? "connected" : "none",
-    claudeCommand: 'claude mcp add --transport http hopper http://127.0.0.1:47821/mcp --header "Authorization: Bearer hpr_mock_token"',
-    jsonConfig: JSON.stringify({ mcpServers: { hopper: { type: "http", url: "http://127.0.0.1:47821/mcp", headers: { Authorization: "Bearer hpr_mock_token" } } } }, null, 2),
-  }),
-  mcp_connect_claude: () => {
-    s.claudeConnected = true;
-    return "Added HTTP MCP server hopper to local config";
+  mcp_setup: () => {
+    const url = "http://127.0.0.1:47821/mcp";
+    const token = "hpr_mock_token";
+    const agents: McpAgentSetup[] = [
+      {
+        id: "claude-code",
+        name: "Claude Code",
+        detected: true,
+        connection: s.connectedAgents.has("claude-code") ? "connected" : "none",
+        command: `claude mcp add --transport http --scope user hopper ${url} --header "Authorization: Bearer ${token}"`,
+        jsonConfig: JSON.stringify({ mcpServers: { hopper: { type: "http", url, headers: { Authorization: `Bearer ${token}` } } } }, null, 2),
+      },
+      {
+        id: "opencode",
+        name: "OpenCode",
+        detected: true,
+        connection: s.connectedAgents.has("opencode") ? "connected" : "none",
+        command: `opencode mcp add hopper --global --url ${url} --header "Authorization=Bearer ${token}"`,
+        jsonConfig: JSON.stringify({ mcp: { servers: { hopper: { type: "remote", url, headers: { Authorization: `Bearer ${token}` } } } } }, null, 2),
+      },
+    ];
+    return { agents };
+  },
+  mcp_connect: ({ agent }) => {
+    const found = ["claude-code", "opencode"].includes(agent);
+    if (!found) throw err("agent_unknown", `unknown agent ${agent}`);
+    s.connectedAgents.add(agent);
+    return `Added MCP server hopper for ${agent}`;
   },
 
   settings_get: () => clone(s.settings),
