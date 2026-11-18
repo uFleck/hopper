@@ -7,7 +7,7 @@ use ulid::Ulid;
 
 use super::*;
 use crate::format::Method;
-use crate::policy::{AgentAccess, EnvRules, Grant, PatternRule};
+use crate::policy::{AgentAccess, EnvRules, Grant, GrantScope, PatternRule};
 
 /// Returns the temp root (which holds only the app data dir) and the handle.
 fn open() -> (tempfile::TempDir, UserData) {
@@ -98,6 +98,7 @@ fn find_file(dir: &Path, name: &str) -> Option<PathBuf> {
 fn grant(access: AgentAccess) -> Grant {
     Grant {
         access,
+        scope: GrantScope::Exact,
         fingerprint: "sha256:abc".to_owned(),
         binding: String::new(),
     }
@@ -304,6 +305,31 @@ fn grants_round_trip_and_clear() {
 
     let other = ud.workspace("ws-2").unwrap();
     assert!(other.grants().unwrap().is_empty());
+}
+
+#[test]
+fn grants_written_before_scopes_load_as_exact_and_scopes_round_trip() {
+    let (_root, ud) = open();
+    let ws = ud.workspace("ws-1").unwrap();
+    let dir = ud.base.join("workspaces").join("ws-1");
+    fs::create_dir_all(&dir).unwrap();
+    // The 0.7.0 file format: no `scope` field.
+    fs::write(
+        dir.join("grants.json"),
+        r#"{"req-old":{"access":"auto","fingerprint":"sha256:abc","binding":"b"}}"#,
+    )
+    .unwrap();
+    assert_eq!(ws.grants().unwrap()["req-old"].scope, GrantScope::Exact);
+
+    let mut params = grant(AgentAccess::Auto);
+    params.scope = GrantScope::Params;
+    ws.set_grant("req-params", params).unwrap();
+    let reopened = reopen(&ud).workspace("ws-1").unwrap().grants().unwrap();
+    assert_eq!(reopened["req-old"].scope, GrantScope::Exact);
+    assert_eq!(reopened["req-params"].scope, GrantScope::Params);
+    // Exact grants keep the old shape, so an older Hopper still reads them.
+    let raw = fs::read_to_string(dir.join("grants.json")).unwrap();
+    assert_eq!(raw.matches("scope").count(), 1, "{raw}");
 }
 
 #[test]

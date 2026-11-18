@@ -105,6 +105,7 @@ function dto(d: RequestDoc, folder: string[], extra: Partial<RequestDto> = {}): 
     collection: COLLECTION,
     folder,
     agentAccess: "ask",
+    agentScope: "exact",
     grantSuspended: false,
     readOnly: false,
     ...extra,

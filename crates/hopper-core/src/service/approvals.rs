@@ -12,8 +12,8 @@ use ulid::Ulid;
 
 use super::{AppService, Open, blocking, canon, dto::*, events::Event, lock, now_rfc3339};
 use crate::{
-    format::Stage,
-    policy::{AgentAccess, Grant},
+    format::{Request, Stage},
+    policy::{AgentAccess, Grant, GrantScope},
 };
 
 const ARM_AFTER_MS: u64 = 500;
@@ -22,7 +22,8 @@ pub(crate) struct Pending {
     pub dto: ApprovalRequest,
     pub tx: oneshot::Sender<ApprovalDecision>,
     pub request_id: Option<String>,
-    pub fingerprint: String,
+    /// The saved request as it was when the question was asked.
+    pub doc: Option<Request>,
     pub binding: String,
     pub session_key: String,
 }
@@ -35,7 +36,7 @@ pub(crate) struct AskInfo {
     pub application: String,
     pub masked: MaskedRequest,
     pub reason: String,
-    pub fingerprint: String,
+    pub doc: Option<Request>,
     pub binding: String,
     pub session_key: String,
 }
@@ -204,7 +205,7 @@ impl Open {
                 dto: dto.clone(),
                 tx,
                 request_id: info.request_id,
-                fingerprint: info.fingerprint,
+                doc: info.doc,
                 binding: info.binding,
                 session_key: info.session_key,
             },
@@ -221,9 +222,13 @@ impl Open {
                 .load(std::sync::atomic::Ordering::Relaxed),
         );
         match tokio::time::timeout(wait, rx).await {
-            Ok(Ok(ApprovalDecision::AllowOnce))
-            | Ok(Ok(ApprovalDecision::AllowSession))
-            | Ok(Ok(ApprovalDecision::AlwaysAllow)) => Ok(()),
+            Ok(Ok(
+                ApprovalDecision::AllowOnce
+                | ApprovalDecision::AllowSession
+                | ApprovalDecision::AlwaysAllow
+                | ApprovalDecision::AlwaysAllowParams
+                | ApprovalDecision::AlwaysAllowAny,
+            )) => Ok(()),
             Ok(Ok(ApprovalDecision::Block)) => Err(HopperError::denied(
                 "the user blocked this request for agents",
             )
@@ -267,26 +272,31 @@ impl Open {
             ApprovalDecision::AllowSession => {
                 lock(&self.session).insert(pending.session_key.clone());
             }
-            ApprovalDecision::AlwaysAllow => match &pending.request_id {
-                Some(rid) => {
-                    self.write_grant(
-                        rid,
-                        AgentAccess::Auto,
-                        &pending.fingerprint,
-                        &pending.binding,
-                    )
-                    .await?
+            ApprovalDecision::AlwaysAllow
+            | ApprovalDecision::AlwaysAllowParams
+            | ApprovalDecision::AlwaysAllowAny => {
+                let scope = match decision {
+                    ApprovalDecision::AlwaysAllowParams => GrantScope::Params,
+                    ApprovalDecision::AlwaysAllowAny => GrantScope::Any,
+                    _ => GrantScope::Exact,
+                };
+                match (&pending.request_id, &pending.doc) {
+                    (Some(rid), Some(doc)) => {
+                        self.write_grant(rid, AgentAccess::Auto, scope, doc, &pending.binding)
+                            .await?
+                    }
+                    _ => {
+                        lock(&self.session).insert(pending.session_key.clone());
+                    }
                 }
-                None => {
-                    lock(&self.session).insert(pending.session_key.clone());
-                }
-            },
+            }
             ApprovalDecision::Block => {
-                if let Some(rid) = &pending.request_id {
+                if let (Some(rid), Some(doc)) = (&pending.request_id, &pending.doc) {
                     self.write_grant(
                         rid,
                         AgentAccess::Blocked,
-                        &pending.fingerprint,
+                        GrantScope::Exact,
+                        doc,
                         &pending.binding,
                     )
                     .await?;
@@ -300,26 +310,16 @@ impl Open {
         self: &Arc<Self>,
         request_id: &str,
         access: AgentAccess,
-        fingerprint: &str,
+        scope: GrantScope,
+        doc: &Request,
         binding: &str,
     ) -> Result<(), HopperError> {
-        let (data, rid, fp, binding) = (
+        let (data, rid, grant) = (
             self.data.clone(),
             canon(request_id),
-            fingerprint.to_owned(),
-            binding.to_owned(),
+            Grant::new(access, scope, doc, binding.to_owned()),
         );
-        blocking(move || {
-            data.set_grant(
-                &rid,
-                Grant {
-                    access,
-                    fingerprint: fp,
-                    binding,
-                },
-            )
-        })
-        .await??;
+        blocking(move || data.set_grant(&rid, grant)).await??;
         let o = self.clone();
         blocking(move || o.refresh_index()).await?;
         Ok(())

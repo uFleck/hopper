@@ -502,6 +502,14 @@ async fn missing_or_empty_path_param_fails() {
         fx.run(&req).await,
         Err(PrepareError::MissingPathParam(_))
     ));
+    // `/users/..` would normalize to `/`: a value must not change the path shape.
+    for dots in [".", ".."] {
+        req.path_params.insert("id".into(), dots.into());
+        assert!(matches!(
+            fx.run(&req).await,
+            Err(PrepareError::DotSegmentPathParam(_))
+        ));
+    }
 }
 
 #[tokio::test]

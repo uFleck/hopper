@@ -492,7 +492,7 @@ export async function openRun(row: { requestId: string; id: string; saved: boole
       draft = { ...draft, fromHistory: "no-request" };
     }
   } else {
-    draft = { ...draftFromDto({ doc: { ...stored!.doc, id: "" }, revision: null, collection: null, folder: [], agentAccess: "ask", grantSuspended: false, readOnly: false }), fromHistory: "unsaved" };
+    draft = { ...draftFromDto({ doc: { ...stored!.doc, id: "" }, revision: null, collection: null, folder: [], agentAccess: "ask", agentScope: "exact", grantSuspended: false, readOnly: false }), fromHistory: "unsaved" };
   }
   if (stored?.truncated) toast("The body was too large to keep, so it is opened without it.", "info");
   setState((s) => ({
@@ -572,7 +572,7 @@ export async function refreshMcp() {
 export async function respondApproval(id: string, decision: ApprovalDecision) {
   const ok = await guarded(() => invoke("approval_respond", { id, decision }));
   if (ok !== undefined) setState((s) => ({ approvals: s.approvals.filter((a) => a.id !== id) }));
-  if (decision === "always_allow" || decision === "block") void refreshTree();
+  if (decision.startsWith("always_allow") || decision === "block") void refreshTree();
 }
 
 export async function respondWorkspaceDelete(id: string, approve: boolean) {
