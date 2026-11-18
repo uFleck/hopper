@@ -1,15 +1,15 @@
 /* Collection page (setup card, tabs, variables grid, add form, auth tab) and the Environments review list. */
 
-.cv-muted { color: var(--text-tertiary); font-size: 12.5px; }
-.cv-bad { color: var(--err); font-size: 12px; }
-.cv-good { color: var(--ok); font-size: 12px; }
+.cv-muted { color: var(--text-tertiary); font-size: 13.5px; }
+.cv-bad { color: var(--err); font-size: 13px; }
+.cv-good { color: var(--ok); font-size: 13px; }
 .cv-good .ph { margin-right: 2px; }
 .cv-spacer { flex: 1; }
-.cv-lbl { display: block; margin-bottom: 4px; color: var(--text-tertiary); font-size: 12px; }
-.cv-note { display: flex; gap: 6px; margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--bg-elevated); color: var(--text-secondary); font-size: 12.5px; }
+.cv-lbl { display: block; margin-bottom: 4px; color: var(--text-tertiary); font-size: 13px; }
+.cv-note { display: flex; gap: 6px; margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--bg-elevated); color: var(--text-secondary); font-size: 13.5px; }
 .cv-note > .ph { flex: none; margin-top: 2px; }
 .cv-actions { display: flex; justify-content: flex-end; gap: 6px; }
-.cv-link { padding: 0; border: 0; background: none; color: var(--accent-text); font: inherit; font-size: 12.5px; text-decoration: underline; cursor: pointer; }
+.cv-link { padding: 0; border: 0; background: none; color: var(--accent-text); font: inherit; font-size: 13.5px; text-decoration: underline; cursor: pointer; }
 
 .cv { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .cv-bar { display: flex; align-items: flex-start; gap: 8px; }
@@ -20,20 +20,20 @@
 .cv-card { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: var(--bg-elevated); }
 .cv-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .cv-empty p { margin: 0; color: var(--text-secondary); }
-.cv-preview { padding: 7px 10px; border-radius: 8px; background: var(--bg-elevated); color: var(--text-secondary); font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+.cv-preview { padding: 7px 10px; border-radius: 8px; background: var(--bg-elevated); color: var(--text-secondary); font: 13.5px var(--font-mono); overflow-wrap: anywhere; }
 .cv-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-top: 4px; }
 
 /* the grid of variables */
 .cv-grid { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .cv-cols, .cv-cells { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
-.cv-cols span { padding: 0 2px; color: var(--text-tertiary); font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; }
+.cv-cols span { padding: 0 2px; color: var(--text-tertiary); font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; }
 .cv-cols .is-active, .cv-envrow .is-active { color: var(--accent-text); }
 .cv-var { padding: 8px; border: 1px solid var(--border-default); border-radius: 12px; background: var(--bg-surface); }
 .cv-vart { display: flex; align-items: center; gap: 6px; min-height: 28px; margin-bottom: 4px; }
 .cv-vart code { font: 600 13px var(--font-mono); overflow-wrap: anywhere; }
-.cv-tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 9px; background: var(--bg-elevated); color: var(--text-secondary); font-size: 11px; }
+.cv-tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 9px; background: var(--bg-elevated); color: var(--text-secondary); font-size: 12px; }
 .cv-tag.is-secret { color: var(--warn); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 40%, transparent); }
-.cv-cell { min-width: 0; height: 28px; padding: 0 6px; overflow: hidden; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-page); color: var(--text-primary); font: 11.5px var(--font-mono); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.cv-cell { min-width: 0; height: 28px; padding: 0 6px; overflow: hidden; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-page); color: var(--text-primary); font: 12.5px var(--font-mono); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 button.cv-cell:hover:not(:disabled) { border-color: var(--border-strong); background: var(--hover-tint); }
 .cv-cell:disabled { opacity: 0.5; cursor: default; }
 .cv-cell.is-own { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
@@ -61,14 +61,14 @@ button.cv-cell.is-none { cursor: pointer; }
 .cv-seg button.is-on { background: var(--accent-soft); color: var(--text-primary); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
 .cv-envs { display: flex; flex-direction: column; gap: 5px; }
 .cv-envrow { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
-.cv-envrow > span:first-child { color: var(--text-secondary); font-size: 12.5px; }
+.cv-envrow > span:first-child { color: var(--text-secondary); font-size: 13.5px; }
 .cv-envs .cv-envrow { grid-template-columns: 44px minmax(0, 1fr); }
 
 /* auth tab */
 .cv-statuses { display: flex; flex-direction: column; gap: 4px; }
 .cv-statuses code { font: 600 13px var(--font-mono); }
-.cv-statusrow .cv-ok { color: var(--ok); font-size: 12.5px; }
-.cv-statusrow .cv-gap { color: var(--warn); font-size: 12.5px; }
+.cv-statusrow .cv-ok { color: var(--ok); font-size: 13.5px; }
+.cv-statusrow .cv-gap { color: var(--warn); font-size: 13.5px; }
 .cv-warn { display: flex; gap: 8px; padding: 10px; border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--warn) 9%, transparent); font-size: 13px; }
 .cv-warn > .ph { flex: none; margin-top: 2px; color: var(--warn); }
 .cv-warn > div { flex: 1; min-width: 0; }
@@ -93,7 +93,7 @@ button.cv-cell.is-none { cursor: pointer; }
 .cs-list { margin: 0; padding: 0; list-style: none; }
 .cs-item { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border-default); }
 .cs-item:first-child { border-top: 0; }
-.cs-dot { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 700; }
+.cs-dot { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 11px; font-weight: 700; }
 .cs-item.is-ready .cs-dot { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
 .cs-item.is-todo .cs-dot { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
 .cs-item.is-optional .cs-dot { box-shadow: inset 0 0 0 1.5px var(--border-strong); }
@@ -103,7 +103,7 @@ button.cv-cell.is-none { cursor: pointer; }
 .cs-tabs button { display: inline-flex; align-items: center; gap: 5px; padding: 8px 9px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px; cursor: pointer; }
 .cs-tabs button:hover { color: var(--text-primary); }
 .cs-tabs button.is-on { border-bottom-color: var(--accent); color: var(--text-primary); }
-.cs-tabs i { color: var(--text-tertiary); font-size: 11px; font-style: normal; }
+.cs-tabs i { color: var(--text-tertiary); font-size: 12px; font-style: normal; }
 .cs-tabs i.is-warn { color: var(--warn); font-weight: 700; }
 
 /* environments: overview and review list */
@@ -121,7 +121,7 @@ button.cv-cell.is-none { cursor: pointer; }
 .ev-grouphead b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ev-items { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 12px; border-top: 1px solid var(--border-default); }
 .ev-item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: center; gap: 8px; }
-.ev-item code { font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+.ev-item code { font: 13.5px var(--font-mono); overflow-wrap: anywhere; }
 
 /* request view: a secret the request needs has no value yet */
 .mb { display: flex; gap: 8px; margin: 0 0 10px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--warn) 9%, transparent); font-size: 13px; }

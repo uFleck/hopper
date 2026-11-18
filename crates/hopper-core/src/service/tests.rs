@@ -2698,8 +2698,8 @@ async fn user_local_overrides_stay_local_and_out_of_agent_views() {
 async fn settings_round_trip_and_validate() {
     let h = H::new().await;
     let mut s = h.svc.settings_get().await.unwrap();
-    assert_eq!(s.width_preset, 640);
-    s.width_preset = 860;
+    assert_eq!(s.width_preset, 860);
+    s.width_preset = 640;
     s.theme = crate::userdata::Theme::Light;
     s.start_with_windows = Some(true);
     assert_eq!(h.svc.settings_set(s.clone()).await.unwrap(), s);

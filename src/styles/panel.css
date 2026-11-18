@@ -1,4 +1,4 @@
-/* The companion panel: one vertical column, 640 px wide by default (the widthPreset setting), 16 px in from the screen edge it is docked to. */
+/* The companion panel: one vertical column, 860 px wide by default (the widthPreset setting), 16 px in from the screen edge it is docked to. */
 
 html,
 body,
@@ -28,7 +28,7 @@ input {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   box-sizing: border-box;
   height: 100vh;
   padding: var(--pad);
@@ -118,7 +118,7 @@ html[data-side="left"] .panel.is-leaving { --origin: left; }
 .recent-title {
   margin: 0 0 6px;
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -168,7 +168,7 @@ html[data-side="left"] .panel.is-leaving { --origin: left; }
 
 .mascot { position: relative; display: inline-grid; flex: none; place-items: center; }
 .mascot-z, .mascot-bang { position: absolute; font-style: normal; pointer-events: none; opacity: 0; font-family: var(--font-pixel); }
-.mascot-z { top: -4px; right: -2px; color: var(--text-tertiary); font-size: 12px; font-weight: 600; }
+.mascot-z { top: -4px; right: -2px; color: var(--text-tertiary); font-size: 13px; font-weight: 600; }
 .mascot-bang { top: -7px; right: -3px; color: var(--s4); font-size: 16px; font-weight: 600; }
 .mascot-item { position: absolute; top: -6px; left: 50%; margin-left: -8px; opacity: 0; pointer-events: none; }
 

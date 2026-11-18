@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel size</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1c2030; --muted: #69708a; --line: #dde1ea; --pick: #4d6bff; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #eef0f6; --muted: #8e95aa; --line: #2a3042; --pick: #7d98ff; } }
+  body { margin: 24px; color: var(--fg); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  h2 { margin: 32px 0 4px; font-size: 17px; }
+  p { margin: 0 0 12px; color: var(--muted); max-width: 70ch; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+  .opt { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+  .opt.is-pick { box-shadow: inset 3px 0 0 var(--pick); }
+  .opt b { display: block; margin-bottom: 4px; }
+  .opt ul { margin: 0; padding-left: 18px; color: var(--muted); }
+  .row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px; }
+  figure { margin: 0; }
+  figcaption { margin-bottom: 6px; color: var(--muted); font-size: 13px; }
+  img { display: block; max-width: 100%; border: 1px solid var(--line); border-radius: 12px; }
+</style>
+</head>
+<body>
+<h1>Panel size</h1>
+<p>The panel is as tall as the screen, so it gains room in width. Three options, shown with the mock backend at 900 px high.</p>
+
+<div class="opts">
+  <div class="opt"><b>A · Today</b><ul><li>640 px wide</li><li>16 px padding, 36 px controls</li><li>Secondary text at 11–12.5 px</li></ul></div>
+  <div class="opt"><b>B · Wider only</b><ul><li>860 px wide (the existing Wide preset)</li><li>Spacing and type unchanged</li><li>Rows stay tight, small text stays small</li></ul></div>
+  <div class="opt is-pick"><b>C · Wider and comfortable (built)</b><ul><li>860 px wide</li><li>20 px padding, 38 px controls, taller rows</li><li>Text under 13 px gains 1 px</li></ul></div>
+</div>
+
+<h2>Request editor</h2>
+<div class="row">
+  <figure><figcaption>A · Today</figcaption><img src="panel-size/before-dark-request.png" width="320" alt="Request editor at 640 px"></figure>
+  <figure><figcaption>B · Wider only</figcaption><img src="panel-size/wide-dark-request.png" width="430" alt="Request editor at 860 px, same density"></figure>
+  <figure><figcaption>C · Wider and comfortable</figcaption><img src="panel-size/after-dark-request.png" width="430" alt="Request editor at 860 px, comfortable"></figure>
+</div>
+
+<h2>History</h2>
+<div class="row">
+  <figure><figcaption>A · Today</figcaption><img src="panel-size/before-dark-history.png" width="320" alt="History at 640 px"></figure>
+  <figure><figcaption>B · Wider only</figcaption><img src="panel-size/wide-dark-history.png" width="430" alt="History at 860 px, same density"></figure>
+  <figure><figcaption>C · Wider and comfortable</figcaption><img src="panel-size/after-dark-history.png" width="430" alt="History at 860 px, comfortable"></figure>
+</div>
+
+<h2>Option C in light, and the sheets</h2>
+<div class="row">
+  <figure><figcaption>Settings sheet, light</figcaption><img src="panel-size/after-light-sheet-settings.png" width="430" alt="Settings sheet, light"></figure>
+  <figure><figcaption>Agent sheet, dark</figcaption><img src="panel-size/after-dark-sheet-agent.png" width="430" alt="Agent sheet, dark"></figure>
+</div>
+</body>
+</html>

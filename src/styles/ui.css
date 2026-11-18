@@ -39,7 +39,7 @@
   border-radius: var(--r);
   background: var(--bg-elevated);
   color: var(--text-secondary);
-  font: 500 12px/1.3 var(--font-mono);
+  font: 500 13px/1.3 var(--font-mono);
   white-space: nowrap;
 }
 
@@ -96,7 +96,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--c) 15%, transparent);
   color: var(--c);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -104,7 +104,7 @@
   text-overflow: ellipsis;
 }
 
-.ui-chip--method { border-radius: 6px; min-width: 44px; justify-content: center; font: 600 11px/1 var(--font-mono); letter-spacing: 0.02em; }
+.ui-chip--method { border-radius: 6px; min-width: 44px; justify-content: center; font: 600 12px/1 var(--font-mono); letter-spacing: 0.02em; }
 .ui-chip--env { text-transform: lowercase; }
 .ui-chip--env.env-production { background: var(--err); color: #fff; }
 
@@ -190,7 +190,7 @@
 .ui-tab:hover:not(:disabled) { background: var(--hover-tint); color: var(--text-primary); }
 .ui-tab.is-on { border-bottom-color: var(--accent); color: var(--text-primary); font-weight: 600; }
 .ui-tab:disabled { opacity: 0.5; cursor: default; }
-.ui-tab-badge { padding: 0 5px; border-radius: 8px; background: var(--hover-tint); color: var(--text-tertiary); font-size: 12px; }
+.ui-tab-badge { padding: 0 5px; border-radius: 8px; background: var(--hover-tint); color: var(--text-tertiary); font-size: 13px; }
 
 /* sheet: slides over the panel */
 

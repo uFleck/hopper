@@ -137,7 +137,7 @@ fn settings_defaults() {
     assert_eq!(s, Settings::default());
     assert_eq!(s.hotkey, "ctrl+alt+h");
     assert_eq!(s.dock_side, DockSide::Right);
-    assert_eq!(s.width_preset, 640);
+    assert_eq!(s.width_preset, 860);
     assert_eq!(s.theme, Theme::Dark);
     assert!(s.always_show_tab);
     assert_eq!(s.start_with_windows, None);
@@ -155,9 +155,32 @@ fn settings_older_file_loads_with_defaults_for_missing_fields() {
     let s = ud.settings();
     assert_eq!(s.hotkey, "ctrl+shift+k");
     assert_eq!(s.theme, Theme::Light);
-    assert_eq!(s.width_preset, 640);
+    assert_eq!(s.width_preset, 860);
     assert_eq!(s.dock_side, DockSide::Right);
     assert!(s.recent_workspaces.is_empty());
+}
+
+#[test]
+fn settings_old_640_default_moves_to_the_wider_panel_once() {
+    let (_root, ud) = open();
+    let file = ud.base.join("settings.json");
+    fs::write(&file, r#"{"widthPreset":640,"theme":"light"}"#).unwrap();
+    let s = ud.settings();
+    assert_eq!(s.width_preset, 860);
+    assert!(s.width_upgraded);
+    assert_eq!(s.theme, Theme::Light);
+
+    // A width picked after the upgrade stays, 640 included.
+    ud.save_settings(&Settings {
+        width_preset: 640,
+        ..s
+    })
+    .unwrap();
+    assert_eq!(reopen(&ud).settings().width_preset, 640);
+
+    // Other saved widths were never the default and stay as they are.
+    fs::write(&file, r#"{"widthPreset":430}"#).unwrap();
+    assert_eq!(ud.settings().width_preset, 430);
 }
 
 #[test]

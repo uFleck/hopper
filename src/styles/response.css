@@ -36,7 +36,7 @@
 .rv-table { width: 100%; border-collapse: collapse; font: 13px/1.4 var(--font-mono); }
 .rv-table th, .rv-table td { padding: 4px 8px; border-bottom: 1px solid var(--border-default); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
 .rv-table tr:last-child > * { border-bottom: 0; }
-.rv-table thead th { color: var(--text-tertiary); font: 600 12px var(--font-ui); text-transform: uppercase; letter-spacing: 0.04em; }
+.rv-table thead th { color: var(--text-tertiary); font: 600 13px var(--font-ui); text-transform: uppercase; letter-spacing: 0.04em; }
 .rv-table tbody th { width: 38%; color: var(--i1); font-weight: 500; }
 
 .rv-timeline { display: flex; flex-direction: column; gap: 6px; }
@@ -56,7 +56,7 @@
 .rv-error-names { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .rv-error-names code { padding: 1px 6px; border-radius: var(--r); background: var(--hover-tint); font: 13px var(--font-mono); }
 .rv-error-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-.rv-error-code { margin: 0; color: var(--text-tertiary); font: 12px var(--font-mono); }
+.rv-error-code { margin: 0; color: var(--text-tertiary); font: 13px var(--font-mono); }
 
 /* Circuit response card: big pixel status, quiet metrics, empty state with a hint. */
 
@@ -71,11 +71,11 @@ p.rv-empty { display: flex; justify-content: center; }
 .rv-bigst b { color: var(--c); font: 600 22px/1 var(--font-pixel); letter-spacing: 0.01em; }
 .rv-bigst span { color: var(--text-secondary); font-size: 13px; font-weight: 600; }
 @keyframes rv-pop { from { transform: scale(0.5); opacity: 0; } }
-.rv-rmeta { margin: 0; color: var(--text-secondary); font: 12px var(--font-mono); }
+.rv-rmeta { margin: 0; color: var(--text-secondary); font: 13px var(--font-mono); }
 .rv-rmeta em { display: none; color: var(--text-tertiary); font-style: normal; }
 @media (min-width: 520px) { .rv-rmeta em { display: inline; } }
 .rv-hist { flex: 0 1 150px; min-width: 0; }
-.rv-hist .ui-select-btn { height: 26px; padding: 0 6px 0 8px; font-size: 12px; }
+.rv-hist .ui-select-btn { height: 26px; padding: 0 6px 0 8px; font-size: 13px; }
 
 .rv-flight { background: var(--bg-surface); }
 .rv-error { border-radius: 12px; }

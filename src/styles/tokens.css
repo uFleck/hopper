@@ -12,10 +12,9 @@
   --r: 8px;
   --r-lg: 14px;
   --r-xl: 20px;
-  --pad: 16px;
-  --ctl: 36px;
+  --pad: 20px;
+  --ctl: 38px;
 }
-
 :root {
   color-scheme: dark;
   --bg-page: #0f1219;
