@@ -1,32 +1,33 @@
-import type { AgentAccess } from "../../ipc";
+import type { AgentAccess, GrantScope } from "../../ipc";
+import { AGENT_MODES, AGENT_MODE_ORDER, agentMode } from "../../agentModes";
 import { Icon, cx } from "../../ui";
 import { setAgentAccess } from "../../store";
 import { Menu, type MenuItem } from "./Menu";
 
-const META: Record<AgentAccess, { label: string; icon: string; tone: string; hint: string }> = {
-  ask: { label: "Ask", icon: "hand-palm", tone: "tone-neutral", hint: "The agent asks you before each send" },
-  auto: { label: "Auto", icon: "lightning", tone: "tone-ok", hint: "The agent can send without asking, where the environment allows" },
-  blocked: { label: "Blocked", icon: "prohibit", tone: "tone-err", hint: "The agent cannot send this request" },
-};
-
 export interface AgentChipProps {
   requestId: string | null;
   access: AgentAccess;
+  scope?: GrantScope;
   suspended: boolean;
   disabled?: boolean;
 }
 
 /** The agent access chip: current grant, and a menu to change it. A suspended grant asks for a review. */
-export function AgentChip({ requestId, access, suspended, disabled }: AgentChipProps) {
-  const m = META[access];
+export function AgentChip({ requestId, access, scope, suspended, disabled }: AgentChipProps) {
+  const current = agentMode(access, scope);
+  const m = AGENT_MODES[current];
   const locked = disabled || !requestId;
-  const items: MenuItem[] = (Object.keys(META) as AgentAccess[]).map((a) => ({
-    label: suspended && a === "auto" ? "Re-allow (Auto)" : META[a].label,
-    hint: META[a].hint,
-    icon: META[a].icon,
-    checked: !suspended && a === access,
-    onSelect: () => requestId && void setAgentAccess([requestId], a),
-  }));
+  const items: MenuItem[] = AGENT_MODE_ORDER.map((mode) => {
+    const it = AGENT_MODES[mode];
+    return {
+      label: suspended && mode === "auto" ? "Re-allow (Auto)" : it.label,
+      hint: it.warning ?? it.hint,
+      icon: it.icon,
+      tone: it.warning ? "warn" : undefined,
+      checked: !suspended && mode === current,
+      onSelect: () => requestId && void setAgentAccess([requestId], it.access, it.scope),
+    };
+  });
   return (
     <Menu
       ariaLabel={suspended ? "Agent access: changed by the agent, review and re-allow" : `Agent access: ${m.label}`}
@@ -37,7 +38,7 @@ export function AgentChip({ requestId, access, suspended, disabled }: AgentChipP
       trigger={
         <>
           <Icon name={suspended ? "warning" : m.icon} />
-          <span>{suspended ? "Review" : m.label}</span>
+          <span>{suspended ? "Review" : m.short}</span>
           <Icon name="caret-down" className="rv-agent-caret" />
         </>
       }

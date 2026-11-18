@@ -51,7 +51,7 @@ export function RequestHeader({ draft, env, info, variables, run, needArm, armed
       <div className="rv-row rv-title">
         <IconButton icon="caret-left" label="Back" size="sm" onClick={onBack} />
         <input className="rv-name" aria-label="Request name" value={doc.name} readOnly={readOnly} placeholder="Request name" spellCheck={false} onChange={(e) => editDraft({ name: e.target.value })} />
-        <AgentChip requestId={saved ? doc.id : null} access={draft.base.agentAccess} suspended={draft.base.grantSuspended} />
+        <AgentChip requestId={saved ? doc.id : null} access={draft.base.agentAccess} scope={draft.base.grantScope} suspended={draft.base.grantSuspended} />
         <IconButton icon="star" label={pinned ? "Unpin from home" : "Pin to home"} size="sm" active={pinned} className={cx("rv-pin", pinned && "is-pinned")} disabled={!saved} onClick={() => togglePin(doc.id)} />
         {draft.dirty && saved && !readOnly && (
           <Button size="sm" variant="ghost" icon="arrow-counter-clockwise" disabled={draft.saving} onClick={undoAll} data-tip="Discard all changes and go back to the saved version">Undo all</Button>

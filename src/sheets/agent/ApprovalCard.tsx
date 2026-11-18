@@ -18,7 +18,7 @@ export function useArmed(ms: number, key: string): boolean {
 const DECISIONS: { decision: ApprovalDecision; label: string; hint: string; variant: "secondary" | "primary" | "danger" | "ghost" }[] = [
   { decision: "allow_once", label: "Allow once", hint: "Run this one send", variant: "secondary" },
   { decision: "allow_session", label: "Allow for this session", hint: "Until Hopper restarts", variant: "secondary" },
-  { decision: "always_allow", label: "Always allow this request", hint: "Sets the request to Auto", variant: "secondary" },
+  { decision: "always_allow", label: "Always allow this request", hint: "Sets the request to Auto for exactly this content; widen it in the Grants tab", variant: "secondary" },
   { decision: "block", label: "Block this request", hint: "Sets the request to Blocked", variant: "secondary" },
   { decision: "deny", label: "Deny", hint: "Refuse this send only", variant: "danger" },
 ];

@@ -33,7 +33,7 @@ import {
 } from "./reducers";
 import { scopeTargets, targetKey, withVariable } from "./scopes";
 import { initialSearch, initialState, store, type CollectionTab, type Toast, type ToastKind } from "./state";
-import type { Auth, CollectionAuthDto, NameValue, Stage, VarTargetDto, VariablesDto } from "../ipc/types";
+import type { AgentAccess, Auth, CollectionAuthDto, GrantScope, NameValue, Stage, VarTargetDto, VariablesDto } from "../ipc/types";
 import { confirm } from "../ui/overlays";
 
 const { getState, setState } = store;
@@ -322,13 +322,13 @@ export async function moveRequest(id: string, collection: string, folder: string
   if (dto) await refreshTree();
 }
 
-export async function setAgentAccess(requestIds: string[], access: "ask" | "auto" | "blocked") {
-  await guarded(() => invoke("agent_access_set", { requestIds, access }));
+export async function setAgentAccess(requestIds: string[], access: AgentAccess, scope: GrantScope = "exact") {
+  await guarded(() => invoke("agent_access_set", { requestIds, access, scope }));
   await refreshTree();
   const open = getState().draft?.doc.id;
   if (open && requestIds.includes(open) && !getState().draft?.dirty) await reloadDraft();
   else if (open && requestIds.includes(open)) {
-    updateDraft((d) => ({ ...d, base: { ...d.base, agentAccess: access, grantSuspended: false } }));
+    updateDraft((d) => ({ ...d, base: { ...d.base, agentAccess: access, grantScope: access === "auto" ? scope : "exact", grantSuspended: false } }));
   }
 }
 

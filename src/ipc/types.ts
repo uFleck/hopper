@@ -5,6 +5,8 @@
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 export type AgentAccess = "ask" | "auto" | "blocked";
+/** How much of a request an Auto grant is bound to: every edit (`exact`), everything but path-param and query values (`params`), or nothing (`any`). */
+export type GrantScope = "exact" | "params" | "any";
 /** The four fixed stages. Serialized lowercase by the Rust `Stage` enum. */
 export type Stage = "local" | "dev" | "rc" | "production";
 
@@ -77,6 +79,8 @@ export interface RequestDto {
   /** Folder slugs from the collection root. */
   folder: string[];
   agentAccess: AgentAccess;
+  /** Absent reads as `exact`. */
+  grantScope?: GrantScope;
   /** The grant was suspended because the agent edited the request: show "Changed by the agent, review and re-allow". */
   grantSuspended: boolean;
   /** The file is from a newer Hopper: show it, never save it. */
@@ -479,6 +483,8 @@ export interface GrantDto {
   requestId: string;
   requestName: string;
   access: AgentAccess;
+  /** Absent reads as `exact`. */
+  scope?: GrantScope;
   suspended: boolean;
 }
 
@@ -595,7 +601,7 @@ export interface CommandMap {
   cookies_clear: { args: undefined; result: void };
 
   // agent
-  agent_access_set: { args: { requestIds: string[]; access: AgentAccess }; result: void };
+  agent_access_set: { args: { requestIds: string[]; access: AgentAccess; scope?: GrantScope }; result: void };
   agent_grants_list: { args: undefined; result: GrantDto[] };
   agent_env_rules_set: {
     args: { env: string; deny: boolean; safeReads: boolean; patterns: PatternRule[] };

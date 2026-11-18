@@ -437,11 +437,12 @@ const handlers: Handlers = {
     s.cookies = [];
   },
 
-  agent_access_set: ({ requestIds, access }) => {
+  agent_access_set: ({ requestIds, access, scope }) => {
     for (const id of requestIds) {
       const r = s.requests.get(id);
       if (!r) continue;
       r.agentAccess = access;
+      r.grantScope = access === "auto" ? (scope ?? "exact") : "exact";
       r.grantSuspended = false;
     }
     bus.emit("workspace://changed");
@@ -449,7 +450,7 @@ const handlers: Handlers = {
   agent_grants_list: () =>
     [...s.requests.values()]
       .filter((r) => r.agentAccess !== "ask" || r.grantSuspended)
-      .map((r) => ({ requestId: r.doc.id, requestName: r.doc.name, access: r.agentAccess, suspended: r.grantSuspended })),
+      .map((r) => ({ requestId: r.doc.id, requestName: r.doc.name, access: r.agentAccess, scope: r.grantScope ?? "exact", suspended: r.grantSuspended })),
   agent_env_rules_set: ({ env, deny, safeReads, patterns }) => {
     const e = s.envs.find((x) => x.stage === env);
     if (!e) throw err("not_found", `No stage ${env}.`);

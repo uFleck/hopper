@@ -104,6 +104,8 @@
 .ag-grants .ag-list { width: 100%; }
 .ag-grant { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ag-grant-name { flex: 1; min-width: 120px; overflow-wrap: anywhere; }
+.ag-grant-mode { width: auto; max-width: 100%; }
+.ag-grant-warning { flex-basis: 100%; margin: 0; color: var(--text-secondary); font-size: 13px; }
 .ag-check { display: inline-flex; align-items: center; gap: 6px; }
 .ag-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ag-url, .ag-status code { font: 13px var(--font-mono); overflow-wrap: anywhere; }
