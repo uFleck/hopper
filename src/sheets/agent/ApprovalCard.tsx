@@ -23,6 +23,12 @@ const DECISIONS: { decision: ApprovalDecision; label: string; hint: string; vari
   { decision: "deny", label: "Deny", hint: "Refuse this send only", variant: "danger" },
 ];
 
+/** Opt-in modes that keep running after the agent edits the request. Saved requests only. */
+const SCOPED: { decision: ApprovalDecision; label: string; hint: string }[] = [
+  { decision: "always_allow_params", label: "Always allow, parameters may change", hint: "Sets the request to Auto: path and query values may change" },
+  { decision: "always_allow_any", label: "Always allow, any edit", hint: "Sets the request to Auto: the agent may rewrite it, to the same host" },
+];
+
 /** The arm timer as eight segments that light up in turn over `armAfterMs`. */
 const DUST = [0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -76,6 +82,17 @@ export function ApprovalCard({ approval, position }: { approval: ApprovalRequest
           <Button key={d.decision} className={`ap-${d.decision}`} variant={d.variant} disabled={!armed || busy} data-tip={d.hint} onClick={() => void decide(d.decision)}>{d.label}</Button>
         ))}
       </div>
+      {approval.requestId && (
+        <details className="ap-more">
+          <summary>More ways to always allow</summary>
+          <p className="ap-risk"><Icon name="warning" /> Text an agent reads, such as a web page, a file or an API response, can steer it. These keep running without asking after the agent changes the request, so use them only for requests you trust.</p>
+          <div className="ap-more-actions">
+            {SCOPED.map((d) => (
+              <Button key={d.decision} className={`ap-${d.decision}`} variant="secondary" disabled={!armed || busy} data-tip={d.hint} onClick={() => void decide(d.decision)}>{d.label}</Button>
+            ))}
+          </div>
+        </details>
+      )}
     </article>
   );
 }

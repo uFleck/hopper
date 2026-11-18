@@ -41,6 +41,13 @@
 .ap-actions .ui-btn { white-space: normal; height: auto; min-height: var(--ctl); padding: 10px; border-radius: 12px; font-weight: 650; }
 .ap-actions .ui-btn:not(:disabled):hover { transform: translateY(-1px); }
 .ap-actions .ui-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.ap-more { color: var(--text-secondary); font-size: 14px; }
+.ap-more summary { cursor: pointer; width: fit-content; }
+.ap-risk { display: flex; gap: 6px; margin: 8px 0; color: var(--warn); }
+.ap-risk .icon, .ap-risk svg { flex: none; margin-top: 2px; }
+.ap-more-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ap-more-actions .ui-btn { white-space: normal; height: auto; min-height: var(--ctl); padding: 10px; border-radius: 12px; }
+.ap-more-actions .ui-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .ap-actions .ap-allow_once { grid-column: 1; grid-row: 1; background: var(--text-primary); color: var(--bg-surface); }
 .ap-actions .ap-always_allow { grid-column: 2; grid-row: 1; background: var(--bg-elevated); color: var(--text-primary); }
 .ap-actions .ap-allow_session { grid-column: 1; grid-row: 2; background: var(--bg-elevated); color: var(--text-primary); }
