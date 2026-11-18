@@ -79,14 +79,23 @@ const variableHighlighter = ViewPlugin.fromClass(
   { decorations: (v) => v.decorations },
 );
 
-/** The `{{name}}` token around `pos` and where it starts, or null. */
-function variableAround(view: EditorView, pos: number): { name: string; from: number; to: number } | null {
-  const line = view.state.doc.lineAt(pos);
-  for (const m of line.text.matchAll(VAR_RE)) {
-    const from = line.from + (m.index ?? 0);
-    if (pos >= from && pos <= from + m[0].length) return m[1] ? { name: m[1], from, to: from + m[0].length } : null;
+/** The `{{name}}` token covering character `index` of one line, or null. A token's end is outside it, so of two adjacent tokens the second wins there. */
+export function variableTokenIn(text: string, index: number): { name: string; from: number; to: number } | null {
+  for (const m of text.matchAll(VAR_RE)) {
+    const from = m.index ?? 0;
+    if (index >= from && index < from + m[0].length) return m[1] ? { name: m[1], from, to: from + m[0].length } : null;
   }
   return null;
+}
+
+/** The token under the pointer: only over its highlighted text, not the blank past a line's end or under the last line. */
+function variableUnder(view: EditorView, target: EventTarget | null): { name: string; from: number; to: number } | null {
+  const mark = target instanceof Element ? target.closest(".cm-var") : null;
+  if (!mark || !view.contentDOM.contains(mark)) return null;
+  const pos = view.posAtDOM(mark, 0);
+  const line = view.state.doc.lineAt(pos);
+  const hit = variableTokenIn(line.text, pos - line.from);
+  return hit && { ...hit, from: line.from + hit.from, to: line.from + hit.to };
 }
 
 /** The hovered token, with the viewport coordinates of its bottom-left corner. */
@@ -195,8 +204,7 @@ export function Editor({
             mousemove(e, v) {
               const { renderVariableTip: render, hover: h } = cb.current;
               if (!render) return;
-              const pos = v.posAtCoords({ x: e.clientX, y: e.clientY });
-              const hit = pos === null ? null : variableAround(v, pos);
+              const hit = variableUnder(v, e.target);
               const coords = hit && v.coordsAtPos(hit.from);
               if (!hit || !coords) {
                 h.closeSoon();
@@ -208,12 +216,12 @@ export function Editor({
             click(e, v) {
               // Clicking a token that nothing defines pins its card, so it can be fixed without aiming a hover.
               const { renderVariableTip: render, hover: h } = cb.current;
-              const pos = render ? v.posAtCoords({ x: e.clientX, y: e.clientY }) : null;
-              const hit = pos === null ? null : variableAround(v, pos);
+              const hit = render ? variableUnder(v, e.target) : null;
               const coords = hit && v.coordsAtPos(hit.from);
               if (hit && coords && v.state.facet(knownFacet) && !v.state.facet(knownFacet)!.has(hit.name)) h.show({ ...hit, left: coords.left, top: coords.bottom, above: coords.top });
             },
-            mouseleave: () => void (cb.current.hover.value && cb.current.hover.closeSoon()),
+            // Also cancels a card still waiting to open, which would otherwise appear after the pointer left and stay.
+            mouseleave: () => cb.current.hover.closeSoon(),
             keydown: () => cb.current.hover.close(),
           }),
           keymap.of([

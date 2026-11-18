@@ -7,15 +7,32 @@ export interface CardAnchor {
   above: number;
 }
 
-/** Keeps a `position: fixed` card on screen: slides in from the right edge, flips above the anchor when there is no room below. Sets `data-side`. */
+/**
+ * Where a `w`×`h` card goes in a `vw`×`vh` viewport: below the anchor, above it when there is no room below,
+ * and when neither side has room, on the roomier side but slid fully on screen, even if it then covers the anchor.
+ */
+export function placeCard(at: CardAnchor, w: number, h: number, vw: number, vh: number, margin = 8): { left: number; top: number; side: "below" | "above" } {
+  const left = Math.max(margin, Math.min(at.left, vw - w - margin));
+  if (at.top + h <= vh - margin) return { left, top: at.top, side: "below" };
+  if (at.above - h >= margin) return { left, top: at.above - h, side: "above" };
+  return vh - at.top >= at.above ? { left, top: Math.max(margin, vh - h - margin), side: "below" } : { left, top: margin, side: "above" };
+}
+
+/** Keeps a `position: fixed` card on screen with `placeCard`, again whenever its size changes (a field in it grows a row). Sets `data-side`. */
 export function useCardPlacement(card: RefObject<HTMLElement | null>, at: CardAnchor | null) {
   useLayoutEffect(() => {
     const el = card.current;
     if (!at || !el) return;
-    const { offsetWidth: w, offsetHeight: h } = el;
-    el.style.left = `${Math.max(8, Math.min(at.left, window.innerWidth - w - 8))}px`;
-    el.style.top = at.top + h > window.innerHeight - 8 && at.above - h > 8 ? `${at.above - h}px` : `${at.top}px`;
-    el.dataset.side = el.style.top === `${at.top}px` ? "below" : "above";
+    const place = () => {
+      const p = placeCard(at, el.offsetWidth, el.offsetHeight, window.innerWidth, window.innerHeight);
+      el.style.left = `${p.left}px`;
+      el.style.top = `${p.top}px`;
+      el.dataset.side = p.side;
+    };
+    place();
+    const resized = new ResizeObserver(place);
+    resized.observe(el);
+    return () => resized.disconnect();
   }, [at, card]);
 }
 
@@ -55,6 +72,17 @@ export function useHoverCard<T>(delay = 300, openDelay = 180) {
     setValue(null);
   }, []);
   useEffect(() => () => (window.clearTimeout(timer.current), window.clearTimeout(opener.current)), []);
+  // The card is fixed where its anchor was; once the page under it scrolls or resizes it points at the wrong text, so it goes.
+  const open = value !== null;
+  useEffect(() => {
+    if (!open) return;
+    const moved = (e: Event) => {
+      if (!(e.target instanceof Node && card.current?.contains(e.target))) close();
+    };
+    window.addEventListener("scroll", moved, true);
+    window.addEventListener("resize", moved);
+    return () => (window.removeEventListener("scroll", moved, true), window.removeEventListener("resize", moved));
+  }, [open, close]);
 
   /** Spread onto the card's element. */
   const cardProps = {

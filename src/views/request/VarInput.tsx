@@ -171,7 +171,7 @@ export function VarInput({ value, onChange, info, placeholder, ariaLabel, disabl
         disabled={disabled}
         spellCheck={false}
         onMouseMove={onMove}
-        onMouseLeave={() => hover.value && !pinned.current && hover.closeSoon()}
+        onMouseLeave={() => !pinned.current && hover.closeSoon()}
         onChange={(e) => {
           setDismissed(false);
           setActive(0);
