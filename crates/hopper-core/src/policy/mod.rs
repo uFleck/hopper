@@ -25,16 +25,66 @@ pub enum AgentAccess {
     Blocked,
 }
 
+/// How much of a request an `Auto` grant binds. Absent (grants written before
+/// scopes existed) means `Exact`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GrantScope {
+    /// Any change to the request suspends the grant.
+    #[default]
+    Exact,
+    /// Path-parameter and query values may change; the method, URL template,
+    /// parameter names, headers, body and auth stay bound.
+    Params,
+    /// The request content is not checked at all. The destination binding and
+    /// the allowed-hosts check still apply.
+    Any,
+}
+
+impl GrantScope {
+    fn is_exact(&self) -> bool {
+        *self == GrantScope::Exact
+    }
+}
+
 /// A stored per-request grant, bound to the request content it was given for.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Grant {
     pub access: AgentAccess,
+    #[serde(default, skip_serializing_if = "GrantScope::is_exact")]
+    pub scope: GrantScope,
+    /// `fingerprint_for(scope, request)` at the time the grant was given.
     pub fingerprint: String,
     /// Hash of where the request goes and what it inherits (resolved host, allowed
     /// hosts, collection/folder headers and auth, environment). Empty in files
     /// written before bindings existed: such a grant never matches, so `Auto` asks.
     #[serde(default)]
     pub binding: String,
+}
+
+impl Grant {
+    pub fn new(access: AgentAccess, scope: GrantScope, req: &Request, binding: String) -> Self {
+        Grant {
+            access,
+            scope,
+            fingerprint: fingerprint_for(scope, req),
+            binding,
+        }
+    }
+
+    /// The request content still matches what the grant was given for.
+    pub fn content_matches(&self, req: &Request) -> bool {
+        self.scope == GrantScope::Any || self.fingerprint == fingerprint_for(self.scope, req)
+    }
+
+    pub fn binding_matches(&self, binding: &str) -> bool {
+        !self.binding.is_empty() && self.binding == binding
+    }
+
+    /// Not suspended: same content (as far as the scope binds it) and same binding.
+    pub fn covers(&self, req: &Request, binding: &str) -> bool {
+        self.content_matches(req) && self.binding_matches(binding)
+    }
 }
 
 /// `*` matches any run of characters, everything else is literal.
@@ -67,14 +117,15 @@ pub struct SendContext<'a> {
     pub allowed_hosts: &'a [String],
     pub uses_secrets: bool,
     /// `Some` for a saved request: its stored grant, if any, and its current
-    /// fingerprint. `None` for an inline request the agent built on the fly.
+    /// content and binding. `None` for an inline request the agent built on the fly.
     pub saved: Option<SavedRequest<'a>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SavedRequest<'a> {
     pub grant: Option<&'a Grant>,
-    pub fingerprint: &'a str,
+    pub request: &'a Request,
+    pub binding: &'a str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -140,10 +191,11 @@ pub fn decide(caller: &Caller, ctx: &SendContext) -> Decision {
             Some(g) if g.access == AgentAccess::Blocked => {
                 Decision::Deny(DenyReason::RequestBlocked)
             }
-            // A grant for different content is suspended until re-confirmed.
+            // A grant for different content or a different destination is
+            // suspended until re-confirmed.
             Some(g)
                 if g.access == AgentAccess::Auto
-                    && g.fingerprint == saved.fingerprint
+                    && g.covers(saved.request, saved.binding)
                     && host_allowed(ctx.host, ctx.allowed_hosts) =>
             {
                 Decision::Allow(AllowedBy::RequestGrant)
@@ -240,7 +292,7 @@ fn glob(pattern: &str, text: &str) -> bool {
 /// Hash of everything an agent could change to alter what a request does:
 /// method, URL template, path params, query, headers, body, auth.
 pub fn fingerprint(req: &Request) -> String {
-    let material = serde_json::json!([
+    hash(&serde_json::json!([
         req.method,
         req.url,
         req.path_params,
@@ -248,7 +300,33 @@ pub fn fingerprint(req: &Request) -> String {
         req.headers,
         req.body,
         req.auth
-    ]);
+    ]))
+}
+
+/// The fingerprint a grant of `scope` compares. `Params` keeps parameter names
+/// (and whether a query parameter is enabled) but not their values.
+pub fn fingerprint_for(scope: GrantScope, req: &Request) -> String {
+    match scope {
+        GrantScope::Exact | GrantScope::Any => fingerprint(req),
+        GrantScope::Params => {
+            let path_params: Vec<&String> = req.path_params.keys().collect();
+            let query: Vec<(&String, bool)> =
+                req.query.iter().map(|q| (&q.name, q.enabled)).collect();
+            hash(&serde_json::json!([
+                "params",
+                req.method,
+                req.url,
+                path_params,
+                query,
+                req.headers,
+                req.body,
+                req.auth
+            ]))
+        }
+    }
+}
+
+fn hash(material: &serde_json::Value) -> String {
     let digest = Sha256::digest(material.to_string().as_bytes());
     let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
     format!("sha256:{hex}")

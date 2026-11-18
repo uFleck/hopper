@@ -259,7 +259,7 @@ const handlers: Handlers = {
     }
     const next: RequestDto = existing
       ? { ...existing, doc: clone(doc), collection, folder }
-      : { doc: { ...clone(doc), id: doc.id || nextId("01HX") }, revision: null, collection, folder, agentAccess: "ask", grantSuspended: false, readOnly: false };
+      : { doc: { ...clone(doc), id: doc.id || nextId("01HX") }, revision: null, collection, folder, agentAccess: "ask", agentScope: "exact", grantSuspended: false, readOnly: false };
     bump(next);
     s.requests.set(next.doc.id, next);
     bus.emit("workspace://changed");
@@ -314,7 +314,7 @@ const handlers: Handlers = {
         auth: { type: "inherit" },
         source: { spec, key, hash: `h-${key}`, orphaned: false },
       },
-      revision: null, collection, folder: [], agentAccess: "ask", grantSuspended: false, readOnly: false,
+      revision: null, collection, folder: [], agentAccess: "ask", agentScope: "exact", grantSuspended: false, readOnly: false,
     };
   },
 
@@ -437,11 +437,12 @@ const handlers: Handlers = {
     s.cookies = [];
   },
 
-  agent_access_set: ({ requestIds, access }) => {
+  agent_access_set: ({ requestIds, access, scope }) => {
     for (const id of requestIds) {
       const r = s.requests.get(id);
       if (!r) continue;
       r.agentAccess = access;
+      r.agentScope = access === "auto" ? (scope ?? "exact") : "exact";
       r.grantSuspended = false;
     }
     bus.emit("workspace://changed");
@@ -449,7 +450,7 @@ const handlers: Handlers = {
   agent_grants_list: () =>
     [...s.requests.values()]
       .filter((r) => r.agentAccess !== "ask" || r.grantSuspended)
-      .map((r) => ({ requestId: r.doc.id, requestName: r.doc.name, access: r.agentAccess, suspended: r.grantSuspended })),
+      .map((r) => ({ requestId: r.doc.id, requestName: r.doc.name, access: r.agentAccess, scope: r.agentScope, suspended: r.grantSuspended })),
   agent_env_rules_set: ({ env, deny, safeReads, patterns }) => {
     const e = s.envs.find((x) => x.stage === env);
     if (!e) throw err("not_found", `No stage ${env}.`);
@@ -467,13 +468,15 @@ const handlers: Handlers = {
     const a = s.approvals.find((x) => x.id === id);
     if (!a) throw err("not_found", "That approval is no longer pending.");
     s.approvals = s.approvals.filter((x) => x.id !== id);
-    if (decision === "always_allow" && a.requestId) {
+    const scopes = { always_allow: "exact", always_allow_params: "params", always_allow_any: "any" } as const;
+    if (decision in scopes && a.requestId) {
       const r = s.requests.get(a.requestId);
-      if (r) Object.assign(r, { agentAccess: "auto", grantSuspended: false });
+      const agentScope = scopes[decision as keyof typeof scopes];
+      if (r) Object.assign(r, { agentAccess: "auto", agentScope, grantSuspended: false });
     }
     if (decision === "block" && a.requestId) {
       const r = s.requests.get(a.requestId);
-      if (r) r.agentAccess = "blocked";
+      if (r) Object.assign(r, { agentAccess: "blocked", agentScope: "exact" });
     }
     const denied = decision === "block" || decision === "deny";
     pushActivity({ client: a.client, tool: "hopper_send", target: a.requestName, outcome: denied ? "denied" : "ok", allowedBy: denied ? undefined : "approved by user" });

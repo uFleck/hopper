@@ -1,6 +1,6 @@
 use hopper_core::{
     format::Stage,
-    policy::AgentAccess,
+    policy::{AgentAccess, GrantScope},
     service::dto::{
         ActivityEntry, ApprovalDecision, ApprovalRequest, GrantDto, McpSetup, McpStatus,
         PatternRule, WorkspaceDeleteRequest,
@@ -18,8 +18,12 @@ pub async fn agent_access_set(
     state: State<'_, AppState>,
     request_ids: Vec<String>,
     access: AgentAccess,
+    scope: Option<GrantScope>,
 ) -> CmdResult<()> {
-    state.svc.agent_access_set(&request_ids, access).await
+    state
+        .svc
+        .agent_access_set(&request_ids, access, scope.unwrap_or_default())
+        .await
 }
 
 #[tauri::command]

@@ -91,6 +91,9 @@ pub enum PrepareError {
     InvalidUrl(String),
     #[error("path parameter `{0}` has no value")]
     MissingPathParam(String),
+    /// URL normalization would turn `.` or `..` into a different path.
+    #[error("path parameter `{0}` cannot be `.` or `..`")]
+    DotSegmentPathParam(String),
     #[error("header `{0}` contains a line break")]
     InvalidHeader(String),
     #[error("file `{0}` is not allowed: agents may only use files inside the workspace folder")]
@@ -179,6 +182,9 @@ pub async fn prepare(req: &Request, layers: &Layers<'_>) -> Result<Prepared, Pre
     }
     if let Some(p) = real.missing_params.into_iter().next() {
         return Err(PrepareError::MissingPathParam(p));
+    }
+    if let Some(p) = real.dot_params.into_iter().next() {
+        return Err(PrepareError::DotSegmentPathParam(p));
     }
     let mut prepared = assemble(
         req,
@@ -287,6 +293,7 @@ struct Resolver<'a> {
     wanted: Vec<String>,
     missing: Vec<String>,
     missing_params: Vec<String>,
+    dot_params: Vec<String>,
     used_secret: bool,
     redactor: Redactor,
 }
@@ -333,6 +340,7 @@ impl<'a> Resolver<'a> {
             wanted: Vec::new(),
             missing: Vec::new(),
             missing_params: Vec::new(),
+            dot_params: Vec::new(),
             used_secret: false,
             redactor: Redactor::default(),
         }
@@ -440,6 +448,9 @@ impl<'a> Resolver<'a> {
                     let name = &after[..end];
                     let value = params.get(name).map(|t| self.resolve(t));
                     match value {
+                        Some(v) if matches!(v.real().as_str(), "." | "..") => {
+                            self.dot_params.push(name.to_owned())
+                        }
                         Some(v) if !v.real().is_empty() => out.extend(&v.map(percent_encode)),
                         _ => self.missing_params.push(name.to_owned()),
                     }

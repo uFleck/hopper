@@ -21,6 +21,7 @@ const dto = (over: Partial<RequestDto> = {}): RequestDto => ({
   collection: "c",
   folder: [],
   agentAccess: "ask",
+  agentScope: "exact",
   grantSuspended: false,
   readOnly: false,
   ...over,

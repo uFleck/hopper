@@ -5,6 +5,8 @@
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 export type AgentAccess = "ask" | "auto" | "blocked";
+/** How much of a request an `auto` grant binds: `exact` any edit suspends it, `params` path-parameter and query values may change, `any` no content check. */
+export type GrantScope = "exact" | "params" | "any";
 /** The four fixed stages. Serialized lowercase by the Rust `Stage` enum. */
 export type Stage = "local" | "dev" | "rc" | "production";
 
@@ -77,6 +79,8 @@ export interface RequestDto {
   /** Folder slugs from the collection root. */
   folder: string[];
   agentAccess: AgentAccess;
+  /** Scope of the stored grant; `exact` when there is none. */
+  agentScope: GrantScope;
   /** The grant was suspended because the agent edited the request: show "Changed by the agent, review and re-allow". */
   grantSuspended: boolean;
   /** The file is from a newer Hopper: show it, never save it. */
@@ -438,7 +442,14 @@ export interface ApprovalRequest {
   armAfterMs: number;
 }
 
-export type ApprovalDecision = "allow_once" | "allow_session" | "always_allow" | "block" | "deny";
+export type ApprovalDecision =
+  | "allow_once"
+  | "allow_session"
+  | "always_allow"
+  | "always_allow_params"
+  | "always_allow_any"
+  | "block"
+  | "deny";
 
 /** An agent asks to delete a workspace. Nothing is deleted until the user approves in the panel. */
 export interface WorkspaceDeleteRequest {
@@ -479,6 +490,7 @@ export interface GrantDto {
   requestId: string;
   requestName: string;
   access: AgentAccess;
+  scope: GrantScope;
   suspended: boolean;
 }
 
@@ -595,7 +607,7 @@ export interface CommandMap {
   cookies_clear: { args: undefined; result: void };
 
   // agent
-  agent_access_set: { args: { requestIds: string[]; access: AgentAccess }; result: void };
+  agent_access_set: { args: { requestIds: string[]; access: AgentAccess; scope?: GrantScope }; result: void };
   agent_grants_list: { args: undefined; result: GrantDto[] };
   agent_env_rules_set: {
     args: { env: string; deny: boolean; safeReads: boolean; patterns: PatternRule[] };

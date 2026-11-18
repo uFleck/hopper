@@ -10,7 +10,7 @@ use serde_json::{Map, Value};
 
 use crate::{
     format::{self, Method, Stage},
-    policy::AgentAccess,
+    policy::{AgentAccess, GrantScope},
     userdata::{DockSide, Theme, Via},
 };
 
@@ -129,9 +129,10 @@ impl From<crate::prepare::PrepareError> for HopperError {
             E::SecretUnavailable { name, .. } => Self::new("secret_unavailable", e.to_string())
                 .detail("name", Value::String(name.clone())),
             E::FileNotAllowed(_) => Self::new("file_not_allowed", e.to_string()),
-            E::InvalidUrl(_) | E::MissingPathParam(_) | E::InvalidHeader(_) => {
-                Self::invalid(e.to_string())
-            }
+            E::InvalidUrl(_)
+            | E::MissingPathParam(_)
+            | E::DotSegmentPathParam(_)
+            | E::InvalidHeader(_) => Self::invalid(e.to_string()),
         }
     }
 }
@@ -377,6 +378,8 @@ pub struct RequestDto {
     pub collection: Option<String>,
     pub folder: Vec<String>,
     pub agent_access: AgentAccess,
+    /// Scope of the stored grant; `exact` when there is none.
+    pub agent_scope: GrantScope,
     pub grant_suspended: bool,
     pub read_only: bool,
 }
@@ -877,7 +880,12 @@ pub struct WorkspaceDeleteRequest {
 pub enum ApprovalDecision {
     AllowOnce,
     AllowSession,
+    /// `Auto`, exact content.
     AlwaysAllow,
+    /// `Auto`, path-parameter and query values may change.
+    AlwaysAllowParams,
+    /// `Auto`, any edit to the request.
+    AlwaysAllowAny,
     Block,
     Deny,
 }
@@ -935,6 +943,7 @@ pub struct GrantDto {
     pub request_id: String,
     pub request_name: String,
     pub access: AgentAccess,
+    pub scope: GrantScope,
     pub suspended: bool,
 }
 
@@ -1086,6 +1095,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
         collection: Some("api".into()),
         folder: vec!["users".into()],
         agent_access: AgentAccess::Auto,
+        agent_scope: GrantScope::Params,
         grant_suspended: false,
         read_only: false,
     };
@@ -1513,6 +1523,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
                 request_id: "01J0000000000000000000000A".into(),
                 request_name: "Get user".into(),
                 access: AgentAccess::Auto,
+                scope: GrantScope::Params,
                 suspended: true,
             }),
         ),

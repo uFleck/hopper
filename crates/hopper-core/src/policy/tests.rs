@@ -1,5 +1,5 @@
 use super::*;
-use crate::format::{Auth, Body, DocKind};
+use crate::format::{Auth, Body, DocKind, KeyValue};
 
 const HOST: &str = "account.staging.example.com";
 
@@ -13,12 +13,30 @@ fn hosts() -> Vec<String> {
     vec![HOST.to_owned()]
 }
 
-fn grant(access: AgentAccess, fp: &str) -> Grant {
-    Grant {
-        access,
-        fingerprint: fp.to_owned(),
-        binding: String::new(),
+const BINDING: &str = "binding-now";
+
+fn now() -> Request {
+    let mut r = request(Method::Get, "{{baseUrl}}/api/users/{id}");
+    r.path_params.insert("id".into(), "42".into());
+    r.query = vec![kv("email", "a@example.com")];
+    r
+}
+
+fn kv(name: &str, value: &str) -> KeyValue {
+    KeyValue {
+        name: name.into(),
+        value: value.into(),
+        enabled: true,
     }
+}
+
+/// `fp-now` matches the case's current request; anything else is stale.
+fn grant(access: AgentAccess, fp: &str) -> Grant {
+    let mut g = Grant::new(access, GrantScope::Exact, &now(), BINDING.into());
+    if fp != "fp-now" {
+        g.fingerprint = fp.to_owned();
+    }
+    g
 }
 
 struct Case {
@@ -29,6 +47,8 @@ struct Case {
     uses_secrets: bool,
     grant: Option<Grant>,
     saved: bool,
+    request: Request,
+    binding: &'static str,
 }
 
 impl Default for Case {
@@ -41,6 +61,8 @@ impl Default for Case {
             uses_secrets: true,
             grant: None,
             saved: true,
+            request: now(),
+            binding: BINDING,
         }
     }
 }
@@ -50,7 +72,8 @@ impl Case {
         let allowed = hosts();
         let saved = self.saved.then_some(SavedRequest {
             grant: self.grant.as_ref(),
-            fingerprint: "fp-now",
+            request: &self.request,
+            binding: self.binding,
         });
         decide(
             caller,
@@ -455,4 +478,145 @@ fn local_stage_only_skips_the_prompt_for_loopback_hosts() {
             "{host}"
         );
     }
+}
+
+fn scoped(access: AgentAccess, scope: GrantScope) -> Option<Grant> {
+    Some(Grant::new(access, scope, &now(), BINDING.into()))
+}
+
+/// Value-only edits: new path-parameter and query values.
+fn value_edits() -> Vec<Request> {
+    let mut path = now();
+    path.path_params.insert("id".into(), "7".into());
+    let mut query = now();
+    query.query = vec![kv("email", "b@example.com")];
+    vec![path, query]
+}
+
+/// Edits that change what the request does beyond its parameter values.
+fn shape_edits() -> Vec<(&'static str, Request)> {
+    let mut method = now();
+    method.method = Method::Delete;
+    let mut url = now();
+    url.url = "{{baseUrl}}/api/admin/{id}".into();
+    let mut header = now();
+    header.headers = vec![kv("X-Role", "admin")];
+    let mut body = now();
+    body.body = Body::Json {
+        content: "{}".into(),
+    };
+    let mut auth = now();
+    auth.auth = Auth::Bearer {
+        token: "{{other}}".into(),
+    };
+    let mut new_param = now();
+    new_param.query.push(kv("admin", "true"));
+    let mut disabled = now();
+    disabled.query[0].enabled = false;
+    vec![
+        ("method", method),
+        ("url", url),
+        ("header", header),
+        ("body", body),
+        ("auth", auth),
+        ("new query parameter", new_param),
+        ("disabled query parameter", disabled),
+    ]
+}
+
+#[test]
+fn exact_grants_are_suspended_by_value_edits() {
+    for request in value_edits() {
+        let c = Case {
+            grant: scoped(AgentAccess::Auto, GrantScope::Exact),
+            request,
+            ..Case::default()
+        };
+        assert_eq!(c.decide(&agent()), Decision::Ask);
+    }
+}
+
+#[test]
+fn params_grants_allow_value_only_edits() {
+    for request in value_edits() {
+        let c = Case {
+            grant: scoped(AgentAccess::Auto, GrantScope::Params),
+            request,
+            ..Case::default()
+        };
+        assert_eq!(c.decide(&agent()), Decision::Allow(AllowedBy::RequestGrant));
+    }
+}
+
+#[test]
+fn params_grants_are_suspended_by_shape_edits() {
+    for (what, request) in shape_edits() {
+        let c = Case {
+            grant: scoped(AgentAccess::Auto, GrantScope::Params),
+            request,
+            ..Case::default()
+        };
+        assert_eq!(c.decide(&agent()), Decision::Ask, "{what}");
+    }
+    let rebound = Case {
+        grant: scoped(AgentAccess::Auto, GrantScope::Params),
+        binding: "binding-other",
+        ..Case::default()
+    };
+    assert_eq!(rebound.decide(&agent()), Decision::Ask);
+}
+
+#[test]
+fn any_grants_survive_any_edit_but_not_a_new_destination() {
+    let edits = value_edits()
+        .into_iter()
+        .chain(shape_edits().into_iter().map(|(_, r)| r));
+    for request in edits {
+        let c = Case {
+            grant: scoped(AgentAccess::Auto, GrantScope::Any),
+            request,
+            ..Case::default()
+        };
+        assert_eq!(c.decide(&agent()), Decision::Allow(AllowedBy::RequestGrant));
+    }
+    let rebound = Case {
+        grant: scoped(AgentAccess::Auto, GrantScope::Any),
+        binding: "binding-other",
+        ..Case::default()
+    };
+    assert_eq!(rebound.decide(&agent()), Decision::Ask);
+    let unlisted = Case {
+        grant: scoped(AgentAccess::Auto, GrantScope::Any),
+        host: "evil.example.com",
+        uses_secrets: false,
+        ..Case::default()
+    };
+    assert_eq!(unlisted.decide(&agent()), Decision::Ask);
+}
+
+#[test]
+fn blocked_wins_over_every_scope() {
+    for scope in [GrantScope::Exact, GrantScope::Params, GrantScope::Any] {
+        let g = scoped(AgentAccess::Blocked, scope).unwrap();
+        let c = Case {
+            grant: Some(g),
+            request: value_edits().remove(0),
+            rules: EnvRules {
+                safe_reads: true,
+                ..EnvRules::default()
+            },
+            ..Case::default()
+        };
+        assert_eq!(
+            c.decide(&agent()),
+            Decision::Deny(DenyReason::RequestBlocked)
+        );
+    }
+}
+
+#[test]
+fn params_fingerprint_differs_from_the_exact_one() {
+    let r = now();
+    assert_ne!(fingerprint_for(GrantScope::Params, &r), fingerprint(&r));
+    assert_eq!(fingerprint_for(GrantScope::Exact, &r), fingerprint(&r));
 }

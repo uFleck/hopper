@@ -1,5 +1,6 @@
 {
   "agentAccess": "auto",
+  "agentScope": "params",
   "collection": "api",
   "doc": {
     "auth": {
