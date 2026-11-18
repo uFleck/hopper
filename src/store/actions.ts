@@ -322,13 +322,14 @@ export async function moveRequest(id: string, collection: string, folder: string
   if (dto) await refreshTree();
 }
 
-export async function setAgentAccess(requestIds: string[], access: "ask" | "auto" | "blocked") {
-  await guarded(() => invoke("agent_access_set", { requestIds, access }));
+export async function setAgentAccess(requestIds: string[], access: "ask" | "auto" | "blocked", scope: "exact" | "params" | "any" = "exact") {
+  await guarded(() => invoke("agent_access_set", { requestIds, access, scope }));
   await refreshTree();
   const open = getState().draft?.doc.id;
   if (open && requestIds.includes(open) && !getState().draft?.dirty) await reloadDraft();
   else if (open && requestIds.includes(open)) {
-    updateDraft((d) => ({ ...d, base: { ...d.base, agentAccess: access, grantSuspended: false } }));
+    const agentScope = access === "auto" ? scope : "exact";
+    updateDraft((d) => ({ ...d, base: { ...d.base, agentAccess: access, agentScope, grantSuspended: false } }));
   }
 }
 
