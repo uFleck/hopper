@@ -90,6 +90,7 @@ fn spec_json() -> Value {
 async fn serve() -> SocketAddr {
     let router = Router::new()
         .route("/echo", any(echo))
+        .route("/echo/users/{id}", any(echo))
         .route("/openapi.json", get(|| async { axum::Json(spec_json()) }))
         .route(
             "/swagger/index.html",
@@ -603,7 +604,11 @@ async fn local_environment_is_always_allowed_for_agents() {
     let id = r.doc.id.clone();
     // Even a Blocked grant does not matter in a local environment.
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Blocked)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Blocked,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     let out = h.agent_send(&id).await.unwrap();
@@ -646,7 +651,11 @@ async fn non_local_asks_then_honors_grants_and_blocked_wins() {
 
     // Auto: no prompt, logged as a request grant.
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Auto)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     assert_eq!(h.agent_send(&id).await.unwrap()["status"], 200);
@@ -658,7 +667,11 @@ async fn non_local_asks_then_honors_grants_and_blocked_wins() {
 
     // Blocked wins.
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Blocked)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Blocked,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     let e = h.agent_send(&id).await.unwrap_err();
@@ -749,7 +762,11 @@ async fn grant_is_suspended_by_agent_edits_but_kept_by_ui_edits() {
     let dto = h.save("echo", "{{baseUrl}}/echo").await;
     let id = dto.doc.id.clone();
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Auto)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     assert_eq!(h.agent_send(&id).await.unwrap()["status"], 200);
@@ -786,7 +803,11 @@ async fn grant_is_suspended_by_agent_edits_but_kept_by_ui_edits() {
 
     // After the user re-allows, a UI edit keeps the grant.
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Auto)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     let mut doc = saved.doc.clone();
@@ -802,6 +823,150 @@ async fn grant_is_suspended_by_agent_edits_but_kept_by_ui_edits() {
     let grants = h.svc.agent_grants_list().await.unwrap();
     assert_eq!(grants.len(), 1);
     assert!(!grants[0].suspended);
+}
+
+impl H {
+    async fn agent_patch(&self, id: &str, patch: RequestPatch) {
+        let got = self.agent().get_request(id).await.unwrap();
+        self.agent()
+            .update_request(UpdateRequestArgs {
+                id: id.to_owned(),
+                expected_revision: Some(got["revision"].as_str().unwrap().into()),
+                patch,
+            })
+            .await
+            .unwrap();
+    }
+}
+
+fn values_patch(n: usize) -> RequestPatch {
+    RequestPatch {
+        path_params: Some(BTreeMap::from([("id".to_owned(), n.to_string())])),
+        query: Some(vec![KeyValue {
+            name: "email".into(),
+            value: format!("user{n}@example.test"),
+            enabled: true,
+        }]),
+        ..Default::default()
+    }
+}
+
+#[tokio::test]
+async fn params_grant_runs_value_edits_without_prompts() {
+    let h = H::new().await;
+    h.env_other(&[]).await;
+    h.activate("dev").await;
+    h.svc.set_send_rate_limit(1000);
+    // A prompt would fail the send fast instead of hanging the test.
+    h.svc.set_approval_timeout(Duration::from_millis(150));
+    let id = h.save("user", "{{baseUrl}}/echo/users/{id}").await.doc.id;
+    h.agent_patch(&id, values_patch(0)).await;
+    h.svc
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Params,
+        )
+        .await
+        .unwrap();
+
+    for n in 1..=100 {
+        h.agent_patch(&id, values_patch(n)).await;
+        let res = h.agent_send(&id).await.unwrap();
+        assert_eq!(res["status"], 200, "run {n}");
+        let uri = res["body"].as_str().unwrap();
+        assert!(
+            uri.contains(&format!("/echo/users/{n}?email=user{n}%40example.test")),
+            "run {n}: {uri}"
+        );
+    }
+    assert!(h.svc.approval_pending().await.unwrap().is_empty());
+    let dto = h.svc.request_get(&id).await.unwrap();
+    assert_eq!(
+        (dto.agent_access, dto.grant_scope, dto.grant_suspended),
+        (AgentAccess::Auto, GrantScope::Params, false)
+    );
+
+    // A header edit is not a value edit: the grant is suspended.
+    h.agent_patch(
+        &id,
+        RequestPatch {
+            headers: Some(vec![KeyValue {
+                name: "X-Admin".into(),
+                value: "1".into(),
+                enabled: true,
+            }]),
+            ..Default::default()
+        },
+    )
+    .await;
+    assert!(h.svc.request_get(&id).await.unwrap().grant_suspended);
+    assert_eq!(err_code(h.agent_send(&id).await), "not_approved");
+}
+
+#[tokio::test]
+async fn any_grant_survives_edits_and_blocked_still_wins() {
+    let h = H::new().await;
+    h.env_other(&[]).await;
+    h.activate("dev").await;
+    h.svc.set_approval_timeout(Duration::from_millis(150));
+    let id = h.save("echo", "{{baseUrl}}/echo").await.doc.id;
+    h.svc
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Any,
+        )
+        .await
+        .unwrap();
+    h.agent_patch(
+        &id,
+        RequestPatch {
+            method: Some(Method::Post),
+            body: Some(Body::Json {
+                content: "{\"role\":\"admin\"}".into(),
+            }),
+            ..Default::default()
+        },
+    )
+    .await;
+    assert_eq!(h.agent_send(&id).await.unwrap()["status"], 200);
+    let grants = h.svc.agent_grants_list().await.unwrap();
+    assert_eq!(
+        (grants[0].scope, grants[0].suspended),
+        (GrantScope::Any, false)
+    );
+
+    // Blocked ignores the scope it is asked for and stays blocked after edits.
+    h.svc
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Blocked,
+            GrantScope::Any,
+        )
+        .await
+        .unwrap();
+    h.agent_patch(
+        &id,
+        RequestPatch {
+            method: Some(Method::Put),
+            ..Default::default()
+        },
+    )
+    .await;
+    let e = h.agent_send(&id).await.unwrap_err();
+    assert_eq!(e.details.as_ref().unwrap()["reason"], "request_blocked");
+    assert_eq!(
+        h.svc.agent_grants_list().await.unwrap()[0].scope,
+        GrantScope::Exact
+    );
+
+    // Back to Ask: the grant is gone.
+    h.svc
+        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Ask, GrantScope::Any)
+        .await
+        .unwrap();
+    assert!(h.svc.agent_grants_list().await.unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -849,7 +1014,11 @@ async fn auto_grant_with_an_unlisted_host_asks() {
     h.activate("dev").await;
     let id = h.save("echo", "{{baseUrl}}/echo").await.doc.id;
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Auto)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     let (asked, res) = h.agent_send_answered(&id, ApprovalDecision::Deny).await;
@@ -918,7 +1087,11 @@ async fn unreadable_env_rules_deny_agents_but_not_the_user() {
     h.activate("dev").await;
     let id = h.save("echo", "{{baseUrl}}/echo").await.doc.id;
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Auto)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     assert_eq!(h.agent_send(&id).await.unwrap()["status"], 200);
@@ -992,7 +1165,11 @@ async fn always_allow_writes_a_grant_and_block_writes_a_block() {
     );
 
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Ask)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Ask,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     assert!(h.svc.agent_grants_list().await.unwrap().is_empty());
@@ -2770,7 +2947,11 @@ async fn editing_the_base_url_on_disk_suspends_an_auto_grant() {
     h.activate("dev").await;
     let id = h.save("echo", "{{baseUrl}}/echo").await.doc.id;
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Auto)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     assert_eq!(h.agent_send(&id).await.unwrap()["status"], 200);
@@ -2895,7 +3076,11 @@ async fn moving_a_granted_request_into_another_collection_suspends_the_grant() {
     h.activate("dev").await;
     let id = h.save("echo", "{{baseUrl}}/echo").await.doc.id;
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Auto)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     assert_eq!(h.agent_send(&id).await.unwrap()["status"], 200);
@@ -2957,7 +3142,11 @@ async fn ui_moves_and_edits_keep_a_valid_grant_by_rebinding_it() {
     h.activate("dev").await;
     let id = h.save("echo", "{{baseUrl}}/echo").await.doc.id;
     h.svc
-        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Auto)
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
         .await
         .unwrap();
     let folder = h.svc.folder_create("api", &[], "Users").await.unwrap();

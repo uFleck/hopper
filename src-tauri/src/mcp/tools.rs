@@ -132,7 +132,7 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_update_request",
-            "Patch a saved request. Pass `expectedRevision` from hopper_get_request; a stale revision is rejected. Editing suspends the user's Auto grant for that request.",
+            "Patch a saved request. Pass `expectedRevision` from hopper_get_request; a stale revision is rejected. Editing suspends the user's Auto grant for that request, unless the user widened it: \"parameters may change\" keeps it through path-param and query value edits, \"trusted\" through any edit.",
             schema(
                 json!({"id": s("Request id"), "expectedRevision": s("Revision read from hopper_get_request"),
                     "patch": {"type": "object", "properties": patch}}),

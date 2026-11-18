@@ -3,7 +3,8 @@
 //! It exposes tools and nothing else: no `UserData`, no grants, no environment
 //! rules, no secret setters. Every call logs an activity entry, every output is
 //! size-capped and built from masked or redacted data. Edits made here leave
-//! request fingerprints stale on purpose, which suspends any `Auto` grant.
+//! request fingerprints stale on purpose, which suspends an `Auto` grant unless
+//! the user widened its scope to cover that kind of edit.
 
 use std::{collections::BTreeMap, sync::Arc};
 

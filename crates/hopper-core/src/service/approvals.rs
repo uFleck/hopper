@@ -13,7 +13,7 @@ use ulid::Ulid;
 use super::{AppService, Open, blocking, canon, dto::*, events::Event, lock, now_rfc3339};
 use crate::{
     format::Stage,
-    policy::{AgentAccess, Grant},
+    policy::{AgentAccess, Grant, GrantScope},
 };
 
 const ARM_AFTER_MS: u64 = 500;
@@ -314,6 +314,7 @@ impl Open {
                 &rid,
                 Grant {
                     access,
+                    scope: GrantScope::Exact,
                     fingerprint: fp,
                     binding,
                 },

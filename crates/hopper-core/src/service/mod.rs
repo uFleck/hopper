@@ -42,7 +42,7 @@ use crate::{
     engine::Engine,
     format::{self, Loaded, Request, Stage},
     openapi::{self, SpecIndex},
-    policy::{AgentAccess, Caller, EnvRules, Grant, fingerprint},
+    policy::{AgentAccess, Caller, EnvRules, Fingerprints, Grant, GrantScope, fingerprints},
     prepare,
     search::{SavedItem, SearchIndex},
     secrets::{SecretProvider, SecretRef},
@@ -332,13 +332,13 @@ fn walk_docs<'a>(
 pub(crate) fn access_state(
     grants: &BTreeMap<String, Grant>,
     id: &str,
-    fp: &str,
+    fp: &Fingerprints,
     binding: &str,
 ) -> (AgentAccess, bool) {
     match grants.get(&canon(id)) {
         None => (AgentAccess::Ask, false),
         Some(g) => {
-            let stale = g.fingerprint != fp || g.binding.is_empty() || g.binding != binding;
+            let stale = !g.holds(fp, binding);
             match g.access {
                 AgentAccess::Ask => (AgentAccess::Ask, false),
                 AgentAccess::Auto if stale => (AgentAccess::Ask, true),
@@ -356,24 +356,17 @@ fn rebind_grant(
     data: &WorkspaceData,
     before: &BTreeMap<String, Grant>,
     id: &str,
-    old: (&str, &str),
-    new: (String, String),
+    old: (&Fingerprints, &str),
+    new: (Fingerprints, String),
 ) -> Result<(), HopperError> {
     if let Some(g) = before.get(&canon(id))
         && g.access != AgentAccess::Ask
-        && g.fingerprint == old.0
-        && !g.binding.is_empty()
-        && g.binding == old.1
-        && (new.0 != old.0 || new.1 != old.1)
+        && g.holds(old.0, old.1)
     {
-        data.set_grant(
-            &canon(id),
-            Grant {
-                access: g.access,
-                fingerprint: new.0,
-                binding: new.1,
-            },
-        )?;
+        let rebound = Grant::new(g.access, g.scope, &new.0, new.1);
+        if rebound != *g {
+            data.set_grant(&canon(id), rebound)?;
+        }
     }
     Ok(())
 }
@@ -515,7 +508,7 @@ pub(crate) fn request_dto(
     let (agent_access, grant_suspended) = access_state(
         grants,
         &r.request.doc.id,
-        &fingerprint(&r.request.doc),
+        &fingerprints(&r.request.doc),
         &binder.for_ref(r),
     );
     RequestDto {
@@ -524,6 +517,9 @@ pub(crate) fn request_dto(
         collection: Some(r.collection.slug.clone()),
         folder: r.folders.iter().map(|f| f.slug.to_owned()).collect(),
         agent_access,
+        grant_scope: grants
+            .get(&canon(&r.request.doc.id))
+            .map_or(GrantScope::Exact, |g| g.scope),
         grant_suspended,
         read_only: r.request.read_only,
     }
@@ -549,7 +545,7 @@ fn saved_items(
                 agent_access: access_state(
                     grants,
                     &doc.id,
-                    &fingerprint(doc),
+                    &fingerprints(doc),
                     bindings.get(&canon(&doc.id)).map_or("", String::as_str),
                 )
                 .0,
@@ -581,7 +577,7 @@ fn tree_nodes(
                 let (agent_access, grant_suspended) = access_state(
                     grants,
                     &doc.id,
-                    &fingerprint(doc),
+                    &fingerprints(doc),
                     bindings.get(&canon(&doc.id)).map_or("", String::as_str),
                 );
                 TreeNode::Request {
@@ -1340,7 +1336,7 @@ impl AppService {
                         .find_request(&id)
                         .ok_or_else(|| HopperError::not_found(format!("request {id}")))?;
                     (
-                        fingerprint(&r.request.doc),
+                        fingerprints(&r.request.doc),
                         seed.bind(s.snapshot()).for_ref(&r),
                         r.collection.slug.clone(),
                         r.folders
@@ -1359,7 +1355,7 @@ impl AppService {
                         .find_request(&id)
                         .ok_or_else(|| HopperError::not_found(format!("request {id}")))?;
                     (
-                        fingerprint(&r.request.doc),
+                        fingerprints(&r.request.doc),
                         seed.bind(s.snapshot()).for_ref(&r),
                     )
                 };
@@ -1440,7 +1436,7 @@ impl AppService {
                         .find_request(&id)
                         .ok_or_else(|| HopperError::not_found(format!("request {id}")))?;
                     (
-                        fingerprint(&r.request.doc),
+                        fingerprints(&r.request.doc),
                         seed.bind(s.snapshot()).for_ref(&r),
                     )
                 };
@@ -1526,6 +1522,7 @@ impl AppService {
             collection: Some(collection.to_owned()),
             folder: Vec::new(),
             agent_access: AgentAccess::Ask,
+            grant_scope: GrantScope::Exact,
             grant_suspended: false,
             read_only: false,
         })
@@ -2174,11 +2171,17 @@ impl AppService {
     // -------------------------------------------------------------- agent
 
     /// User-only. Writes (or clears, for `Ask`) a grant bound to the current content.
+    /// `scope` only widens `Auto`; a `Blocked` grant is always exact.
     pub async fn agent_access_set(
         &self,
         request_ids: &[String],
         access: AgentAccess,
+        scope: GrantScope,
     ) -> Result<(), HopperError> {
+        let scope = match access {
+            AgentAccess::Auto => scope,
+            _ => GrantScope::Exact,
+        };
         let open = self.open()?;
         let ids = request_ids.to_vec();
         let data = open.data.clone();
@@ -2190,18 +2193,11 @@ impl AppService {
                     let r = s
                         .find_request(id)
                         .ok_or_else(|| HopperError::not_found(format!("request {id}")))?;
-                    (fingerprint(&r.request.doc), binder.for_ref(&r))
+                    (fingerprints(&r.request.doc), binder.for_ref(&r))
                 };
                 match access {
                     AgentAccess::Ask => data.clear_grant(&canon(id))?,
-                    _ => data.set_grant(
-                        &canon(id),
-                        Grant {
-                            access,
-                            fingerprint: fp,
-                            binding,
-                        },
-                    )?,
+                    _ => data.set_grant(&canon(id), Grant::new(access, scope, &fp, binding))?,
                 }
             }
             Ok(())
@@ -2230,13 +2226,14 @@ impl AppService {
                         let (_, suspended) = access_state(
                             &grants,
                             &doc.id,
-                            &fingerprint(doc),
+                            &fingerprints(doc),
                             bindings.get(&canon(&doc.id)).map_or("", String::as_str),
                         );
                         out.push(GrantDto {
                             request_id: canon(&doc.id),
                             request_name: doc.name.clone(),
                             access: g.access,
+                            scope: g.scope,
                             suspended,
                         });
                     }

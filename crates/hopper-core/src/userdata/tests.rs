@@ -7,7 +7,7 @@ use ulid::Ulid;
 
 use super::*;
 use crate::format::Method;
-use crate::policy::{AgentAccess, EnvRules, Grant, PatternRule};
+use crate::policy::{AgentAccess, EnvRules, Grant, GrantScope, PatternRule};
 
 /// Returns the temp root (which holds only the app data dir) and the handle.
 fn open() -> (tempfile::TempDir, UserData) {
@@ -98,6 +98,7 @@ fn find_file(dir: &Path, name: &str) -> Option<PathBuf> {
 fn grant(access: AgentAccess) -> Grant {
     Grant {
         access,
+        scope: GrantScope::Exact,
         fingerprint: "sha256:abc".to_owned(),
         binding: String::new(),
     }

@@ -16,8 +16,16 @@ fn hosts() -> Vec<String> {
 fn grant(access: AgentAccess, fp: &str) -> Grant {
     Grant {
         access,
+        scope: GrantScope::Exact,
         fingerprint: fp.to_owned(),
         binding: String::new(),
+    }
+}
+
+fn fps() -> Fingerprints {
+    Fingerprints {
+        exact: "fp-now".into(),
+        params: "params-now".into(),
     }
 }
 
@@ -48,9 +56,11 @@ impl Default for Case {
 impl Case {
     fn decide(&self, caller: &Caller) -> Decision {
         let allowed = hosts();
+        let fp = fps();
         let saved = self.saved.then_some(SavedRequest {
             grant: self.grant.as_ref(),
-            fingerprint: "fp-now",
+            fingerprint: &fp,
+            bound: true,
         });
         decide(
             caller,
@@ -455,4 +465,150 @@ fn local_stage_only_skips_the_prompt_for_loopback_hosts() {
             "{host}"
         );
     }
+}
+
+fn decide_saved(grant: &Grant, now: &Request) -> Decision {
+    let allowed = hosts();
+    let fp = fingerprints(now);
+    decide(
+        &agent(),
+        &SendContext {
+            stage: Stage::Rc,
+            rules: &EnvRules::default(),
+            method: now.method,
+            host: HOST,
+            path: "/api/users/42",
+            allowed_hosts: &allowed,
+            uses_secrets: true,
+            saved: Some(SavedRequest {
+                grant: Some(grant),
+                fingerprint: &fp,
+                bound: true,
+            }),
+        },
+    )
+}
+
+fn user_lookup() -> Request {
+    let mut r = request(Method::Get, "{{baseUrl}}/api/users/{id}");
+    r.path_params.insert("id".into(), "42".into());
+    r.query.push(crate::format::KeyValue {
+        name: "email".into(),
+        value: "a@example.com".into(),
+        enabled: true,
+    });
+    r
+}
+
+fn granted(access: AgentAccess, scope: GrantScope, base: &Request) -> Grant {
+    Grant::new(access, scope, &fingerprints(base), "bound".into())
+}
+
+/// Edits that change what the request does, not just which record it targets.
+fn behavior_edits(base: &Request) -> Vec<(&'static str, Request)> {
+    let mut method = base.clone();
+    method.method = Method::Delete;
+    let mut header = base.clone();
+    header.headers.push(crate::format::KeyValue {
+        name: "X-Admin".into(),
+        value: "1".into(),
+        enabled: true,
+    });
+    let mut body = base.clone();
+    body.body = Body::Json {
+        content: "{}".into(),
+    };
+    let mut auth = base.clone();
+    auth.auth = Auth::None;
+    let mut url = base.clone();
+    url.url = "{{baseUrl}}/api/admin/{id}".into();
+    let mut new_param = base.clone();
+    new_param.query.push(crate::format::KeyValue {
+        name: "role".into(),
+        value: "admin".into(),
+        enabled: true,
+    });
+    vec![
+        ("method", method),
+        ("header", header),
+        ("body", body),
+        ("auth", auth),
+        ("url", url),
+        ("new query key", new_param),
+    ]
+}
+
+#[test]
+fn params_scope_allows_value_only_edits() {
+    let base = user_lookup();
+    let g = granted(AgentAccess::Auto, GrantScope::Params, &base);
+    let mut edited = base.clone();
+    edited.path_params.insert("id".into(), "7".into());
+    edited.query[0].value = "b@example.com".into();
+    assert_eq!(
+        decide_saved(&g, &edited),
+        Decision::Allow(AllowedBy::RequestGrant)
+    );
+
+    // The exact scope still asks for the same edit.
+    let exact = granted(AgentAccess::Auto, GrantScope::Exact, &base);
+    assert_eq!(decide_saved(&exact, &edited), Decision::Ask);
+}
+
+#[test]
+fn params_scope_is_suspended_by_behavior_edits() {
+    let base = user_lookup();
+    let g = granted(AgentAccess::Auto, GrantScope::Params, &base);
+    for (what, edited) in behavior_edits(&base) {
+        assert_eq!(decide_saved(&g, &edited), Decision::Ask, "{what}");
+    }
+}
+
+#[test]
+fn any_scope_survives_every_edit_but_not_a_new_binding() {
+    let base = user_lookup();
+    let g = granted(AgentAccess::Auto, GrantScope::Any, &base);
+    for (what, edited) in behavior_edits(&base) {
+        assert_eq!(
+            decide_saved(&g, &edited),
+            Decision::Allow(AllowedBy::RequestGrant),
+            "{what}"
+        );
+    }
+    assert!(!g.holds(&fingerprints(&base), "elsewhere"));
+    // Stored as the exact fingerprint, so an older Hopper reads it as exact.
+    assert_eq!(g.fingerprint, fingerprint(&base));
+}
+
+#[test]
+fn blocked_wins_over_every_scope() {
+    let base = user_lookup();
+    for scope in [GrantScope::Exact, GrantScope::Params, GrantScope::Any] {
+        let g = granted(AgentAccess::Blocked, scope, &base);
+        assert_eq!(
+            decide_saved(&g, &base),
+            Decision::Deny(DenyReason::RequestBlocked)
+        );
+        for (what, edited) in behavior_edits(&base) {
+            assert_eq!(
+                decide_saved(&g, &edited),
+                Decision::Deny(DenyReason::RequestBlocked),
+                "{scope:?} {what}"
+            );
+        }
+    }
+}
+
+#[test]
+fn grants_written_before_scopes_read_as_exact() {
+    let old: Grant =
+        serde_json::from_str(r#"{"access":"auto","fingerprint":"sha256:x","binding":"b"}"#)
+            .unwrap();
+    assert_eq!(old.scope, GrantScope::Exact);
+    let json = serde_json::to_value(granted(
+        AgentAccess::Auto,
+        GrantScope::Params,
+        &user_lookup(),
+    ));
+    assert_eq!(json.unwrap()["scope"], "params");
 }

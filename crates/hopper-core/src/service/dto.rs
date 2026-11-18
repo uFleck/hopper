@@ -10,7 +10,7 @@ use serde_json::{Map, Value};
 
 use crate::{
     format::{self, Method, Stage},
-    policy::AgentAccess,
+    policy::{AgentAccess, GrantScope},
     userdata::{DockSide, Theme, Via},
 };
 
@@ -377,6 +377,8 @@ pub struct RequestDto {
     pub collection: Option<String>,
     pub folder: Vec<String>,
     pub agent_access: AgentAccess,
+    /// Meaningful for `Auto`: how much of the request the grant is bound to.
+    pub grant_scope: GrantScope,
     pub grant_suspended: bool,
     pub read_only: bool,
 }
@@ -935,6 +937,7 @@ pub struct GrantDto {
     pub request_id: String,
     pub request_name: String,
     pub access: AgentAccess,
+    pub scope: GrantScope,
     pub suspended: bool,
 }
 
@@ -1086,6 +1089,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
         collection: Some("api".into()),
         folder: vec!["users".into()],
         agent_access: AgentAccess::Auto,
+        grant_scope: GrantScope::Params,
         grant_suspended: false,
         read_only: false,
     };
@@ -1513,6 +1517,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
                 request_id: "01J0000000000000000000000A".into(),
                 request_name: "Get user".into(),
                 access: AgentAccess::Auto,
+                scope: GrantScope::Params,
                 suspended: true,
             }),
         ),
