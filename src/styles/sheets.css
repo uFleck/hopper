@@ -1,10 +1,10 @@
 /* Environments, agent and settings sheets. Plain CSS on the tokens; fits 430 px. */
 
-.sh-section { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--border-default); min-width: 0; }
+.sh-section { display: flex; flex-direction: column; gap: 10px; padding: 18px 0; border-bottom: 1px solid var(--border-default); min-width: 0; }
 .sh-section:first-child { padding-top: 0; }
 .sh-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .sh-section-title { margin: 0; color: var(--text-secondary); font-size: 14px; font-weight: 650; }
-.sh-aside { color: var(--text-tertiary); font-size: 12px; }
+.sh-aside { color: var(--text-tertiary); font-size: 13px; }
 .sh-subtitle { margin: 8px 0 0; font-size: 14px; font-weight: 650; }
 .sh-help { margin: 0; color: var(--text-tertiary); font-size: 13px; }
 .sh-help code, .sh-note code { font: 13px var(--font-mono); color: var(--text-secondary); }
@@ -93,9 +93,9 @@
 /* agent */
 .ag-panel { display: flex; flex-direction: column; gap: 10px; padding-top: 10px; }
 .ag-feed, .ag-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.ag-item, .ag-grant { padding: 8px 0; border-bottom: 1px solid var(--border-default); }
+.ag-item, .ag-grant { padding: 12px 0; border-bottom: 1px solid var(--border-default); }
 .ag-item-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.ag-time { color: var(--text-tertiary); font: 12px var(--font-mono); }
+.ag-time { color: var(--text-tertiary); font: 13px var(--font-mono); }
 .ag-tool { font: 13px var(--font-mono); overflow-wrap: anywhere; }
 .ag-target { margin-top: 2px; overflow-wrap: anywhere; }
 .ag-sub { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--text-tertiary); font-size: 13px; }

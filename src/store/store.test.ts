@@ -32,7 +32,7 @@ describe("first load", () => {
     expect(state().tree?.collections[0].name).toBe("Account API");
     expect(state().environments.map((e) => e.stage)).toEqual(["local", "dev", "rc", "production"]);
     expect(selectActiveEnv(state())).toBe("local");
-    expect(state().settings?.widthPreset).toBe(640);
+    expect(state().settings?.widthPreset).toBe(860);
     expect(state().mcp?.running).toBe(true);
     expect(state().recent.length).toBeGreaterThan(0);
   });
@@ -42,7 +42,7 @@ describe("first load", () => {
     resetStore();
     A.initStore();
     await vi.waitFor(() => expect(state().ready).toBe(true));
-    expect(state().settings?.widthPreset).toBe(640);
+    expect(state().settings?.widthPreset).toBe(860);
     expect(state().workspace).toBeNull();
     expect(state().error).toBeNull();
   });

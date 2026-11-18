@@ -20,7 +20,7 @@
 .env-pill:hover { background: var(--press-tint); }
 .env-pill:focus-visible { outline: none; box-shadow: var(--ring); }
 .env-pill > i:first-child, .env-opt > i { flex: none; width: 7px; height: 7px; border-radius: 2px; background: var(--c); }
-.env-pill-caret { color: var(--text-tertiary); font-size: 11px; }
+.env-pill-caret { color: var(--text-tertiary); font-size: 12px; }
 .env-opt { display: inline-flex; align-items: center; gap: 8px; }
 .lever-guard { flex: none; margin: 0; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--err) 12%, transparent); color: var(--err); font-size: 13.5px; font-weight: 500; animation: lever-rise 0.4s var(--ease) both; }
 @keyframes lever-rise { from { opacity: 0; transform: translateY(-4px); } }
@@ -34,7 +34,7 @@
   border-radius: 8px;
   background: var(--warn);
   color: var(--on-accent);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 16px;
   text-align: center;

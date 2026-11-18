@@ -6,7 +6,7 @@
 .tray-item { display: grid; place-items: center; flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 7px; background: var(--bg-surface); box-shadow: inset 0 0 0 1px var(--border-default); cursor: pointer; transition: transform 0.25s var(--spring); animation: tray-fall 0.7s cubic-bezier(0.3, 0, 0.3, 1) both; }
 .tray-item:hover { transform: translateY(-3px); }
 .tray-item:focus-visible { outline: none; box-shadow: var(--ring); }
-.tray-count { flex: none; color: var(--text-secondary); font-size: 12.5px; white-space: nowrap; }
+.tray-count { flex: none; color: var(--text-secondary); font-size: 13.5px; white-space: nowrap; }
 
 @keyframes tray-fall { 0% { transform: translateY(-64px) scale(0.5); opacity: 0; } 40% { opacity: 1; } 70% { transform: translateY(2px) scale(1.1); } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tray-item { animation: none; transition: none; } }

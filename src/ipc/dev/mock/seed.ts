@@ -227,7 +227,7 @@ export function seedEnvironments(): StageDto[] {
 export const settings: Settings = {
   hotkey: "Ctrl+Alt+H",
   dockSide: "right",
-  widthPreset: 640,
+  widthPreset: 860,
   theme: "dark",
   alwaysShowTab: true,
   startWithWindows: true,

@@ -19,8 +19,8 @@ use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindo
 
 pub const LABEL: &str = "panel";
 
-/// Logical sizes per mode. The open panel's width is the `widthPreset` setting (430, 640 or 860); this is the default.
-const WIDTH: u32 = 640;
+/// Logical sizes per mode. The open panel's width is the `widthPreset` setting (430, 640 or 860); this is the default until it is read.
+const WIDTH: u32 = hopper_core::userdata::DEFAULT_WIDTH;
 /// The handle on the screen edge: it is clipped by the window, so the page slides it half out of sight.
 const TAB: (f64, f64) = (52.0, 64.0);
 /// Gap between the pill or the open panel and the screen edge.

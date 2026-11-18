@@ -17,13 +17,13 @@
 .rv-pin.is-pinned { color: #f5b301; background: transparent; }
 
 /* One bar: method, URL and Send share a frame. The URL stays on one line and scrolls sideways, so a long URL never reflows the bar. */
-.rv-urlrow { display: flex; align-items: stretch; height: 38px; padding: 3px; overflow: hidden; border-radius: 10px; background: var(--bg-surface); box-shadow: inset 0 0 0 1px var(--border-default); transition: box-shadow var(--fast) var(--ease); }
+.rv-urlrow { display: flex; align-items: stretch; height: 42px; padding: 3px; overflow: hidden; border-radius: 10px; background: var(--bg-surface); box-shadow: inset 0 0 0 1px var(--border-default); transition: box-shadow var(--fast) var(--ease); }
 .rv-urlrow:hover { box-shadow: inset 0 0 0 1px var(--border-strong); }
 .rv-urlrow:focus-within { box-shadow: inset 0 0 0 1px var(--accent), var(--ring); }
 .rv--prod .rv-urlrow { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--err) 55%, transparent); }
 .rv--prod .rv-urlrow:focus-within { box-shadow: inset 0 0 0 1px var(--err), var(--ring); }
 .rv-method { flex: none; width: 92px; }
-.rv-method .ui-select-btn { height: 100%; padding: 0 6px 0 8px; border: 0; border-radius: 7px; background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); font: 700 12.5px var(--font-mono); }
+.rv-method .ui-select-btn { height: 100%; padding: 0 6px 0 8px; border: 0; border-radius: 7px; background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); font: 700 13.5px var(--font-mono); }
 .rv-method .ui-select-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--c) 24%, transparent); }
 .rv-method.is-open .ui-select-btn { background: color-mix(in srgb, var(--c) 24%, transparent); }
 .rv-method .ui-select-caret, .rv-method .ui-select-btn:hover .ui-select-caret { color: var(--c); }
@@ -36,13 +36,13 @@
 .rv-url .cm-activeLine { background: transparent; }
 
 /* The URL as it will be sent: one line. A variable nothing defines is red, like it is in the bar. */
-.rv-resolved { margin: 0 4px; min-width: 0; overflow: hidden; color: var(--text-tertiary); font: 11.5px var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.rv-resolved { margin: 0 4px; min-width: 0; overflow: hidden; color: var(--text-tertiary); font: 12.5px var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
 .rv-resolved code { color: var(--text-tertiary); font: inherit; }
 .rv-seg--var { color: var(--text-secondary); }
 .rv-seg--secret { color: var(--text-tertiary); letter-spacing: 1px; }
 .rv-seg--builtin { color: var(--accent-text); }
 .rv-seg--unresolved, .rv-seg--missing { color: var(--err); }
-.rv-warnline { display: flex; align-items: baseline; gap: 6px; margin: 0 4px; color: var(--warn); font-size: 12px; }
+.rv-warnline { display: flex; align-items: baseline; gap: 6px; margin: 0 4px; color: var(--warn); font-size: 13px; }
 
 .rv-send { position: relative; display: flex; flex: none; align-items: center; gap: 6px; padding: 0 12px; border: 0; border-radius: 7px; overflow: hidden; background: var(--text-primary); color: var(--bg-surface); font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.25s, background 0.25s, transform 0.2s var(--spring); }
 .rv-send:active:not(:disabled) { transform: scale(0.97); }
@@ -58,7 +58,7 @@
 .rv-cancel:hover { background: var(--hover-tint); color: var(--text-primary); }
 .rv-cancel:focus-visible { outline: none; box-shadow: var(--ring); }
 
-.rv-arm { display: flex; flex: none; align-items: center; gap: 6px; margin-right: 4px; padding: 0 8px; border: 0; border-radius: 7px; background: var(--bg-page); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.25s, color 0.25s, box-shadow 0.25s; }
+.rv-arm { display: flex; flex: none; align-items: center; gap: 6px; margin-right: 4px; padding: 0 8px; border: 0; border-radius: 7px; background: var(--bg-page); color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.25s, color 0.25s, box-shadow 0.25s; }
 .rv-arm-sw { position: relative; width: 24px; height: 14px; border-radius: 7px; background: var(--border-strong); transition: background 0.25s; }
 .rv-arm-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); transition: transform 0.3s var(--spring); }
 .rv-arm.is-on { background: color-mix(in srgb, var(--err) 12%, var(--bg-surface)); box-shadow: inset 0 0 0 1.5px var(--err); color: var(--err); }
@@ -81,13 +81,13 @@
 .rv-menu-item--warn { color: var(--warn); }
 .rv-menu-icon { flex: none; width: 16px; color: var(--text-secondary); }
 .rv-menu-text { display: flex; flex-direction: column; min-width: 0; }
-.rv-menu-hint { color: var(--text-tertiary); font-size: 12px; }
+.rv-menu-hint { color: var(--text-tertiary); font-size: 13px; }
 
 .rv-agent { display: inline-flex; flex: none; align-items: center; gap: 5px; height: 28px; padding: 0 8px; border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); border-radius: var(--r); background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); font-size: 13px; font-weight: 600; cursor: pointer; }
 .rv-agent:hover:not(:disabled) { background: color-mix(in srgb, var(--c) 24%, transparent); }
 .rv-agent:focus-visible { outline: none; box-shadow: var(--ring); }
 .rv-agent:disabled { opacity: 0.6; cursor: default; }
-.rv-agent-caret { font-size: 11px; }
+.rv-agent-caret { font-size: 12px; }
 
 .rv-main { display: flex; flex: 1; flex-direction: column; gap: 6px; min-height: 0; overflow-x: hidden; overflow-y: auto; padding-bottom: 6px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 
@@ -111,19 +111,18 @@
 .rv-tab.is-on { border-bottom-color: var(--accent); color: var(--text-primary); }
 .rv-tabs.is-folded .rv-tab.is-on { border-bottom-color: transparent; color: var(--text-tertiary); }
 .rv-tabs.is-folded .rv-tab.is-on:hover { color: var(--text-primary); }
-.rv-tab-badge { padding: 0 5px; border-radius: 8px; background: var(--hover-tint); color: var(--text-tertiary); font-size: 11.5px; font-weight: 500; text-decoration: none; }
+.rv-tab-badge { padding: 0 5px; border-radius: 8px; background: var(--hover-tint); color: var(--text-tertiary); font-size: 12.5px; font-weight: 500; text-decoration: none; }
 .rv-tab.is-on .rv-tab-badge { background: var(--accent-soft); color: var(--accent-text); }
 .rv-tabs.is-folded .rv-tab.is-on .rv-tab-badge { background: var(--hover-tint); color: var(--text-tertiary); }
 .rv-tab.is-warn .rv-tab-badge { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
-.rv-fold { display: grid; flex: none; place-items: center; width: 24px; height: 24px; margin-left: auto; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-tertiary); font-size: 12px; cursor: pointer; }
-.rv-fold > i { transition: transform var(--fast) var(--ease); }
-.rv-tabs.is-folded .rv-fold > i { transform: rotate(180deg); }
+.rv-fold { display: grid; flex: none; place-items: center; width: 24px; height: 24px; margin-left: auto; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-tertiary); font-size: 13px; cursor: pointer; }
+.rv-fold > i { transition: transform var(--fast) var(--ease); }.rv-tabs.is-folded .rv-fold > i { transform: rotate(180deg); }
 .rv-fold:hover { background: var(--hover-tint); color: var(--text-primary); }
 .rv-fold:focus-visible { outline: none; box-shadow: var(--ring); }
 .rv-pane { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 6px 8px 8px; animation: rv-rise 0.2s var(--ease) both; }
-.rv-pane .rv-kv .ui-input, .rv-pathparam .ui-input { height: 28px; padding: 0 8px; border-radius: 7px; font-size: 12.5px; }
+.rv-pane .rv-kv .ui-input, .rv-pathparam .ui-input { height: 28px; padding: 0 8px; border-radius: 7px; font-size: 13.5px; }
 
-.rv-sub { margin: 4px 0 0; color: var(--text-tertiary); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.rv-sub { margin: 4px 0 0; color: var(--text-tertiary); font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
 .rv-hint { margin: 0; color: var(--text-tertiary); font-size: 13px; overflow-wrap: anywhere; }
 .rv-hint.is-ok { color: var(--ok); }
 .rv-hint.is-err { color: var(--err); }
@@ -147,7 +146,7 @@
 .rv-suggest li { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; cursor: pointer; }
 .rv-suggest li.is-on { background: var(--sel-bg); color: var(--sel-fg); }
 .rv-suggest-name { flex: none; font-weight: 600; }
-.rv-suggest-kind { --k: var(--text-secondary); flex: none; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--k) 16%, transparent); color: var(--k); font: 600 11px var(--font-ui, inherit); }
+.rv-suggest-kind { --k: var(--text-secondary); flex: none; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--k) 16%, transparent); color: var(--k); font: 600 12px var(--font-ui, inherit); }
 .rv-suggest-detail { flex: 1; min-width: 0; overflow: hidden; color: var(--text-tertiary); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .rv-suggest li.is-on .rv-suggest-detail { color: inherit; opacity: 0.75; }
 .rv-suggest .rv-suggest-none { display: block; color: var(--text-secondary); font: 13px var(--font-ui, inherit); line-height: 1.4; cursor: default; }
@@ -164,9 +163,9 @@
 .vp-name { min-width: 0; overflow: hidden; font: 700 13px var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
 .vp-name::before { content: "{{"; color: var(--text-tertiary); font-weight: 500; }
 .vp-name::after { content: "}}"; color: var(--text-tertiary); font-weight: 500; }
-.vp-kind { --k: var(--text-secondary); display: inline-flex; flex: none; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--k) 15%, transparent); color: var(--k); font-size: 11.5px; font-weight: 650; white-space: nowrap; }
+.vp-kind { --k: var(--text-secondary); display: inline-flex; flex: none; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--k) 15%, transparent); color: var(--k); font-size: 12.5px; font-weight: 650; white-space: nowrap; }
 .vp-kind::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--k); }
-.vp-kind small { color: inherit; font-size: 11.5px; font-weight: 500; opacity: 0.75; }
+.vp-kind small { color: inherit; font-size: 12.5px; font-weight: 500; opacity: 0.75; }
 .vp-kind--builtin { --k: var(--accent-text); }
 .vp-kind--request { --k: var(--i3); }
 .vp-kind--folder { --k: var(--i4); }
@@ -178,24 +177,24 @@
 
 .vp-form { display: flex; flex-direction: column; gap: 6px; }
 .vp-edit { display: flex; align-items: center; gap: 6px; }
-.vp-edit .ui-input { flex: 1; min-width: 0; height: 28px; padding: 0 8px; border-radius: 7px; font-size: 12.5px; }
-.vp-foot { margin: 0; color: var(--text-tertiary); font-size: 11.5px; }
+.vp-edit .ui-input { flex: 1; min-width: 0; height: 28px; padding: 0 8px; border-radius: 7px; font-size: 13.5px; }
+.vp-foot { margin: 0; color: var(--text-tertiary); font-size: 12.5px; }
 .vp-foot .ui-kbd { padding: 0 4px; }
 .vp-foot--warn { color: var(--warn); }
 .vp-note { margin: 0; color: var(--text-secondary); line-height: 1.4; }
-.vp-secret { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px; border-radius: 7px; background: var(--bg-page); box-shadow: inset 0 0 0 1px var(--border-default); color: var(--text-secondary); font-size: 12.5px; }
-.vp-secret small { margin-left: auto; color: var(--text-tertiary); font-size: 11.5px; }
+.vp-secret { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px; border-radius: 7px; background: var(--bg-page); box-shadow: inset 0 0 0 1px var(--border-default); color: var(--text-secondary); font-size: 13.5px; }
+.vp-secret small { margin-left: auto; color: var(--text-tertiary); font-size: 12.5px; }
 .vp-secret.is-missing { background: color-mix(in srgb, var(--warn) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 35%, transparent); color: var(--warn); }
-.vp-dots { color: var(--text-tertiary); font: 12px var(--font-mono); letter-spacing: 2px; }
+.vp-dots { color: var(--text-tertiary); font: 13px var(--font-mono); letter-spacing: 2px; }
 .vp-add { width: 100%; }
 .vp-similar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
-.vp-similar > span { color: var(--text-tertiary); font-size: 11.5px; }
-.vp-chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--bg-page); color: var(--text-primary); font: 600 12px var(--font-mono); cursor: pointer; }
-.vp-chip span { color: var(--text-tertiary); font: 500 10.5px var(--font-ui, inherit); }
+.vp-similar > span { color: var(--text-tertiary); font-size: 12.5px; }
+.vp-chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--bg-page); color: var(--text-primary); font: 600 13px var(--font-mono); cursor: pointer; }
+.vp-chip span { color: var(--text-tertiary); font: 500 11.5px var(--font-ui, inherit); }
 .vp-chip:hover { border-color: var(--accent); background: var(--accent-soft); }
 .vp-chip:focus-visible, .vp-scope:focus-visible { outline: none; box-shadow: var(--ring); }
 .vp-scopes { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--bg-page); box-shadow: inset 0 0 0 1px var(--border-default); }
-.vp-scope { flex: 1; min-width: 0; padding: 3px 4px; overflow: hidden; border: 0; border-radius: 6px; background: transparent; color: var(--text-tertiary); font-size: 11.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.vp-scope { flex: 1; min-width: 0; padding: 3px 4px; overflow: hidden; border: 0; border-radius: 6px; background: transparent; color: var(--text-tertiary); font-size: 12.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .vp-scope:hover { color: var(--text-primary); }
 .vp-scope.is-on { background: var(--bg-elevated); color: var(--text-primary); box-shadow: 0 0 0 1px var(--border-strong); }
 .vp-link { padding: 0; border: 0; background: none; color: var(--accent-text); font: inherit; text-decoration: underline; cursor: pointer; }

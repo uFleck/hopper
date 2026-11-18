@@ -80,6 +80,10 @@ pub struct Settings {
     pub hotkey: String,
     pub dock_side: DockSide,
     pub width_preset: u32,
+    /// Set once a saved `widthPreset` has been moved off the old 640 px default. Files written before it read
+    /// `false` (the field default, not `Settings::default()`).
+    #[serde(default)]
+    pub width_upgraded: bool,
     pub theme: Theme,
     pub always_show_tab: bool,
     /// `None` until the first-run question has been answered.
@@ -119,6 +123,22 @@ pub enum Theme {
     System,
 }
 
+/// The open panel's default width (logical px). It was 640 until the panel was given more room.
+pub const DEFAULT_WIDTH: u32 = 860;
+
+impl Settings {
+    /// Moves a width still on the old 640 px default to `DEFAULT_WIDTH`, once. Nothing let anyone pick 640 before.
+    fn upgrade(mut self) -> Self {
+        if !self.width_upgraded {
+            if self.width_preset == 640 {
+                self.width_preset = DEFAULT_WIDTH;
+            }
+            self.width_upgraded = true;
+        }
+        self
+    }
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -126,7 +146,8 @@ impl Default for Settings {
             known_workspaces: Vec::new(),
             hotkey: "ctrl+alt+h".to_owned(),
             dock_side: DockSide::Right,
-            width_preset: 640,
+            width_preset: DEFAULT_WIDTH,
+            width_upgraded: true,
             theme: Theme::Dark,
             always_show_tab: true,
             start_with_windows: None,
@@ -148,7 +169,9 @@ impl UserData {
     /// Current settings. Missing, unreadable or corrupt files give the defaults.
     pub fn settings(&self) -> Settings {
         let _g = lock(&self.lock);
-        read_json(&self.base.join(SETTINGS_FILE)).unwrap_or_default()
+        read_json::<Settings>(&self.base.join(SETTINGS_FILE))
+            .unwrap_or_default()
+            .upgrade()
     }
 
     pub fn save_settings(&self, s: &Settings) -> Result<(), UserDataError> {
