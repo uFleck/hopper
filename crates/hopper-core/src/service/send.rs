@@ -15,8 +15,7 @@ use tokio_util::sync::CancellationToken;
 use ulid::Ulid;
 
 use super::{
-    CachedResponse, Open, blocking, canon, dto::*, events::Event, fingerprint, lock, now_rfc3339,
-    rules_for,
+    CachedResponse, Open, blocking, canon, dto::*, events::Event, lock, now_rfc3339, rules_for,
 };
 use crate::{
     engine::{ContentKind, Limits, Response},
@@ -25,8 +24,8 @@ use crate::{
         WorkspaceDefaults,
     },
     policy::{
-        self, AgentAccess, AllowedBy, Caller, ConfirmReason, Decision, DenyReason, EnvRules, Grant,
-        SavedRequest, SendContext,
+        self, AllowedBy, Caller, ConfirmReason, Decision, DenyReason, EnvRules, Fingerprints,
+        Grant, SavedRequest, SendContext,
     },
     prepare::{self, Layers, Prepared},
     store::WorkspaceStore,
@@ -455,7 +454,7 @@ impl Open {
             .map(|u| u.path().to_owned())
             .map_err(|_| HopperError::invalid("the URL cannot be parsed"))?;
         let allowed_hosts = prepare::allowed_hosts(&env.section);
-        let fp = fingerprint(&snap.request);
+        let fp = Fingerprints::of(&snap.request);
         let binding = {
             let folders: Vec<&Folder> = snap.folders.iter().collect();
             binding_hash(
@@ -477,20 +476,10 @@ impl Open {
             Decision::Deny(DenyReason::RequestBlocked)
         } else {
             let rules: EnvRules = rules.unwrap_or_default();
-            let grants_map = grants.as_ref().ok().cloned().unwrap_or_default();
-            // A grant whose binding differs is as good as a stale fingerprint:
-            // `Auto` asks again, `Blocked` still blocks.
-            let grant: Option<Grant> = snap
+            let grant: Option<&Grant> = snap
                 .saved_id
                 .as_ref()
-                .and_then(|id| grants_map.get(id))
-                .map(|g| {
-                    let mut g = g.clone();
-                    if g.binding.is_empty() || g.binding != binding {
-                        g.fingerprint.push_str("!rebound");
-                    }
-                    g
-                });
+                .and_then(|id| grants.as_ref().ok()?.get(id));
             let ctx = SendContext {
                 stage: env.policy_stage(),
                 rules: &rules,
@@ -500,8 +489,9 @@ impl Open {
                 allowed_hosts: &allowed_hosts,
                 uses_secrets: prepared.resolved.uses_secrets,
                 saved: snap.saved_id.as_ref().map(|_| SavedRequest {
-                    grant: grant.as_ref(),
-                    fingerprint: &fp,
+                    grant,
+                    fingerprints: &fp,
+                    binding: &binding,
                 }),
             };
             policy::decide(caller, &ctx)
@@ -545,7 +535,7 @@ impl Open {
                             "saved:{}:{}:{}:{}:{}",
                             env.stage_name(),
                             id,
-                            fp,
+                            fp.exact,
                             binding,
                             overrides
                         )
@@ -558,7 +548,7 @@ impl Open {
                     ) => format!(
                         "inline:{}:{}:{}:{}:{}/{}",
                         env.stage_name(),
-                        fp,
+                        fp.exact,
                         binding,
                         overrides,
                         collection.as_deref().unwrap_or(""),
@@ -575,18 +565,13 @@ impl Open {
                         .and_then(|id| grants.as_ref().ok().and_then(|g| g.get(id)).cloned());
                     let reason = match (&snap.saved_id, &grant) {
                         (None, _) => "inline request",
-                        (Some(_), Some(g))
-                            if g.access == AgentAccess::Auto && g.fingerprint != fp =>
-                        {
+                        (Some(_), Some(g)) if g.access.is_auto() && !g.content_holds(&fp) => {
                             "grant suspended: changed by the agent"
                         }
-                        (Some(_), Some(g))
-                            if g.access == AgentAccess::Auto
-                                && (g.binding.is_empty() || g.binding != binding) =>
-                        {
+                        (Some(_), Some(g)) if g.access.is_auto() && !g.binding_holds(&binding) => {
                             "grant suspended: destination or inherited settings changed"
                         }
-                        (Some(_), Some(g)) if g.access == AgentAccess::Auto => {
+                        (Some(_), Some(g)) if g.access.is_auto() => {
                             "host is not in the environment's allowed hosts"
                         }
                         _ => "no grant",
@@ -603,7 +588,7 @@ impl Open {
                         application: snap.collection_slug.clone(),
                         masked: masked_dto(&prepared.masked),
                         reason: reason.to_owned(),
-                        fingerprint: fp.clone(),
+                        fingerprints: fp.clone(),
                         binding: binding.clone(),
                         session_key: key,
                     })

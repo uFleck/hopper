@@ -877,7 +877,10 @@ pub struct WorkspaceDeleteRequest {
 pub enum ApprovalDecision {
     AllowOnce,
     AllowSession,
+    /// Sets the request to `Auto` (exact).
     AlwaysAllow,
+    /// Sets the request to `AutoParams`.
+    AlwaysAllowParams,
     Block,
     Deny,
 }

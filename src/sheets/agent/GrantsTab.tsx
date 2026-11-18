@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { toHopperError, type GrantDto } from "../../ipc";
+import { toHopperError, type AgentAccess, type GrantDto } from "../../ipc";
 import { openSheet, setAgentAccess, toast, useStore } from "../../store";
-import { Busy, Button, Chip } from "../../ui";
+import { Busy, Button, Chip, Select } from "../../ui";
+import { ACCESS_LABEL, LOOSE_AUTO_RISK } from "../../views/find/model";
+import { chooseAgentAccess } from "../../views/request/AgentChip";
 import { listGrants } from "../env/api";
 import { Note } from "../env/controls";
+
+const MODES: AgentAccess[] = ["auto", "auto_params", "auto_trusted", "blocked"];
 
 export function GrantsTab() {
   const tree = useStore((s) => s.tree);
@@ -27,12 +31,18 @@ export function GrantsTab() {
     await setAgentAccess(ids, "ask");
     await load();
   };
+  const change = async (g: GrantDto, access: AgentAccess) => {
+    if (await chooseAgentAccess([g.requestId], access, g.requestName)) await load();
+  };
   const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (!n.delete(id)) n.add(id); return n; });
 
   return (
     <div className="ag-grants">
       <Note>
-        <strong>Ask</strong>: the agent must ask you before it sends this request. <strong>Auto</strong>: it may send it without asking. <strong>Blocked</strong>: it can never send it. Local environments are always allowed; production only ever runs requests you set to Auto.
+        <strong>Ask</strong>: the agent must ask you before it sends this request. <strong>Auto</strong>: it may send it without asking while the request is unchanged. <strong>Blocked</strong>: it can never send it. Local environments are always allowed; production only ever runs requests you set to Auto.
+      </Note>
+      <Note>
+        <strong>{ACCESS_LABEL.auto_params}</strong>: {LOOSE_AUTO_RISK.auto_params} <strong>{ACCESS_LABEL.auto_trusted}</strong>: {LOOSE_AUTO_RISK.auto_trusted}
       </Note>
       {grants === null ? <Busy /> : grants.length === 0 ? <p className="sh-empty">No request is set to Auto or Blocked. Every agent send will ask.</p> : (
         <>
@@ -49,8 +59,10 @@ export function GrantsTab() {
               <li key={g.requestId} className="ag-grant">
                 <input type="checkbox" aria-label={`Select ${g.requestName}`} checked={picked.has(g.requestId)} onChange={() => toggle(g.requestId)} />
                 <span className="ag-grant-name">{g.requestName}</span>
-                <Chip tone={g.access === "auto" ? "ok" : g.access === "blocked" ? "err" : "neutral"}>{g.access}</Chip>
                 {g.suspended && <Chip tone="warn" tip="The agent edited this request, so the grant is paused">changed by agent</Chip>}
+                <Select className="ag-grant-mode" aria-label={`Agent access for ${g.requestName}`} value={g.access} onChange={(e) => void change(g, e.target.value as AgentAccess)}>
+                  {MODES.map((a) => <option key={a} value={a}>{ACCESS_LABEL[a]}</option>)}
+                </Select>
                 <Button size="sm" onClick={() => void revoke([g.requestId])} aria-label={`Set ${g.requestName} back to Ask`}>{g.suspended ? "Reset to Ask" : "Revoke"}</Button>
               </li>
             ))}

@@ -1,5 +1,5 @@
 use super::*;
-use crate::format::{Auth, Body, DocKind};
+use crate::format::{Auth, Body, DocKind, KeyValue};
 
 const HOST: &str = "account.staging.example.com";
 
@@ -17,7 +17,8 @@ fn grant(access: AgentAccess, fp: &str) -> Grant {
     Grant {
         access,
         fingerprint: fp.to_owned(),
-        binding: String::new(),
+        params_fingerprint: String::new(),
+        binding: "bind-now".to_owned(),
     }
 }
 
@@ -48,9 +49,14 @@ impl Default for Case {
 impl Case {
     fn decide(&self, caller: &Caller) -> Decision {
         let allowed = hosts();
+        let fingerprints = Fingerprints {
+            exact: "fp-now".to_owned(),
+            params: "params-now".to_owned(),
+        };
         let saved = self.saved.then_some(SavedRequest {
             grant: self.grant.as_ref(),
-            fingerprint: "fp-now",
+            fingerprints: &fingerprints,
+            binding: "bind-now",
         });
         decide(
             caller,
@@ -453,6 +459,203 @@ fn local_stage_only_skips_the_prompt_for_loopback_hosts() {
             c.decide(&agent()),
             Decision::Allow(AllowedBy::LocalEnvironment),
             "{host}"
+        );
+    }
+}
+
+fn kv(name: &str, value: &str) -> KeyValue {
+    KeyValue {
+        name: name.into(),
+        value: value.into(),
+        enabled: true,
+    }
+}
+
+fn lookup(id: &str, email: &str) -> Request {
+    let mut r = request(Method::Get, "{{baseUrl}}/api/users/{id}");
+    r.path_params.insert("id".into(), id.into());
+    r.query = vec![kv("email", email)];
+    r.headers = vec![kv("Accept", "application/json")];
+    r
+}
+
+/// Decides an agent send of `now` against a grant given for `granted`.
+fn decide_edit(access: AgentAccess, granted: &Request, now: &Request) -> Decision {
+    let grant = Grant::new(access, &Fingerprints::of(granted), "bind");
+    let allowed = hosts();
+    let fingerprints = Fingerprints::of(now);
+    decide(
+        &agent(),
+        &SendContext {
+            stage: Stage::Rc,
+            rules: &EnvRules::default(),
+            method: now.method,
+            host: HOST,
+            path: "/api/users/42",
+            allowed_hosts: &allowed,
+            uses_secrets: true,
+            saved: Some(SavedRequest {
+                grant: Some(&grant),
+                fingerprints: &fingerprints,
+                binding: "bind",
+            }),
+        },
+    )
+}
+
+/// Every kind of edit the modes tell apart: values only, then each bound part.
+fn edits() -> (Request, Request, Vec<(&'static str, Request)>) {
+    let base = lookup("42", "a@example.com");
+    let values = lookup("7", "b@example.com");
+    let mut header = base.clone();
+    header.headers.push(kv("X-Admin", "1"));
+    let mut body = base.clone();
+    body.body = Body::Json {
+        content: "{}".into(),
+    };
+    let mut method = base.clone();
+    method.method = Method::Delete;
+    let mut path = base.clone();
+    path.url = "{{baseUrl}}/api/admin/{id}".into();
+    let mut query_name = base.clone();
+    query_name.query = vec![kv("role", "admin")];
+    let mut auth = base.clone();
+    auth.auth = Auth::None;
+    let structural = vec![
+        ("header", header),
+        ("body", body),
+        ("method", method),
+        ("path shape", path),
+        ("query name", query_name),
+        ("auth", auth),
+    ];
+    (base, values, structural)
+}
+
+#[test]
+fn auto_params_allows_value_only_edits() {
+    let (base, values, _) = edits();
+    assert_eq!(
+        decide_edit(AgentAccess::AutoParams, &base, &values),
+        Decision::Allow(AllowedBy::RequestGrant)
+    );
+    // Exact `Auto` still asks for the same edit.
+    assert_eq!(
+        decide_edit(AgentAccess::Auto, &base, &values),
+        Decision::Ask
+    );
+}
+
+#[test]
+fn auto_params_is_suspended_by_header_body_method_path_and_auth_edits() {
+    let (base, _, structural) = edits();
+    for (what, edited) in structural {
+        assert_eq!(
+            decide_edit(AgentAccess::AutoParams, &base, &edited),
+            Decision::Ask,
+            "{what}"
+        );
+    }
+}
+
+#[test]
+fn auto_trusted_survives_any_edit() {
+    let (base, values, structural) = edits();
+    for (what, edited) in std::iter::once(("values", values)).chain(structural) {
+        assert_eq!(
+            decide_edit(AgentAccess::AutoTrusted, &base, &edited),
+            Decision::Allow(AllowedBy::RequestGrant),
+            "{what}"
+        );
+    }
+}
+
+#[test]
+fn auto_modes_still_need_the_binding_and_an_allowed_host() {
+    let base = lookup("42", "a@example.com");
+    for access in [AgentAccess::AutoParams, AgentAccess::AutoTrusted] {
+        let grant = Grant::new(access, &Fingerprints::of(&base), "bind");
+        assert!(!grant.holds(&Fingerprints::of(&base), "other-bind"));
+        let c = Case {
+            grant: Some(Grant {
+                binding: "bind-now".into(),
+                ..grant
+            }),
+            host: "other.example.com",
+            uses_secrets: false,
+            ..Case::default()
+        };
+        assert_eq!(c.decide(&agent()), Decision::Ask, "{access:?}");
+    }
+}
+
+#[test]
+fn blocked_wins_over_both_auto_modes() {
+    // Blocked is one access per request, so "wins" means: once set, no edit
+    // or mode brings the agent back in, and the environment deny beats the modes.
+    let (base, values, _) = edits();
+    assert_eq!(
+        decide_edit(AgentAccess::Blocked, &base, &values),
+        Decision::Deny(DenyReason::RequestBlocked)
+    );
+    assert_eq!(
+        decide_edit(AgentAccess::Blocked, &base, &base),
+        Decision::Deny(DenyReason::RequestBlocked)
+    );
+    for access in [AgentAccess::AutoParams, AgentAccess::AutoTrusted] {
+        let c = Case {
+            grant: Some(grant(access, "fp-now")),
+            rules: EnvRules {
+                deny: true,
+                ..EnvRules::default()
+            },
+            ..Case::default()
+        };
+        assert_eq!(
+            c.decide(&agent()),
+            Decision::Deny(DenyReason::EnvironmentDenied),
+            "{access:?}"
+        );
+    }
+}
+
+#[test]
+fn grants_written_before_the_modes_still_load_as_exact_auto() {
+    let old: Grant =
+        serde_json::from_str(r#"{"access":"auto","fingerprint":"sha256:aa","binding":"b"}"#)
+            .unwrap();
+    assert_eq!(old.access, AgentAccess::Auto);
+    assert_eq!(old.params_fingerprint, "");
+    // Re-serializing an exact grant writes the old shape back.
+    assert_eq!(
+        serde_json::to_value(&old).unwrap(),
+        serde_json::json!({"access":"auto","fingerprint":"sha256:aa","binding":"b"})
+    );
+    // An `AutoParams` grant without its params hash never matches.
+    let fp = Fingerprints::of(&lookup("1", "x"));
+    let broken = Grant {
+        access: AgentAccess::AutoParams,
+        params_fingerprint: String::new(),
+        ..Grant::new(AgentAccess::AutoParams, &fp, "b")
+    };
+    assert!(!broken.holds(&fp, "b"));
+    for (access, wire) in [
+        (AgentAccess::AutoParams, "auto_params"),
+        (AgentAccess::AutoTrusted, "auto_trusted"),
+    ] {
+        assert_eq!(serde_json::to_value(access).unwrap(), wire);
+    }
+}
+
+#[test]
+fn hundred_value_edits_under_auto_params_never_ask() {
+    let granted = lookup("0", "user0@example.com");
+    for i in 1..=100 {
+        let now = lookup(&i.to_string(), &format!("user{i}@example.com"));
+        assert_eq!(
+            decide_edit(AgentAccess::AutoParams, &granted, &now),
+            Decision::Allow(AllowedBy::RequestGrant),
+            "send {i}"
         );
     }
 }

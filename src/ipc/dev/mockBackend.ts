@@ -467,9 +467,9 @@ const handlers: Handlers = {
     const a = s.approvals.find((x) => x.id === id);
     if (!a) throw err("not_found", "That approval is no longer pending.");
     s.approvals = s.approvals.filter((x) => x.id !== id);
-    if (decision === "always_allow" && a.requestId) {
+    if ((decision === "always_allow" || decision === "always_allow_params") && a.requestId) {
       const r = s.requests.get(a.requestId);
-      if (r) Object.assign(r, { agentAccess: "auto", grantSuspended: false });
+      if (r) Object.assign(r, { agentAccess: decision === "always_allow" ? "auto" : "auto_params", grantSuspended: false });
     }
     if (decision === "block" && a.requestId) {
       const r = s.requests.get(a.requestId);

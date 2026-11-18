@@ -28,7 +28,7 @@ import { VariablesTab } from "./collection/VariablesTab";
 type Creating = { collection: string; parent: string[] } | "collection" | null;
 
 const ACCESS_ORDER: AgentAccess[] = ["ask", "auto", "blocked"];
-const ACCESS_ICON: Record<AgentAccess, string> = { ask: "hand-waving", auto: "lightning", blocked: "prohibit" };
+const ACCESS_ICON: Record<AgentAccess, string> = { ask: "hand-waving", auto: "lightning", auto_params: "lightning", auto_trusted: "lightning", blocked: "prohibit" };
 
 function MoreButton({ label, ...props }: { label: string } & Record<string, unknown>) {
   return (

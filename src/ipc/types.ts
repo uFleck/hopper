@@ -4,7 +4,8 @@
 // Secret values never appear here: the UI only sees `SecretStatus`. The one exception is `secret_reveal`.
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
-export type AgentAccess = "ask" | "auto" | "blocked";
+/** `auto`: exact content only. `auto_params`: path-param and query values may change. `auto_trusted`: any edit. */
+export type AgentAccess = "ask" | "auto" | "auto_params" | "auto_trusted" | "blocked";
 /** The four fixed stages. Serialized lowercase by the Rust `Stage` enum. */
 export type Stage = "local" | "dev" | "rc" | "production";
 
@@ -438,7 +439,7 @@ export interface ApprovalRequest {
   armAfterMs: number;
 }
 
-export type ApprovalDecision = "allow_once" | "allow_session" | "always_allow" | "block" | "deny";
+export type ApprovalDecision = "allow_once" | "allow_session" | "always_allow" | "always_allow_params" | "block" | "deny";
 
 /** An agent asks to delete a workspace. Nothing is deleted until the user approves in the panel. */
 export interface WorkspaceDeleteRequest {

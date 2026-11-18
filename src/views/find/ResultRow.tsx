@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from "react";
 import type { AgentAccess, Method } from "../../ipc";
 import { Chip, Icon, cx, type Tone } from "../../ui";
-import { ACCESS_LABEL, highlightSegments } from "./model";
+import { ACCESS_LABEL, ACCESS_SHORT, highlightSegments } from "./model";
 
 export interface RowItem {
   key: string;
@@ -22,11 +22,11 @@ export interface RowItem {
   open: () => void;
 }
 
-export const ACCESS_TONE: Record<AgentAccess, Tone> = { ask: "neutral", auto: "ok", blocked: "err" };
+export const ACCESS_TONE: Record<AgentAccess, Tone> = { ask: "neutral", auto: "ok", auto_params: "ok", auto_trusted: "warn", blocked: "err" };
 
 export function AccessChip({ access, suspended }: { access: AgentAccess; suspended?: boolean }) {
   if (suspended) return <Chip tone="warn" tip="Changed by the agent, review and re-allow">Review</Chip>;
-  return <Chip tone={ACCESS_TONE[access]} tip={`Agent access: ${ACCESS_LABEL[access]}`}>{ACCESS_LABEL[access]}</Chip>;
+  return <Chip tone={ACCESS_TONE[access]} tip={`Agent access: ${ACCESS_LABEL[access]}`}>{ACCESS_SHORT[access]}</Chip>;
 }
 
 export function Highlighted({ text, matches }: { text: string; matches?: number[] }): ReactNode {

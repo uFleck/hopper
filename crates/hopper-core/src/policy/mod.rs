@@ -17,12 +17,24 @@ pub enum Caller {
 
 /// Per saved request, chosen by the user. Absent means `Ask`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum AgentAccess {
     #[default]
     Ask,
+    /// Runs without asking while the request is exactly what was allowed.
     Auto,
+    /// Runs without asking while only path-parameter and query values change.
+    AutoParams,
+    /// Runs without asking whatever the request content becomes. The binding
+    /// (destination host, inherited headers and auth, environment) still holds.
+    AutoTrusted,
     Blocked,
+}
+
+impl AgentAccess {
+    pub fn is_auto(self) -> bool {
+        matches!(self, Self::Auto | Self::AutoParams | Self::AutoTrusted)
+    }
 }
 
 /// A stored per-request grant, bound to the request content it was given for.
@@ -30,11 +42,48 @@ pub enum AgentAccess {
 pub struct Grant {
     pub access: AgentAccess,
     pub fingerprint: String,
+    /// [`Fingerprints::params`] when the grant was given. Empty in files written
+    /// before `AutoParams` existed: such an `AutoParams` grant never matches.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub params_fingerprint: String,
     /// Hash of where the request goes and what it inherits (resolved host, allowed
     /// hosts, collection/folder headers and auth, environment). Empty in files
     /// written before bindings existed: such a grant never matches, so `Auto` asks.
     #[serde(default)]
     pub binding: String,
+}
+
+impl Grant {
+    pub fn new(access: AgentAccess, fp: &Fingerprints, binding: &str) -> Self {
+        Self {
+            access,
+            fingerprint: fp.exact.clone(),
+            params_fingerprint: fp.params.clone(),
+            binding: binding.to_owned(),
+        }
+    }
+
+    /// The request content still matches what this grant's access allows.
+    pub fn content_holds(&self, fp: &Fingerprints) -> bool {
+        match self.access {
+            AgentAccess::AutoTrusted => true,
+            AgentAccess::AutoParams => {
+                !self.params_fingerprint.is_empty() && self.params_fingerprint == fp.params
+            }
+            AgentAccess::Ask | AgentAccess::Auto | AgentAccess::Blocked => {
+                self.fingerprint == fp.exact
+            }
+        }
+    }
+
+    pub fn binding_holds(&self, binding: &str) -> bool {
+        !self.binding.is_empty() && self.binding == binding
+    }
+
+    /// Neither the content (as far as the access cares) nor the binding changed.
+    pub fn holds(&self, fp: &Fingerprints, binding: &str) -> bool {
+        self.content_holds(fp) && self.binding_holds(binding)
+    }
 }
 
 /// `*` matches any run of characters, everything else is literal.
@@ -74,7 +123,8 @@ pub struct SendContext<'a> {
 #[derive(Debug, Clone)]
 pub struct SavedRequest<'a> {
     pub grant: Option<&'a Grant>,
-    pub fingerprint: &'a str,
+    pub fingerprints: &'a Fingerprints,
+    pub binding: &'a str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -140,10 +190,11 @@ pub fn decide(caller: &Caller, ctx: &SendContext) -> Decision {
             Some(g) if g.access == AgentAccess::Blocked => {
                 Decision::Deny(DenyReason::RequestBlocked)
             }
-            // A grant for different content is suspended until re-confirmed.
+            // A grant for different content or a different binding is
+            // suspended until re-confirmed.
             Some(g)
-                if g.access == AgentAccess::Auto
-                    && g.fingerprint == saved.fingerprint
+                if g.access.is_auto()
+                    && g.holds(saved.fingerprints, saved.binding)
                     && host_allowed(ctx.host, ctx.allowed_hosts) =>
             {
                 Decision::Allow(AllowedBy::RequestGrant)
@@ -237,10 +288,28 @@ fn glob(pattern: &str, text: &str) -> bool {
     tail.ends_with(last)
 }
 
+/// The two content hashes a grant can be bound to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Fingerprints {
+    /// [`fingerprint`]: every part of the request.
+    pub exact: String,
+    /// [`params_fingerprint`]: everything but path-parameter and query values.
+    pub params: String,
+}
+
+impl Fingerprints {
+    pub fn of(req: &Request) -> Self {
+        Self {
+            exact: fingerprint(req),
+            params: params_fingerprint(req),
+        }
+    }
+}
+
 /// Hash of everything an agent could change to alter what a request does:
 /// method, URL template, path params, query, headers, body, auth.
 pub fn fingerprint(req: &Request) -> String {
-    let material = serde_json::json!([
+    hash(&serde_json::json!([
         req.method,
         req.url,
         req.path_params,
@@ -248,7 +317,26 @@ pub fn fingerprint(req: &Request) -> String {
         req.headers,
         req.body,
         req.auth
-    ]);
+    ]))
+}
+
+/// [`fingerprint`] without path-parameter and query values: their names, the
+/// query's order and enabled flags, and everything else stay bound.
+pub fn params_fingerprint(req: &Request) -> String {
+    let query: Vec<_> = req.query.iter().map(|q| (&q.name, q.enabled)).collect();
+    hash(&serde_json::json!([
+        "params",
+        req.method,
+        req.url,
+        req.path_params.keys().collect::<Vec<_>>(),
+        query,
+        req.headers,
+        req.body,
+        req.auth
+    ]))
+}
+
+fn hash(material: &serde_json::Value) -> String {
     let digest = Sha256::digest(material.to_string().as_bytes());
     let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
     format!("sha256:{hex}")

@@ -90,6 +90,7 @@ fn spec_json() -> Value {
 async fn serve() -> SocketAddr {
     let router = Router::new()
         .route("/echo", any(echo))
+        .route("/users/{id}", any(echo))
         .route("/openapi.json", get(|| async { axum::Json(spec_json()) }))
         .route(
             "/swagger/index.html",
@@ -739,6 +740,96 @@ async fn inline_requests_ask_unless_a_rule_or_safe_reads_allow_them() {
         (e.code.as_str(), e.details.unwrap()["reason"].as_str()),
         ("denied", Some("environment_denied"))
     );
+}
+
+#[tokio::test]
+async fn auto_params_lets_an_agent_loop_over_values_without_asking() {
+    let h = H::new().await;
+    h.env_other(&[]).await;
+    h.activate("dev").await;
+    h.svc.set_send_rate_limit(1000);
+    let mut doc = H::doc("lookup", Method::Get, "{{baseUrl}}/users/{id}");
+    doc.path_params.insert("id".into(), "0".into());
+    doc.query = vec![kv("email", "user0@example.com")];
+    let id = h.save_doc(doc).await.doc.id;
+    h.svc
+        .agent_access_set(std::slice::from_ref(&id), AgentAccess::AutoParams)
+        .await
+        .unwrap();
+    // Any prompt would park the send; fail fast instead of waiting a minute.
+    h.svc.set_approval_timeout(Duration::from_millis(50));
+
+    let edit = |patch: RequestPatch| async {
+        let got = h.agent().get_request(&id).await.unwrap();
+        h.agent()
+            .update_request(UpdateRequestArgs {
+                id: id.clone(),
+                expected_revision: Some(got["revision"].as_str().unwrap().into()),
+                patch,
+            })
+            .await
+            .unwrap();
+    };
+    for i in 1..=100 {
+        edit(RequestPatch {
+            path_params: Some(BTreeMap::from([("id".into(), i.to_string())])),
+            query: Some(vec![kv("email", &format!("user{i}@example.com"))]),
+            ..Default::default()
+        })
+        .await;
+        let out = h.agent_send(&id).await.unwrap();
+        assert_eq!(out["status"], 200, "send {i}");
+        let body = out["body"].as_str().unwrap();
+        assert!(
+            body.contains(&format!("/users/{i}?email=user{i}%40example.com")),
+            "{body}"
+        );
+    }
+    assert!(h.svc.approval_pending().await.unwrap().is_empty());
+    let after = h.svc.request_get(&id).await.unwrap();
+    assert_eq!(after.agent_access, AgentAccess::AutoParams);
+    assert!(!after.grant_suspended);
+
+    // A header edit is not a value: the grant is suspended and the agent must ask.
+    edit(RequestPatch {
+        headers: Some(vec![kv("X-Admin", "1")]),
+        ..Default::default()
+    })
+    .await;
+    let after = h.svc.request_get(&id).await.unwrap();
+    assert!(after.grant_suspended);
+    let (asked, res) = h.agent_send_answered(&id, ApprovalDecision::Deny).await;
+    assert_eq!(asked.reason, "grant suspended: changed by the agent");
+    assert_eq!(err_code(res), "not_approved");
+
+    // Trusted survives the same edit; the grants list shows each mode.
+    h.svc
+        .agent_access_set(std::slice::from_ref(&id), AgentAccess::AutoTrusted)
+        .await
+        .unwrap();
+    edit(RequestPatch {
+        method: Some(Method::Post),
+        ..Default::default()
+    })
+    .await;
+    assert_eq!(h.agent_send(&id).await.unwrap()["status"], 200);
+    let grants = h.svc.agent_grants_list().await.unwrap();
+    assert_eq!(grants.len(), 1);
+    assert_eq!(grants[0].access, AgentAccess::AutoTrusted);
+    assert!(!grants[0].suspended);
+
+    // Approving with "always, any values" sets the params mode.
+    h.svc
+        .agent_access_set(std::slice::from_ref(&id), AgentAccess::Ask)
+        .await
+        .unwrap();
+    h.svc.set_approval_timeout(Duration::from_secs(5));
+    let (_, res) = h
+        .agent_send_answered(&id, ApprovalDecision::AlwaysAllowParams)
+        .await;
+    assert_eq!(res.unwrap()["status"], 200);
+    let grants = h.svc.agent_grants_list().await.unwrap();
+    assert_eq!(grants[0].access, AgentAccess::AutoParams);
 }
 
 #[tokio::test]

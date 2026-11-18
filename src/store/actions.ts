@@ -33,7 +33,7 @@ import {
 } from "./reducers";
 import { scopeTargets, targetKey, withVariable } from "./scopes";
 import { initialSearch, initialState, store, type CollectionTab, type Toast, type ToastKind } from "./state";
-import type { Auth, CollectionAuthDto, NameValue, Stage, VarTargetDto, VariablesDto } from "../ipc/types";
+import type { AgentAccess, Auth, CollectionAuthDto, NameValue, Stage, VarTargetDto, VariablesDto } from "../ipc/types";
 import { confirm } from "../ui/overlays";
 
 const { getState, setState } = store;
@@ -322,7 +322,7 @@ export async function moveRequest(id: string, collection: string, folder: string
   if (dto) await refreshTree();
 }
 
-export async function setAgentAccess(requestIds: string[], access: "ask" | "auto" | "blocked") {
+export async function setAgentAccess(requestIds: string[], access: AgentAccess) {
   await guarded(() => invoke("agent_access_set", { requestIds, access }));
   await refreshTree();
   const open = getState().draft?.doc.id;
@@ -572,7 +572,7 @@ export async function refreshMcp() {
 export async function respondApproval(id: string, decision: ApprovalDecision) {
   const ok = await guarded(() => invoke("approval_respond", { id, decision }));
   if (ok !== undefined) setState((s) => ({ approvals: s.approvals.filter((a) => a.id !== id) }));
-  if (decision === "always_allow" || decision === "block") void refreshTree();
+  if (decision === "always_allow" || decision === "always_allow_params" || decision === "block") void refreshTree();
 }
 
 export async function respondWorkspaceDelete(id: string, approve: boolean) {

@@ -99,6 +99,7 @@ fn grant(access: AgentAccess) -> Grant {
     Grant {
         access,
         fingerprint: "sha256:abc".to_owned(),
+        params_fingerprint: String::new(),
         binding: String::new(),
     }
 }

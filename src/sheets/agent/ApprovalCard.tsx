@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ApprovalDecision, ApprovalRequest } from "../../ipc";
 import { respondApproval } from "../../store";
 import { Button, Chip, Icon, cx, envClass } from "../../ui";
+import { ACCESS_LABEL, LOOSE_AUTO_RISK } from "../../views/find/model";
 
 /** False until `ms` after mount (or after `key` changes): the keystroke-capture guard. */
 export function useArmed(ms: number, key: string): boolean {
@@ -18,7 +19,8 @@ export function useArmed(ms: number, key: string): boolean {
 const DECISIONS: { decision: ApprovalDecision; label: string; hint: string; variant: "secondary" | "primary" | "danger" | "ghost" }[] = [
   { decision: "allow_once", label: "Allow once", hint: "Run this one send", variant: "secondary" },
   { decision: "allow_session", label: "Allow for this session", hint: "Until Hopper restarts", variant: "secondary" },
-  { decision: "always_allow", label: "Always allow this request", hint: "Sets the request to Auto", variant: "secondary" },
+  { decision: "always_allow", label: "Always allow this request", hint: "Sets the request to Auto: only this exact request runs without asking", variant: "secondary" },
+  { decision: "always_allow_params", label: "Always allow, any values", hint: `Sets the request to ${ACCESS_LABEL.auto_params}. ${LOOSE_AUTO_RISK.auto_params}`, variant: "secondary" },
   { decision: "block", label: "Block this request", hint: "Sets the request to Blocked", variant: "secondary" },
   { decision: "deny", label: "Deny", hint: "Refuse this send only", variant: "danger" },
 ];
@@ -72,7 +74,7 @@ export function ApprovalCard({ approval, position }: { approval: ApprovalRequest
       </div>
       <p className="ap-state" role="status" aria-live="polite">{armed ? "Choose one. Nothing is selected for you." : "Getting ready. Buttons unlock in a moment so a stray keypress cannot approve this."}</p>
       <div className="ap-actions">
-        {DECISIONS.map((d) => (
+        {DECISIONS.filter((d) => approval.requestId || d.decision !== "always_allow_params").map((d) => (
           <Button key={d.decision} className={`ap-${d.decision}`} variant={d.variant} disabled={!armed || busy} data-tip={d.hint} onClick={() => void decide(d.decision)}>{d.label}</Button>
         ))}
       </div>

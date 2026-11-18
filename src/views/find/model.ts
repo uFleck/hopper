@@ -78,7 +78,24 @@ export function requestIdsIn(nodes: TreeNode[], keep: (r: Extract<TreeNode, { ty
   return out;
 }
 
-export const ACCESS_LABEL: Record<AgentAccess, string> = { ask: "Ask", auto: "Auto", blocked: "Blocked" };
+export const ACCESS_LABEL: Record<AgentAccess, string> = {
+  ask: "Ask",
+  auto: "Auto",
+  auto_params: "Auto: parameters may change",
+  auto_trusted: "Auto: trusted, any edit",
+  blocked: "Blocked",
+};
+
+/** Compact labels for chips in lists. */
+export const ACCESS_SHORT: Record<AgentAccess, string> = { ...ACCESS_LABEL, auto_params: "Auto · params", auto_trusted: "Auto · trusted" };
+
+/** The prompt-injection risk of the two loose Auto modes, in plain words. Shown wherever one is chosen. */
+export const LOOSE_AUTO_RISK: Partial<Record<AgentAccess, string>> = {
+  auto_params:
+    "The agent can send this request with any path and query values, without asking. Method, URL path, headers, body and auth stay as you saved them. If a page, file or message the agent reads tricks it (a prompt injection), it could use other values than you meant, such as another user's id.",
+  auto_trusted:
+    "The agent can change anything in this request (method, path, headers, body) and send it without asking. Only the host, environment and inherited auth stay fixed. If a page, file or message the agent reads tricks it (a prompt injection), it could turn this into a different call to the same API.",
+};
 
 export const optionKey = (o: { collection: string; folder: string[] }) => [o.collection, ...o.folder].join("/");
 

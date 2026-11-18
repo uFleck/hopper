@@ -13,7 +13,7 @@ use ulid::Ulid;
 use super::{AppService, Open, blocking, canon, dto::*, events::Event, lock, now_rfc3339};
 use crate::{
     format::Stage,
-    policy::{AgentAccess, Grant},
+    policy::{AgentAccess, Fingerprints, Grant},
 };
 
 const ARM_AFTER_MS: u64 = 500;
@@ -22,7 +22,7 @@ pub(crate) struct Pending {
     pub dto: ApprovalRequest,
     pub tx: oneshot::Sender<ApprovalDecision>,
     pub request_id: Option<String>,
-    pub fingerprint: String,
+    pub fingerprints: Fingerprints,
     pub binding: String,
     pub session_key: String,
 }
@@ -35,7 +35,7 @@ pub(crate) struct AskInfo {
     pub application: String,
     pub masked: MaskedRequest,
     pub reason: String,
-    pub fingerprint: String,
+    pub fingerprints: Fingerprints,
     pub binding: String,
     pub session_key: String,
 }
@@ -204,7 +204,7 @@ impl Open {
                 dto: dto.clone(),
                 tx,
                 request_id: info.request_id,
-                fingerprint: info.fingerprint,
+                fingerprints: info.fingerprints,
                 binding: info.binding,
                 session_key: info.session_key,
             },
@@ -223,7 +223,8 @@ impl Open {
         match tokio::time::timeout(wait, rx).await {
             Ok(Ok(ApprovalDecision::AllowOnce))
             | Ok(Ok(ApprovalDecision::AllowSession))
-            | Ok(Ok(ApprovalDecision::AlwaysAllow)) => Ok(()),
+            | Ok(Ok(ApprovalDecision::AlwaysAllow))
+            | Ok(Ok(ApprovalDecision::AlwaysAllowParams)) => Ok(()),
             Ok(Ok(ApprovalDecision::Block)) => Err(HopperError::denied(
                 "the user blocked this request for agents",
             )
@@ -267,26 +268,28 @@ impl Open {
             ApprovalDecision::AllowSession => {
                 lock(&self.session).insert(pending.session_key.clone());
             }
-            ApprovalDecision::AlwaysAllow => match &pending.request_id {
-                Some(rid) => {
-                    self.write_grant(
-                        rid,
-                        AgentAccess::Auto,
-                        &pending.fingerprint,
-                        &pending.binding,
-                    )
-                    .await?
+            ApprovalDecision::AlwaysAllow | ApprovalDecision::AlwaysAllowParams => {
+                match &pending.request_id {
+                    Some(rid) => {
+                        let access = if decision == ApprovalDecision::AlwaysAllowParams {
+                            AgentAccess::AutoParams
+                        } else {
+                            AgentAccess::Auto
+                        };
+                        self.write_grant(rid, access, &pending.fingerprints, &pending.binding)
+                            .await?
+                    }
+                    None => {
+                        lock(&self.session).insert(pending.session_key.clone());
+                    }
                 }
-                None => {
-                    lock(&self.session).insert(pending.session_key.clone());
-                }
-            },
+            }
             ApprovalDecision::Block => {
                 if let Some(rid) = &pending.request_id {
                     self.write_grant(
                         rid,
                         AgentAccess::Blocked,
-                        &pending.fingerprint,
+                        &pending.fingerprints,
                         &pending.binding,
                     )
                     .await?;
@@ -300,26 +303,15 @@ impl Open {
         self: &Arc<Self>,
         request_id: &str,
         access: AgentAccess,
-        fingerprint: &str,
+        fingerprints: &Fingerprints,
         binding: &str,
     ) -> Result<(), HopperError> {
-        let (data, rid, fp, binding) = (
+        let (data, rid, grant) = (
             self.data.clone(),
             canon(request_id),
-            fingerprint.to_owned(),
-            binding.to_owned(),
+            Grant::new(access, fingerprints, binding),
         );
-        blocking(move || {
-            data.set_grant(
-                &rid,
-                Grant {
-                    access,
-                    fingerprint: fp,
-                    binding,
-                },
-            )
-        })
-        .await??;
+        blocking(move || data.set_grant(&rid, grant)).await??;
         let o = self.clone();
         blocking(move || o.refresh_index()).await?;
         Ok(())
