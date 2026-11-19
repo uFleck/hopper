@@ -25,6 +25,7 @@ use crate::{
     resolved::{ResolvedBody, ResolvedPart, ResolvedPartContent, ResolvedRequest},
     secrets::{MASK, Redactor, SecretError, SecretProvider, SecretRef, is_sensitive_header},
 };
+pub(crate) use text::template_vars;
 use text::{Part, Text, base64, is_param_name, parse_template, percent_encode};
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
@@ -302,6 +303,8 @@ enum AuthText {
     None,
     Bearer(Text),
     Basic(Text, Text),
+    /// A pre-encoded credential sent as `Authorization: Basic <value>`.
+    BasicValue(Text),
     ApiKey {
         name: Text,
         value: Text,
@@ -485,9 +488,14 @@ impl<'a> Resolver<'a> {
         let auth = match effective_auth(req, self.layers) {
             Auth::Inherit | Auth::None => AuthText::None,
             Auth::Bearer { token } => AuthText::Bearer(self.resolve(token)),
-            Auth::Basic { username, password } => {
-                AuthText::Basic(self.resolve(username), self.resolve(password))
-            }
+            Auth::Basic {
+                username,
+                password,
+                value,
+            } => match value {
+                Some(v) => AuthText::BasicValue(self.resolve(v)),
+                None => AuthText::Basic(self.resolve(username), self.resolve(password)),
+            },
             Auth::ApiKey {
                 name,
                 value,
@@ -666,6 +674,13 @@ fn assemble(
             } else {
                 v.push_plain(&encoded);
             }
+            if set_header(&mut headers, "Authorization", v, overwrite("Authorization")) {
+                auth_headers.push("authorization".into());
+            }
+        }
+        AuthText::BasicValue(value) => {
+            let mut v = Text::plain("Basic ");
+            v.extend(&value);
             if set_header(&mut headers, "Authorization", v, overwrite("Authorization")) {
                 auth_headers.push("authorization".into());
             }

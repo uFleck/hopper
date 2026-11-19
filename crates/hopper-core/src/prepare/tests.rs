@@ -668,6 +668,7 @@ async fn basic_auth_is_base64_and_masked_when_secret() {
     req.auth = Auth::Basic {
         username: "user".into(),
         password: "pass".into(),
+        value: None,
     };
     let p = fx.ok(&req).await;
     assert_eq!(
@@ -681,6 +682,7 @@ async fn basic_auth_is_base64_and_masked_when_secret() {
     req.auth = Auth::Basic {
         username: "user".into(),
         password: "{{pw}}".into(),
+        value: None,
     };
     let p = fx.ok(&req).await;
     assert_eq!(
@@ -691,6 +693,41 @@ async fn basic_auth_is_base64_and_masked_when_secret() {
     assert_eq!(
         p.redactor.scrub("Authorization: Basic dXNlcjpwYXNz"),
         format!("Authorization: Basic {MASK}")
+    );
+}
+
+#[tokio::test]
+async fn basic_from_a_preencoded_value_is_sent_verbatim() {
+    let fx = Fx::new().secret("basic", "dXNlcjpwYXNz").await;
+    let mut req = request("{{baseUrl}}/");
+    req.auth = Auth::Basic {
+        username: "ignored".into(),
+        password: "ignored".into(),
+        value: Some("{{basic}}".into()),
+    };
+    let p = fx.ok(&req).await;
+    // The value is used as-is: no second base64 pass, no user:pass combination.
+    assert_eq!(
+        header(&p.resolved.headers, "authorization"),
+        Some("Basic dXNlcjpwYXNz")
+    );
+    assert_eq!(header(&p.masked.headers, "authorization"), Some(MASK));
+    assert!(p.resolved.uses_secrets);
+    assert_eq!(
+        p.redactor.scrub("token dXNlcjpwYXNz"),
+        format!("token {MASK}")
+    );
+
+    // A literal base64 value works too and is never rotated through username/password.
+    req.auth = Auth::Basic {
+        username: "".into(),
+        password: "".into(),
+        value: Some("YWJjOmRlZg==".into()),
+    };
+    let p = fx.ok(&req).await;
+    assert_eq!(
+        header(&p.resolved.headers, "authorization"),
+        Some("Basic YWJjOmRlZg==")
     );
 }
 

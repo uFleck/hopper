@@ -9,6 +9,10 @@ authors = ["Bruno Koster"]
 license = "MIT"
 repository = "https://github.com/uFleck/hopper"
 
+[profile.dev]
+incremental = false
+debug = 0
+
 [profile.release]
 codegen-units = 1
 lto = true

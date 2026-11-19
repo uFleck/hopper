@@ -966,6 +966,133 @@ async fn unreadable_env_rules_deny_agents_but_not_the_user() {
 }
 
 #[tokio::test]
+async fn an_auto_grant_cannot_be_used_to_reach_a_new_path_via_overrides() {
+    let h = H::new().await;
+    h.env_other(&[]).await;
+    h.activate("dev").await;
+    h.svc.set_approval_timeout(Duration::from_millis(150));
+    let id = h.save("item", "{{baseUrl}}/items/{{id}}").await.doc.id;
+    h.svc
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
+        .await
+        .unwrap();
+
+    // An Auto grant pins the host, not the path. Overriding a URL variable must
+    // still be refused, or the agent could walk to any path on the allowed host
+    // with secrets and no prompt.
+    let err = h
+        .agent()
+        .send_request(SendArgs {
+            id: Some(id),
+            overrides: BTreeMap::from([("id".into(), "../../admin/x".into())]),
+            ..Default::default()
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, "invalid_input");
+    assert!(err.message.contains("id"), "{err:?}");
+}
+
+#[tokio::test]
+async fn an_auto_grant_cannot_be_used_to_reach_another_resource_via_a_path_param_variable() {
+    let h = H::new().await;
+    h.env_other(&[]).await;
+    h.activate("dev").await;
+    h.svc.set_approval_timeout(Duration::from_millis(150));
+    // `{id}` is filled from path_params, which resolves `{{userId}}` from overrides.
+    let mut doc = H::doc("user", Method::Get, "{{baseUrl}}/users/{id}");
+    doc.path_params = BTreeMap::from([("id".into(), "{{userId}}".into())]);
+    let id = h.save_doc(doc).await.doc.id;
+    h.svc
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
+        .await
+        .unwrap();
+
+    let err = h
+        .agent()
+        .send_request(SendArgs {
+            id: Some(id),
+            overrides: BTreeMap::from([("userId".into(), "someone-else".into())]),
+            ..Default::default()
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, "invalid_input");
+    assert!(err.message.contains("userId"), "{err:?}");
+}
+
+#[tokio::test]
+async fn a_malformed_url_template_still_guards_the_variable_it_resolves() {
+    let h = H::new().await;
+    h.env("local", &[]).await;
+    h.activate("local").await;
+    // The resolver's one-character rescan finds `id` here; a naive scan to the
+    // next `}}` sees only `{{id` and would let the override through.
+    let id = h.save("odd", "{{baseUrl}}/users/{{{{id}}").await.doc.id;
+    let err = h
+        .agent()
+        .send_request(SendArgs {
+            id: Some(id),
+            overrides: BTreeMap::from([("id".into(), "admin".into())]),
+            ..Default::default()
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, "invalid_input");
+    assert!(err.message.contains("id"), "{err:?}");
+}
+
+#[tokio::test]
+async fn create_request_refuses_a_saved_route_unless_forced() {
+    let h = H::new().await;
+    h.save("echo", "{{baseUrl}}/echo").await;
+    let input = |force: bool| -> CreateRequestArgs {
+        serde_json::from_value(json!({
+            "collection": "api",
+            "request": { "method": "GET", "url": "{{baseUrl}}/echo/" },
+            "name": "echo again",
+            "force": force,
+        }))
+        .unwrap()
+    };
+    let err = h.agent().create_request(input(false)).await.unwrap_err();
+    assert_eq!(err.code, "invalid_input");
+    assert!(format!("{err:?}").contains("already has"), "{err:?}");
+    h.agent()
+        .create_request(input(true))
+        .await
+        .expect("force creates the duplicate");
+}
+
+#[tokio::test]
+async fn inline_send_matching_a_saved_request_gets_a_hint() {
+    let h = H::new().await;
+    h.env("local", &[]).await;
+    h.activate("local").await;
+    h.save("echo", "{{baseUrl}}/echo").await;
+    let res = h
+        .agent()
+        .send_request(SendArgs {
+            request: Some(inline("GET", "{{baseUrl}}/echo")),
+            collection: Some("api".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(res["status"], 200, "the inline request is still sent");
+    assert_eq!(res["similarSavedRequest"]["name"], "echo");
+    assert!(res["hint"].as_str().unwrap().contains("overrides"));
+}
+
+#[tokio::test]
 async fn agent_sends_are_rate_limited() {
     let h = H::new().await;
     h.env("local", &[]).await;
@@ -1700,6 +1827,7 @@ async fn agents_manage_collections_folders_and_requests_with_revisions() {
         .create_request(CreateRequestArgs {
             collection: slug.clone(),
             folder: vec![folder.clone()],
+            force: false,
             from_operation: None,
             request: Some(inline("GET", "{{baseUrl}}/invoices")),
             name: Some("List invoices".into()),
@@ -1837,6 +1965,7 @@ async fn an_agent_creating_a_request_announces_the_new_endpoint() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: Some(
                 serde_json::from_value(json!({
@@ -1869,6 +1998,7 @@ async fn an_agent_creating_a_request_announces_the_new_endpoint() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: None,
             name: None,
@@ -1890,6 +2020,7 @@ async fn agent_created_requests_get_store_assigned_ids_and_no_grant() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: Some(
                 serde_json::from_value(json!({
@@ -1919,6 +2050,7 @@ async fn agent_created_requests_get_store_assigned_ids_and_no_grant() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: None,
             name: None,
@@ -2044,6 +2176,7 @@ async fn spec_import_from_file_feeds_search_and_survives_a_reopen() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: Some(FromOperation {
                 spec: "pet-shop".into(),
                 key: key.clone(),
@@ -2921,6 +3054,7 @@ async fn no_agent_tool_ever_outputs_a_secret() {
         api.create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: Some(FromOperation {
                 spec: "pet-shop".into(),
                 key: "GET /pets".into(),
@@ -2934,6 +3068,7 @@ async fn no_agent_tool_ever_outputs_a_secret() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: Some(
                 serde_json::from_value(json!({

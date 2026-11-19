@@ -80,7 +80,7 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_search_routes",
-            "Fuzzy search over spec operations and saved requests. Cheapest for finding a route: `match: \"route\"` with a small `limit` returns only method, path, operationId and the handle per hit (`requestId`, or `spec` + `key` for hopper_get_operation). Syntax: `post users`, `tag:Admin`, `#GetUserById`, `path:/api/users/{id}`.",
+            "Fuzzy search over spec operations and saved requests. Cheapest for finding a route: `match: \"route\"` with a small `limit` returns only method, path, operationId and the handle per hit (`requestId`, or `spec` + `key` for hopper_get_operation). Syntax: `post users`, `tag:Admin`, `#GetUserById`, `path:/api/users/{id}`. Search before creating: if a saved request covers the route, send it with `overrides` instead of making another.",
             schema(
                 json!({"query": s("Search text"), "collection": s("Collection slug"), "tag": s("Tag"), "method": method(),
                     "limit": n("Max hits (default 20, max 50); use 5 when you only need the top route"),
@@ -121,12 +121,13 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_create_request",
-            "Create a saved request, from `fromOperation` (preferred) or explicit `request` fields. Returns id and path.",
+            "Create a saved request, from `fromOperation` (preferred) or explicit `request` fields. Returns id and path. Refuses when a saved request already has the same method and URL: send that one with `id` and `overrides` instead, unless `force` is true.",
             schema(
                 json!({"collection": s("Collection slug"), "folder": strings("Folder slugs"),
                     "fromOperation": {"type": "object", "properties": {"spec": {"type": "string"}, "key": {"type": "string"}}, "required": ["spec", "key"]},
                     "request": {"type": "object", "properties": inline, "required": ["method", "url"]},
-                    "name": s("Override the name")}),
+                    "name": s("Override the name"),
+                    "force": {"type": "boolean", "description": "Create even when the same route is already saved"}}),
                 &["collection"],
             ),
         ),
@@ -342,14 +343,14 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_send_request",
-            "Send a saved request (`id`) or an inline `request` in an environment. May wait for the user's approval in the panel. Returns status, redacted headers, timing, size, a body cut at 30,000 chars (`bodyTruncated` says so) and a `responseId`. Cheapest when you need one fact: pass `fields: [\"status\"]`, or `fields` with `path` (a JSON pointer such as /data/id) to get just that value. A body over 1 MiB is also saved whole (redacted) to `bodyFile`; read it with a script instead of paging.",
+            "Send a saved request (`id`) or an inline `request` in an environment. To change a value for one send, pass `overrides` with the saved `id`; variables used in the request URL cannot be overridden — change the URL in the request instead. May wait for the user's approval in the panel. Returns status, redacted headers, timing, size, a body cut at 30,000 chars (`bodyTruncated` says so) and a `responseId`. Cheapest when you need one fact: pass `fields: [\"status\"]`, or `fields` with `path` (a JSON pointer such as /data/id) to get just that value. A body over 1 MiB is also saved whole (redacted) to `bodyFile`; read it with a script instead of paging.",
             schema(
                 json!({"id": s("Saved request id"),
                     "request": {"type": "object", "properties": inline, "required": ["method", "url"]},
                     "collection": s("Collection whose inherited headers/auth an inline request uses"),
                     "folder": strings("Folder slugs"),
                     "environment": s("Environment name (default: the active one)"),
-                    "overrides": {"type": "object", "additionalProperties": {"type": "string"}},
+                    "overrides": {"type": "object", "description": "Variable values for this send only (not variables used in the request URL); the request is not changed", "additionalProperties": {"type": "string"}},
                     "path": s("JSON pointer into the body, e.g. /items/0/id; the body returned is that part"),
                     "fields": strings("Keep only these top-level keys of the result, e.g. [\"status\"]. Add \"responseId\" to keep the handle for hopper_get_response")}),
                 &[],

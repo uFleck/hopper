@@ -62,6 +62,10 @@ pub enum Auth {
     Basic {
         username: String,
         password: String,
+        /// Send this base64 value directly instead of encoding `username:password`.
+        /// A `{{variable}}` backed by a secret keeps the credential in the keyring.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
     },
     ApiKey {
         name: String,

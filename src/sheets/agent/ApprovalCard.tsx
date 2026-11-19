@@ -29,6 +29,9 @@ const SCOPED: { decision: ApprovalDecision; label: string; hint: string }[] = [
   { decision: "always_allow_any", label: "Always allow, any edit", hint: "Sets the request to Auto: the agent may rewrite it, to the same host" },
 ];
 
+/** An inline request has no saved request to hold a grant or a block, so those two would only repeat the others. */
+const INLINE_DECISIONS = new Set<ApprovalDecision>(["allow_once", "allow_session", "deny"]);
+
 /** The arm timer as eight segments that light up in turn over `armAfterMs`. */
 const DUST = [0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -37,6 +40,7 @@ export function ApprovalCard({ approval, position }: { approval: ApprovalRequest
   const armed = useArmed(approval.armAfterMs, approval.id);
   const [busy, setBusy] = useState(false);
   const production = approval.stage === "production";
+  const inline = approval.requestId === null;
   const r = approval.request;
 
   const decide = async (d: ApprovalDecision) => {
@@ -77,8 +81,8 @@ export function ApprovalCard({ approval, position }: { approval: ApprovalRequest
         {r.bodyPreview && <pre className="ap-body">{r.bodyPreview}</pre>}
       </div>
       <p className="ap-state" role="status" aria-live="polite">{armed ? "Choose one. Nothing is selected for you." : "Getting ready. Buttons unlock in a moment so a stray keypress cannot approve this."}</p>
-      <div className="ap-actions">
-        {DECISIONS.map((d) => (
+      <div className={cx("ap-actions", inline && "is-inline")}>
+        {DECISIONS.filter((d) => !inline || INLINE_DECISIONS.has(d.decision)).map((d) => (
           <Button key={d.decision} className={`ap-${d.decision}`} variant={d.variant} disabled={!armed || busy} data-tip={d.hint} onClick={() => void decide(d.decision)}>{d.label}</Button>
         ))}
       </div>

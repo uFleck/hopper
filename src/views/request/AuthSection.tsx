@@ -35,8 +35,23 @@ export function AuthSection({ auth, onChange, info, readOnly, scope = "request",
 
       {auth.type === "basic" && (
         <>
-          <Field label="Username">{() => <VarInput value={auth.username} info={info} ariaLabel="Username" placeholder="{{user}}" disabled={readOnly} onChange={(username) => onChange({ ...auth, username })} />}</Field>
-          <Field label="Password">{() => <VarInput value={auth.password} info={info} ariaLabel="Password" placeholder="{{password}}" disabled={readOnly} onChange={(password) => onChange({ ...auth, password })} />}</Field>
+          <Field label="Credential">
+            {(id) => (
+              <Select id={id} value={auth.value === undefined ? "pair" : "encoded"} disabled={readOnly}
+                onChange={(e) => onChange(e.target.value === "encoded" ? { ...auth, value: "" } : { ...auth, value: undefined })}>
+                <option value="pair">Username and password</option>
+                <option value="encoded">Base64 value</option>
+              </Select>
+            )}
+          </Field>
+          {auth.value === undefined ? (
+            <>
+              <Field label="Username">{() => <VarInput value={auth.username} info={info} ariaLabel="Username" placeholder="{{user}}" disabled={readOnly} onChange={(username) => onChange({ ...auth, username })} />}</Field>
+              <Field label="Password">{() => <VarInput value={auth.password} info={info} ariaLabel="Password" placeholder="{{password}}" disabled={readOnly} onChange={(password) => onChange({ ...auth, password })} />}</Field>
+            </>
+          ) : (
+            <Field label="Base64 value">{() => <VarInput value={auth.value ?? ""} info={info} ariaLabel="Base64 value" placeholder="{{basicValue}}" disabled={readOnly} onChange={(value) => onChange({ ...auth, value })} />}</Field>
+          )}
         </>
       )}
 

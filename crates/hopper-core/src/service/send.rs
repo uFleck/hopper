@@ -239,20 +239,17 @@ pub(crate) fn env_snapshot(
     })
 }
 
-/// Names of `{{variables}}` in a template.
+/// Names of `{{variables}}` in a template, as the resolver parses them.
 pub(crate) fn template_vars(text: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut rest = text;
-    while let Some(start) = rest.find("{{") {
-        let after = &rest[start + 2..];
-        let Some(end) = after.find("}}") else { break };
-        let name = after[..end].trim();
-        if !name.is_empty() {
-            out.push(name.to_owned());
-        }
-        rest = &after[end + 2..];
-    }
-    out
+    prepare::template_vars(text)
+}
+
+/// Variables that decide where a request goes: the URL template plus every
+/// path-param value, which `prepare` also fills from overrides.
+pub(crate) fn request_vars(req: &Request) -> Vec<String> {
+    let mut used = template_vars(&req.url);
+    used.extend(req.path_params.values().flat_map(|v| template_vars(v)));
+    used
 }
 
 /// Hash of where a request goes and what it inherits: resolved host, the set
@@ -368,12 +365,15 @@ impl Open {
     ) -> Result<Prepared, HopperError> {
         let is_agent = matches!(caller, Caller::Agent { .. });
         if is_agent {
-            let used = template_vars(&snap.request.url);
+            // Path params are filled from the same overrides in `prepare`, so a
+            // variable behind `{id}` decides the resource just as much as one
+            // written directly in the URL template.
+            let used = request_vars(&snap.request);
             if let Some(bad) = overrides.keys().find(|k| used.contains(k)) {
                 return Err(HopperError::invalid(format!(
-                    "agents cannot override `{bad}`: the URL uses it, so it decides where the request goes"
+                    "agents cannot override `{bad}`: the URL or a path parameter uses it, so it decides where the request goes"
                 ))
-                .hint("change the URL in the request instead, or ask the user"));
+                .hint("change the URL or path parameter in the request instead, or ask the user"));
             }
         }
         let folders: Vec<&Folder> = snap.folders.iter().collect();
