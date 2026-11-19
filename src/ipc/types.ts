@@ -516,6 +516,8 @@ export interface McpAgentSetup {
   command: string;
   /** JSON for the agent's own config file, for when its CLI is missing. Contains the MCP token. */
   jsonConfig: string;
+  /** Ready-to-paste prompt for agents set up through their own AI (Executor). URL only, no secret. */
+  aiPrompt: string;
 }
 
 export interface McpSetup {

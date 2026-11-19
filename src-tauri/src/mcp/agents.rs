@@ -14,15 +14,17 @@ use serde_json::{Value, json};
 pub enum Agent {
     ClaudeCode,
     OpenCode,
+    Executor,
 }
 
 impl Agent {
-    pub const ALL: [Agent; 2] = [Agent::ClaudeCode, Agent::OpenCode];
+    pub const ALL: [Agent; 3] = [Agent::ClaudeCode, Agent::OpenCode, Agent::Executor];
 
     pub fn id(self) -> &'static str {
         match self {
             Agent::ClaudeCode => "claude-code",
             Agent::OpenCode => "opencode",
+            Agent::Executor => "executor",
         }
     }
 
@@ -30,6 +32,7 @@ impl Agent {
         match self {
             Agent::ClaudeCode => "Claude Code",
             Agent::OpenCode => "OpenCode",
+            Agent::Executor => "Executor",
         }
     }
 
@@ -43,6 +46,7 @@ impl Agent {
         match self {
             Agent::ClaudeCode => &["claude", "claude.cmd"],
             Agent::OpenCode => &["opencode", "opencode.cmd"],
+            Agent::Executor => &["executor", "executor.cmd"],
         }
     }
 
@@ -72,6 +76,9 @@ impl Agent {
                     .find(|path| path.is_file())
                     .or(Some(dir.join("opencode.json")))
             }
+            // Executor keeps its apps in an embedded database, not in a user profile config file.
+            // It is detected on PATH only; there is no Hopper entry to read or edit here.
+            Agent::Executor => None,
         }
     }
 
@@ -89,6 +96,7 @@ impl Agent {
             Agent::OpenCode => config
                 .pointer("/mcp/servers/hopper")
                 .or_else(|| config.pointer("/mcp/hopper")),
+            Agent::Executor => None,
         };
         entry_connection(entry, url, token)
     }
@@ -98,6 +106,8 @@ impl Agent {
         let args = match self {
             Agent::ClaudeCode => claude_args(url, token),
             Agent::OpenCode => opencode_args(url, token),
+            // Executor adds MCP servers through its own AI, not a CLI: there is no command.
+            Agent::Executor => return String::new(),
         };
         let quoted: Vec<String> = args
             .iter()
@@ -117,8 +127,29 @@ impl Agent {
         let config = match self {
             Agent::ClaudeCode => json!({"mcpServers": {"hopper": entry}}),
             Agent::OpenCode => json!({"mcp": {"servers": {"hopper": entry}}}),
+            // Executor stores apps in its own database. There is no documented config file format
+            // to write, so do not guess one.
+            Agent::Executor => return String::new(),
         };
         serde_json::to_string_pretty(&config).unwrap_or_default()
+    }
+
+    /// A ready-to-paste prompt for agents that register MCP servers through their own AI.
+    /// Contains only this server's local URL — never the MCP token.
+    fn prompt(self, url: &str) -> String {
+        match self {
+            Agent::Executor => format!(
+                "Add Hopper as a custom MCP server in Executor. Hopper is a local MCP server running on this machine.\n\
+                 \n\
+                 Use Executor's documented way to add a custom remote MCP server with these details:\n\
+                 - Name: hopper\n\
+                 - URL: {url}\n\
+                 - Transport: remote (HTTP)\n\
+                 \n\
+                 Do not put any Authorization header, token or other secret in the config — credentials are handled separately through Executor's secure connection flow. If adding it needs approval, show me the request first."
+            ),
+            _ => String::new(),
+        }
     }
 }
 
@@ -126,6 +157,7 @@ fn transport(agent: Agent) -> &'static str {
     match agent {
         Agent::ClaudeCode => "http",
         Agent::OpenCode => "remote",
+        Agent::Executor => "remote",
     }
 }
 
@@ -158,6 +190,7 @@ pub fn setup(status: &McpStatus, token: &str) -> Result<McpSetup, HopperError> {
                 connection: agent.connection(&url, token),
                 command: agent.command(&url, token),
                 json_config: agent.json(&url, token),
+                ai_prompt: agent.prompt(&url),
             })
             .collect(),
     })
@@ -204,6 +237,12 @@ pub async fn connect(status: &McpStatus, token: &str, id: &str) -> Result<String
         let args = match agent {
             Agent::ClaudeCode => claude_args(&url, token),
             Agent::OpenCode => opencode_args(&url, token),
+            Agent::Executor => {
+                return Err(HopperError::new(
+                    "agent_manual",
+                    "Executor is set up manually through its own AI; copy the prompt from the Connect sheet",
+                ));
+            }
         };
         let out = run(agent, &args).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
@@ -401,10 +440,33 @@ mod tests {
         for agent in Agent::ALL {
             assert_eq!(Agent::from_id(agent.id()), Some(agent));
             assert!(!agent.name().is_empty());
+        }
+        assert_eq!(Agent::from_id("vim"), None);
+    }
+
+    #[test]
+    fn cli_agents_expose_a_command_and_json_config() {
+        for agent in [Agent::ClaudeCode, Agent::OpenCode] {
             assert!(!agent.command("http://x/mcp", "t").is_empty());
             assert!(agent.json("http://x/mcp", "t").contains("hopper"));
         }
-        assert_eq!(Agent::from_id("vim"), None);
+    }
+
+    #[test]
+    fn executor_is_manual_and_its_prompt_carries_only_the_url() {
+        let agent = Agent::Executor;
+        assert_eq!(agent.id(), "executor");
+        // No user config file to read: detection is on PATH only.
+        assert!(agent.config_path().is_none());
+        assert!(!agent.programs().is_empty());
+        assert!(agent.command("http://x/mcp", "SUPER_SECRET").is_empty());
+        assert!(agent.json("http://x/mcp", "SUPER_SECRET").is_empty());
+        // The prompt tells the user's own AI what to add, with the URL and no credential.
+        let prompt = agent.prompt("http://127.0.0.1:38517/mcp");
+        assert!(prompt.contains("http://127.0.0.1:38517/mcp"));
+        assert!(!prompt.contains("SUPER_SECRET"));
+        assert!(!prompt.contains("Bearer"));
+        assert!(!prompt.contains("Authorization:"));
     }
 
     #[test]
@@ -496,14 +558,20 @@ mod tests {
             url: Some("http://127.0.0.1:38517/mcp".into()),
             error: None,
         };
-        let found = setup(&status, "tok").unwrap();
+        let token = "SECRET_TOKEN_9x";
+        let found = setup(&status, token).unwrap();
         assert_eq!(found.agents.len(), Agent::ALL.len());
         let ids: Vec<&str> = found.agents.iter().map(|a| a.id.as_str()).collect();
-        assert_eq!(ids, ["claude-code", "opencode"]);
+        assert_eq!(ids, ["claude-code", "opencode", "executor"]);
         for agent in &found.agents {
-            assert!(agent.command.contains("http://127.0.0.1:38517/mcp"));
-            assert!(agent.json_config.contains("http://127.0.0.1:38517/mcp"));
+            if agent.id == "executor" {
+                assert!(agent.ai_prompt.contains("http://127.0.0.1:38517/mcp"));
+                assert!(!agent.ai_prompt.contains(token));
+            } else {
+                assert!(agent.command.contains("http://127.0.0.1:38517/mcp"));
+                assert!(agent.json_config.contains("http://127.0.0.1:38517/mcp"));
+            }
         }
-        assert!(setup(&McpStatus::default(), "tok").is_err());
+        assert!(setup(&McpStatus::default(), token).is_err());
     }
 }
