@@ -368,12 +368,21 @@ impl Open {
     ) -> Result<Prepared, HopperError> {
         let is_agent = matches!(caller, Caller::Agent { .. });
         if is_agent {
-            let used = template_vars(&snap.request.url);
+            // Path params are filled from the same overrides in `prepare`, so a
+            // variable behind `{id}` decides the resource just as much as one
+            // written directly in the URL template.
+            let mut used = template_vars(&snap.request.url);
+            used.extend(
+                snap.request
+                    .path_params
+                    .values()
+                    .flat_map(|v| template_vars(v)),
+            );
             if let Some(bad) = overrides.keys().find(|k| used.contains(k)) {
                 return Err(HopperError::invalid(format!(
-                    "agents cannot override `{bad}`: the URL uses it, so it decides where the request goes"
+                    "agents cannot override `{bad}`: the URL or a path parameter uses it, so it decides where the request goes"
                 ))
-                .hint("change the URL in the request instead, or ask the user"));
+                .hint("change the URL or path parameter in the request instead, or ask the user"));
             }
         }
         let folders: Vec<&Folder> = snap.folders.iter().collect();

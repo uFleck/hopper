@@ -998,6 +998,38 @@ async fn an_auto_grant_cannot_be_used_to_reach_a_new_path_via_overrides() {
 }
 
 #[tokio::test]
+async fn an_auto_grant_cannot_be_used_to_reach_another_resource_via_a_path_param_variable() {
+    let h = H::new().await;
+    h.env_other(&[]).await;
+    h.activate("dev").await;
+    h.svc.set_approval_timeout(Duration::from_millis(150));
+    // `{id}` is filled from path_params, which resolves `{{userId}}` from overrides.
+    let mut doc = H::doc("user", Method::Get, "{{baseUrl}}/users/{id}");
+    doc.path_params = BTreeMap::from([("id".into(), "{{userId}}".into())]);
+    let id = h.save_doc(doc).await.doc.id;
+    h.svc
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
+        .await
+        .unwrap();
+
+    let err = h
+        .agent()
+        .send_request(SendArgs {
+            id: Some(id),
+            overrides: BTreeMap::from([("userId".into(), "someone-else".into())]),
+            ..Default::default()
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, "invalid_input");
+    assert!(err.message.contains("userId"), "{err:?}");
+}
+
+#[tokio::test]
 async fn create_request_refuses_a_saved_route_unless_forced() {
     let h = H::new().await;
     h.save("echo", "{{baseUrl}}/echo").await;
