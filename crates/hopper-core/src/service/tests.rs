@@ -2717,6 +2717,163 @@ async fn cookies_are_listed_per_active_environment() {
     h.svc.cookies_clear().await.unwrap();
 }
 
+// ------------------------------------------------ agent request-list notes
+
+#[tokio::test]
+async fn list_requests_exposes_notes_without_changing_other_fields() {
+    struct Case {
+        label: &'static str,
+        name: &'static str,
+        url: &'static str,
+        notes: Option<String>,
+        query: Option<&'static str>,
+        want_notes: Option<String>,
+        want_total: usize,
+    }
+
+    // The cut lands between `é` and `-tail`, so a byte-based truncation would
+    // either panic or produce a replacement character.
+    let long = format!("{}é-tail", "a".repeat(499));
+    let long_want = format!("{}é", "a".repeat(499));
+    let cases = [
+        Case {
+            label: "no notes stays absent",
+            name: "Plain",
+            url: "{{baseUrl}}/plain",
+            notes: None,
+            query: None,
+            want_notes: None,
+            want_total: 1,
+        },
+        Case {
+            label: "short notes reach the agent",
+            name: "Refund",
+            url: "{{baseUrl}}/refund",
+            notes: Some("Refund an invoice".into()),
+            query: None,
+            want_notes: Some("Refund an invoice".into()),
+            want_total: 1,
+        },
+        Case {
+            label: "query matches notes only",
+            name: "Refund",
+            url: "{{baseUrl}}/refund",
+            notes: Some("Refunds an invoice by id".into()),
+            query: Some("invoice"),
+            want_notes: Some("Refunds an invoice by id".into()),
+            want_total: 1,
+        },
+        Case {
+            label: "name query keeps its behaviour",
+            name: "Lookup user",
+            url: "{{baseUrl}}/users",
+            notes: Some("by email".into()),
+            query: Some("lookup"),
+            want_notes: Some("by email".into()),
+            want_total: 1,
+        },
+        Case {
+            label: "url query keeps its behaviour",
+            name: "Users",
+            url: "{{baseUrl}}/users",
+            notes: None,
+            query: Some("/users"),
+            want_notes: None,
+            want_total: 1,
+        },
+        Case {
+            label: "long notes are cut on a char boundary",
+            name: "Long",
+            url: "{{baseUrl}}/long",
+            notes: Some(long),
+            query: None,
+            want_notes: Some(long_want),
+            want_total: 1,
+        },
+        Case {
+            label: "unmatched query still filters everything out",
+            name: "Hidden",
+            url: "{{baseUrl}}/hidden",
+            notes: Some("refund me".into()),
+            query: Some("zzzz"),
+            want_notes: None,
+            want_total: 0,
+        },
+    ];
+
+    for c in cases {
+        let h = H::new().await;
+        let mut doc = H::doc(c.name, Method::Get, c.url);
+        doc.notes = c.notes;
+        let saved = h.save_doc(doc).await;
+        let out = h
+            .agent()
+            .list_requests(ListRequestsArgs {
+                collection: Some("api".into()),
+                query: c.query.map(str::to_owned),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(out["total"], c.want_total, "{}", c.label);
+        let items = out["requests"].as_array().unwrap();
+        assert_eq!(items.len(), c.want_total, "{}", c.label);
+        if c.want_total == 0 {
+            continue;
+        }
+        let item = &items[0];
+        assert_eq!(item["id"], canon(&saved.doc.id), "{}", c.label);
+        assert_eq!(item["name"], c.name, "{}", c.label);
+        assert_eq!(item["method"], "GET", "{}", c.label);
+        assert_eq!(item["url"], c.url, "{}", c.label);
+        assert_eq!(item["collection"], "api", "{}", c.label);
+        assert_eq!(item["folder"], json!([]), "{}", c.label);
+        match c.want_notes {
+            Some(notes) => {
+                assert_eq!(item["notes"], notes, "{}", c.label);
+                assert!(item["notes"].as_str().unwrap().chars().count() <= 500);
+            }
+            None => assert!(item.get("notes").is_none(), "{}", c.label),
+        }
+    }
+}
+
+#[tokio::test]
+async fn list_requests_notes_preview_keeps_a_full_page_under_the_output_cap() {
+    let h = H::new().await;
+    let notes = "a".repeat(5_000);
+    for n in 0..200 {
+        let mut doc = H::doc(
+            &format!("R{n}"),
+            Method::Get,
+            &format!("{{{{baseUrl}}}}/r/{n}"),
+        );
+        doc.notes = Some(notes.clone());
+        h.save_doc(doc).await;
+    }
+
+    let out = h
+        .agent()
+        .list_requests(ListRequestsArgs {
+            limit: Some(200),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(out["total"], 200);
+    let items = out["requests"].as_array().unwrap();
+    assert_eq!(items.len(), 200);
+    assert!(
+        items
+            .iter()
+            .all(|item| item["notes"].as_str().unwrap().len() == 500)
+    );
+    // `finish` rejects anything over this bound; the preview must keep a full
+    // page of long notes well below it.
+    assert!(out.to_string().len() < 200_000);
+}
+
 // -------------------------------------------- the all-tools secret property
 
 #[tokio::test]

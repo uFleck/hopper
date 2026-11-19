@@ -342,6 +342,61 @@ async fn tools_by_category() {
 }
 
 #[tokio::test]
+async fn list_requests_tool_carries_notes_and_matches_them() {
+    let def = super::tools::definitions()
+        .into_iter()
+        .find(|d| d["name"] == "hopper_list_requests")
+        .unwrap();
+    assert_eq!(
+        def["inputSchema"]["properties"]["query"]["description"],
+        "Filter text (name, URL or notes)"
+    );
+    assert!(
+        def["description"]
+            .as_str()
+            .unwrap()
+            .contains("notes preview")
+    );
+
+    let h = H::new().await;
+    let created = h
+        .ok(
+            "hopper_create_request",
+            json!({"collection": "api", "request": {"name": "Refund", "method": "GET",
+                "url": "{{baseUrl}}/refund", "notes": "Refunds an invoice by id"}}),
+        )
+        .await;
+    let list = h
+        .ok(
+            "hopper_list_requests",
+            json!({"collection": "api", "query": "invoice"}),
+        )
+        .await;
+    assert_eq!(list["total"], 1);
+    assert_eq!(list["requests"][0]["id"], created["id"]);
+    assert_eq!(list["requests"][0]["notes"], "Refunds an invoice by id");
+    assert_eq!(list["requests"][0]["name"], "Refund");
+    assert_eq!(list["requests"][0]["url"], "{{baseUrl}}/refund");
+
+    // A request without notes keeps the field absent.
+    h.ok(
+        "hopper_create_request",
+        json!({"collection": "api", "request": {"name": "Plain", "method": "GET", "url": "{{baseUrl}}/plain"}}),
+    )
+    .await;
+    let all = h
+        .ok("hopper_list_requests", json!({"collection": "api"}))
+        .await;
+    let plain = all["requests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["name"] == "Plain")
+        .unwrap();
+    assert!(plain.get("notes").is_none());
+}
+
+#[tokio::test]
 async fn collections_and_folders_through_mcp() {
     let h = H::new().await;
     let slug = h

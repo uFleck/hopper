@@ -32,6 +32,8 @@ const MAX_OUTPUT_CHARS: usize = 200_000;
 pub const MAX_BODY_CHARS: usize = 30_000;
 const DEFAULT_SEARCH_LIMIT: usize = 20;
 const MAX_LIST: usize = 200;
+/// Characters of a saved request's notes returned per item by `list_requests`.
+const NOTES_PREVIEW_CHARS: usize = 500;
 
 /// The part of a JSON body that a pointer names. A string comes back as is; anything else as pretty JSON.
 fn pick_pointer(text: &str, pointer: &str) -> Result<String, HopperError> {
@@ -436,12 +438,19 @@ fn to_json<T: serde::Serialize>(v: &T) -> Result<Value, HopperError> {
     serde_json::to_value(v).map_err(|e| HopperError::internal(e.to_string()))
 }
 
+/// A short, char-safe preview of a request's notes. Agents that need the full
+/// text can call `hopper_get_request`; the bound keeps a full page under
+/// `MAX_OUTPUT_CHARS`.
+fn notes_preview(notes: &str) -> String {
+    notes.chars().take(NOTES_PREVIEW_CHARS).collect()
+}
+
 fn is_url_variable(name: &str) -> bool {
     name.to_ascii_lowercase().ends_with("url")
 }
 
 /// Server instructions for the MCP adapter (`src-tauri/src/mcp/tools.rs` aliases this).
-pub const AGENT_INSTRUCTIONS: &str = "Hopper is a desktop HTTP client where you maintain the user's API collections. Hopper must be running for these tools to work; if the connection fails, ask the user to open Hopper (it lives in the tray). Start with hopper_workspace, then hopper_search_routes to find an endpoint and hopper_create_request (fromOperation) to save it. hopper_send_request may need the user's approval in the Hopper panel: the call waits up to 60 seconds and then returns not_approved, and requests to localhost in the `local` stage never ask; a request to any other host asks. Stages are fixed: local, dev, rc, production. An environment is a stage with one section per application (collection slug). You can set a section's variables and declare secret references; you cannot set secret values, TLS or allowed hosts, and secret values are never visible to you. In `local`, URL variables must point at localhost, 127.0.0.1 or ::1; in other stages any host is accepted, but the section's allowed hosts are first pinned to their previous list, so secrets only go to hosts the user has allowed. Collection, folder and request variables go through hopper_set_variables. Precedence: request > folder > collection > stage+application > workspace. To shape a workspace: hopper_update_collection and hopper_update_folder set shared headers and auth (merged by header name; literal credentials are never shown back and must be written as {{variable}} references), and hopper_update_workspace sets the default timeout and redirect behaviour. Only one workspace is open at a time and it is the one every other tool works on: hopper_list_workspaces shows the known ones, hopper_open_workspace switches (the user sees the panel change) and hopper_create_workspace makes a new one. hopper_rename_workspace renames the open one. hopper_delete_workspace removes a workspace's Hopper files only after the user approves it in the Hopper panel.";
+pub const AGENT_INSTRUCTIONS: &str = "Hopper is a desktop HTTP client where you maintain the user's API collections. Hopper must be running for these tools to work; if the connection fails, ask the user to open Hopper (it lives in the tray). Start with hopper_workspace, then hopper_search_routes to find an endpoint and hopper_create_request (fromOperation) to save it. hopper_list_requests carries a short notes preview per saved request; its `query` also matches notes, so use it to find a request by a prose description. hopper_send_request may need the user's approval in the Hopper panel: the call waits up to 60 seconds and then returns not_approved, and requests to localhost in the `local` stage never ask; a request to any other host asks. Stages are fixed: local, dev, rc, production. An environment is a stage with one section per application (collection slug). You can set a section's variables and declare secret references; you cannot set secret values, TLS or allowed hosts, and secret values are never visible to you. In `local`, URL variables must point at localhost, 127.0.0.1 or ::1; in other stages any host is accepted, but the section's allowed hosts are first pinned to their previous list, so secrets only go to hosts the user has allowed. Collection, folder and request variables go through hopper_set_variables. Precedence: request > folder > collection > stage+application > workspace. To shape a workspace: hopper_update_collection and hopper_update_folder set shared headers and auth (merged by header name; literal credentials are never shown back and must be written as {{variable}} references), and hopper_update_workspace sets the default timeout and redirect behaviour. Only one workspace is open at a time and it is the one every other tool works on: hopper_list_workspaces shows the known ones, hopper_open_workspace switches (the user sees the panel change) and hopper_create_workspace makes a new one. hopper_rename_workspace renames the open one. hopper_delete_workspace removes a workspace's Hopper files only after the user approves it in the Hopper panel.";
 
 const MAX_TIMEOUT_MS: u64 = 600_000;
 
@@ -852,17 +861,25 @@ impl AgentApi {
                             if let Some(n) = &needle
                                 && !doc.name.to_lowercase().contains(n)
                                 && !doc.url.to_lowercase().contains(n)
+                                && !doc
+                                    .notes
+                                    .as_deref()
+                                    .is_some_and(|notes| notes.to_lowercase().contains(n))
                             {
                                 return;
                             }
-                            items.push(json!({
+                            let mut item = json!({
                                 "id": canon(&doc.id),
                                 "name": doc.name,
                                 "method": doc.method,
                                 "url": doc.url,
                                 "collection": c.slug,
                                 "folder": folders,
-                            }));
+                            });
+                            if let Some(notes) = doc.notes.as_deref() {
+                                item["notes"] = json!(notes_preview(notes));
+                            }
+                            items.push(item);
                         });
                     }
                     items
