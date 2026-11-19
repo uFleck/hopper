@@ -98,9 +98,9 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_list_requests",
-            "List saved requests by collection, folder or query.",
+            "List saved requests by collection, folder or query. Each item carries a short notes preview; use it to find a request by its prose description, then hopper_get_request for the full text.",
             schema(
-                json!({"collection": s("Collection slug"), "folder": strings("Folder slugs from the collection root"), "query": s("Filter text"), "limit": n("Max items")}),
+                json!({"collection": s("Collection slug"), "folder": strings("Folder slugs from the collection root"), "query": s("Filter text (name, URL or notes)"), "limit": n("Max items")}),
                 &[],
             ),
         ),
