@@ -5,6 +5,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
 
+mod fullscreen;
 mod hotkey;
 mod ipc;
 mod mcp;
@@ -168,6 +169,7 @@ pub fn run() {
             app.manage(app_state);
             build_tray(app.handle())?;
             panel::init(app.handle());
+            fullscreen::watch(app.handle());
             hotkey::register_at_startup(app.handle(), &settings.hotkey);
             Ok(())
         })

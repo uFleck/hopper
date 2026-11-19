@@ -52,6 +52,8 @@ pub struct Panel {
     dragging: AtomicBool,
     /// The mode last put on screen. `state` moves ahead of it while the panel animates out.
     shown: Mutex<Mode>,
+    /// A fullscreen app is in front on the panel's monitor: the window stays hidden whatever the mode.
+    suppressed: AtomicBool,
 }
 
 impl Panel {
@@ -67,6 +69,7 @@ impl Panel {
             picker_open: AtomicBool::new(false),
             dragging: AtomicBool::new(false),
             shown: Mutex::new(Mode::Hidden),
+            suppressed: AtomicBool::new(false),
         }
     }
 
@@ -161,8 +164,38 @@ pub fn dispatch(app: &AppHandle, event: Event) {
     let _ = app.run_on_main_thread(move || apply(&handle, outcome));
 }
 
+/// Hides the window while a fullscreen app is in front of it, then puts it back in whatever mode it is in by now.
+/// Runs on the main thread. The mode itself is left alone, so nothing the page shows is lost.
+pub fn set_suppressed(app: &AppHandle, on: bool) {
+    let Some(panel) = app.try_state::<Panel>() else {
+        return;
+    };
+    if panel.suppressed.swap(on, Ordering::Relaxed) == on {
+        return;
+    }
+    let Some(win) = window(app) else { return };
+    match (on, mode(app)) {
+        (true, _) => set_visible(&win, false),
+        (false, Mode::Hidden) => {}
+        (false, mode) => {
+            dock(&win, mode);
+            set_visible(&win, true);
+        }
+    }
+}
+
+fn suppressed(app: &AppHandle) -> bool {
+    app.try_state::<Panel>()
+        .is_some_and(|p| p.suppressed.load(Ordering::Relaxed))
+}
+
 fn apply(app: &AppHandle, outcome: Outcome) {
     let Some(win) = window(app) else { return };
+    // Summoned over a fullscreen app: the user asked for the panel, so it shows. The fullscreen app hides it again
+    // once it is back in front.
+    if outcome.focus == Focus::Take {
+        set_suppressed(app, false);
+    }
     if outcome.mode_changed {
         let was = app.try_state::<Panel>().map_or(Mode::Hidden, |p| {
             std::mem::replace(&mut *p.shown.lock().unwrap(), outcome.mode)
@@ -200,7 +233,7 @@ fn settle(app: &AppHandle, window: &WebviewWindow, mode: Mode) {
         Mode::Hidden => set_visible(window, false),
         mode => {
             dock(window, mode);
-            set_visible(window, true);
+            set_visible(window, !suppressed(app));
         }
     }
     emit_mode(app, window, mode);
