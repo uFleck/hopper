@@ -241,7 +241,7 @@ const kvText = (rows: KeyValue[]) => rows.filter((r) => r.enabled).flatMap((r) =
 export function authText(a: Auth): string[] {
   switch (a.type) {
     case "bearer": return [a.token];
-    case "basic": return [a.username, a.password];
+    case "basic": return a.value !== undefined ? [a.value] : [a.username, a.password];
     case "apiKey": return [a.name, a.value];
     default: return [];
   }

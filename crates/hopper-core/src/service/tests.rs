@@ -883,7 +883,7 @@ async fn auto_grant_with_an_unlisted_host_asks() {
 }
 
 #[tokio::test]
-async fn agents_cannot_override_variables_the_url_uses() {
+async fn agents_override_url_variables_but_new_hosts_still_ask() {
     let h = H::new().await;
     h.env("local", &[]).await;
     h.activate("local").await;
@@ -903,13 +903,16 @@ async fn agents_cannot_override_variables_the_url_uses() {
             .await
         }
     };
-    let e = send(&[("baseUrl", "http://evil.test"), ("id", "1")])
-        .await
-        .unwrap_err();
-    assert_eq!(e.code, "invalid_input");
-    assert!(e.message.contains("baseUrl"));
-    // `id` is in the URL too, so it is refused as well.
-    assert_eq!(err_code(send(&[("id", "1")]).await), "invalid_input");
+    // Agents may override URL variables: the override reaches the URL.
+    let out = send(&[("id", "1")]).await.unwrap();
+    assert!(out["body"].as_str().unwrap().contains("x=1"));
+    // A host the override points at is still gated by policy: it asks, and nobody answers here.
+    h.svc.set_approval_timeout(Duration::from_millis(150));
+    assert_eq!(
+        err_code(send(&[("baseUrl", "http://evil.test"), ("id", "1")]).await),
+        "not_approved"
+    );
+    h.svc.set_approval_timeout(Duration::from_secs(30));
     // The UI may override anything.
     let mut input = H::user_send_input("o1", &id);
     input.overrides = Some(BTreeMap::from([("id".into(), "5".into())]));
@@ -963,6 +966,66 @@ async fn unreadable_env_rules_deny_agents_but_not_the_user() {
             .status,
         200
     );
+}
+
+#[tokio::test]
+async fn agents_override_url_variables_for_one_send() {
+    let h = H::new().await;
+    h.env("local", &[]).await;
+    h.activate("local").await;
+    let id = h.save("echo", "{{baseUrl}}/{{route}}").await.doc.id;
+    let res = h
+        .agent()
+        .send_request(SendArgs {
+            id: Some(id),
+            overrides: BTreeMap::from([("route".into(), "echo".into())]),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(res["status"], 200);
+}
+
+#[tokio::test]
+async fn create_request_refuses_a_saved_route_unless_forced() {
+    let h = H::new().await;
+    h.save("echo", "{{baseUrl}}/echo").await;
+    let input = |force: bool| -> CreateRequestArgs {
+        serde_json::from_value(json!({
+            "collection": "api",
+            "request": { "method": "GET", "url": "{{baseUrl}}/echo/" },
+            "name": "echo again",
+            "force": force,
+        }))
+        .unwrap()
+    };
+    let err = h.agent().create_request(input(false)).await.unwrap_err();
+    assert_eq!(err.code, "invalid_input");
+    assert!(format!("{err:?}").contains("already has"), "{err:?}");
+    h.agent()
+        .create_request(input(true))
+        .await
+        .expect("force creates the duplicate");
+}
+
+#[tokio::test]
+async fn inline_send_matching_a_saved_request_gets_a_hint() {
+    let h = H::new().await;
+    h.env("local", &[]).await;
+    h.activate("local").await;
+    h.save("echo", "{{baseUrl}}/echo").await;
+    let res = h
+        .agent()
+        .send_request(SendArgs {
+            request: Some(inline("GET", "{{baseUrl}}/echo")),
+            collection: Some("api".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(res["status"], 200, "the inline request is still sent");
+    assert_eq!(res["similarSavedRequest"]["name"], "echo");
+    assert!(res["hint"].as_str().unwrap().contains("overrides"));
 }
 
 #[tokio::test]
@@ -1700,6 +1763,7 @@ async fn agents_manage_collections_folders_and_requests_with_revisions() {
         .create_request(CreateRequestArgs {
             collection: slug.clone(),
             folder: vec![folder.clone()],
+            force: false,
             from_operation: None,
             request: Some(inline("GET", "{{baseUrl}}/invoices")),
             name: Some("List invoices".into()),
@@ -1837,6 +1901,7 @@ async fn an_agent_creating_a_request_announces_the_new_endpoint() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: Some(
                 serde_json::from_value(json!({
@@ -1869,6 +1934,7 @@ async fn an_agent_creating_a_request_announces_the_new_endpoint() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: None,
             name: None,
@@ -1890,6 +1956,7 @@ async fn agent_created_requests_get_store_assigned_ids_and_no_grant() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: Some(
                 serde_json::from_value(json!({
@@ -1919,6 +1986,7 @@ async fn agent_created_requests_get_store_assigned_ids_and_no_grant() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: None,
             name: None,
@@ -2044,6 +2112,7 @@ async fn spec_import_from_file_feeds_search_and_survives_a_reopen() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: Some(FromOperation {
                 spec: "pet-shop".into(),
                 key: key.clone(),
@@ -2764,6 +2833,7 @@ async fn no_agent_tool_ever_outputs_a_secret() {
         api.create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: Some(FromOperation {
                 spec: "pet-shop".into(),
                 key: "GET /pets".into(),
@@ -2777,6 +2847,7 @@ async fn no_agent_tool_ever_outputs_a_secret() {
         .create_request(CreateRequestArgs {
             collection: "api".into(),
             folder: vec![],
+            force: false,
             from_operation: None,
             request: Some(
                 serde_json::from_value(json!({

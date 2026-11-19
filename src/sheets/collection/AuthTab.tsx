@@ -27,7 +27,9 @@ interface Field {
 function credentialFields(a: Auth): Field[] {
   switch (a.type) {
     case "bearer": return [{ label: "token", value: a.token, suggest: "apiToken", set: (token) => ({ ...a, token }) }];
-    case "basic": return [{ label: "password", value: a.password, suggest: "password", set: (password) => ({ ...a, password }) }];
+    case "basic": return a.value === undefined
+      ? [{ label: "password", value: a.password, suggest: "password", set: (password) => ({ ...a, password }) }]
+      : [{ label: "base64 value", value: a.value, suggest: "basicValue", set: (value) => ({ ...a, value }) }];
     case "apiKey": return [{ label: "API key", value: a.value, suggest: "apiKey", set: (value) => ({ ...a, value }) }];
     default: return [];
   }

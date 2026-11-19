@@ -31,7 +31,7 @@ export type Auth =
   | { type: "inherit" }
   | { type: "none" }
   | { type: "bearer"; token: string }
-  | { type: "basic"; username: string; password: string }
+  | { type: "basic"; username: string; password: string; value?: string }
   | { type: "apiKey"; name: string; value: string; in: "header" | "query" };
 
 export type MultipartPart = { name: string; enabled: boolean } & ({ value: string } | { file: string });

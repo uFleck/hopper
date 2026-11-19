@@ -168,6 +168,9 @@ pub struct CreateRequestArgs {
     pub request: Option<RequestInput>,
     #[serde(default)]
     pub name: Option<String>,
+    /// Create even when a saved request already has this method and URL.
+    #[serde(default)]
+    pub force: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -486,6 +489,7 @@ fn guard_credentials(headers: &[KeyValue], auth: Option<&Auth>) -> Result<(), Ho
     }
     let secret = match auth {
         Some(Auth::Bearer { token }) => Some(("the bearer token", token)),
+        Some(Auth::Basic { value: Some(v), .. }) => Some(("the basic auth value", v)),
         Some(Auth::Basic { password, .. }) => Some(("the basic auth password", password)),
         Some(Auth::ApiKey { value, .. }) => Some(("the API key value", value)),
         _ => None,
@@ -743,7 +747,7 @@ impl AgentApi {
                 "collections": collections,
                 "environments": environments,
                 "hints": [
-                    "Search with search_routes, then create_request with fromOperation.",
+                    "Search with search_routes first. To change a request's variables for one send, send the saved request with `id` and `overrides`; create_request refuses a duplicate route unless `force` is set.",
                     "Requests reference variables as {{name}}; secrets are set by the user and never visible here.",
                     "Update requests with the revision from get_request (expectedRevision is required).",
                     "Sends to non-local stages may need the user's approval in the Hopper panel.",
@@ -894,6 +898,8 @@ impl AgentApi {
                         "folder": r.folders.iter().map(|f| f.slug).collect::<Vec<_>>(),
                         "path": r.path,
                         "readOnly": r.request.read_only,
+                        "urlVariables": super::send::template_vars(&r.request.doc.url),
+                        "hint": "to vary this request for one send, call hopper_send_request with this `id` and `overrides` (URL variables included); do not create a new request",
                         "request": serde_json::to_value(RequestDoc::from(&r.request.doc))
                             .map_err(|e| HopperError::internal(e.to_string()))?,
                     }))
@@ -964,8 +970,22 @@ impl AgentApi {
             }
             let (collection, folder) = (args.collection.clone(), args.folder.clone());
             let label = endpoint_label(&req);
+            let (force, dedupe_in) = (args.force, args.collection.clone());
             let v = open
                 .with_store(move |s| -> Result<Value, HopperError> {
+                    if !force
+                        && let Some(existing) =
+                            s.find_same_request(Some(&dedupe_in), &req.method, &req.url)
+                    {
+                        return Err(HopperError::invalid(format!(
+                            "a saved request already has {:?} {}: `{}` ({})",
+                            req.method,
+                            req.url,
+                            existing.doc.name,
+                            canon(&existing.doc.id)
+                        ))
+                        .hint("send that request with `id` and `overrides` instead; pass `force: true` only if a new request is really needed"));
+                    }
                     let r = s.create_request(&collection, &folder, req)?;
                     Ok(json!({
                         "id": canon(&r.request.doc.id),
@@ -1884,6 +1904,21 @@ impl AgentApi {
             ),
         };
         let r = async {
+            // An inline request that matches a saved one is still sent, but the
+            // result points the agent at the saved request for next time.
+            let similar = match &args.request {
+                Some(input) if args.id.is_none() => {
+                    let method = input.method;
+                    let url = input.url.clone();
+                    let collection = args.collection.clone();
+                    open.with_store(move |s| -> Result<Option<(String, String)>, HopperError> {
+                        Ok(s.find_same_request(collection.as_deref(), &method, &url)
+                            .map(|r| (canon(&r.doc.id), r.doc.name.clone())))
+                    })
+                    .await??
+                }
+                _ => None,
+            };
             let sent = open
                 .send(
                     &self.caller(),
@@ -1930,7 +1965,7 @@ impl AgentApi {
                 None => (None, 0, false),
             };
             let res = &sent.result;
-            let v = json!({
+            let mut v = json!({
                 "responseId": cached.as_ref().map(|c| c.id.clone()),
                 "status": res.status,
                 "statusText": res.status_text,
@@ -1949,6 +1984,12 @@ impl AgentApi {
                 "requestId": res.request_id,
                 "note": if body.is_none() { Some("the body is not text; it is not returned") } else if cut { Some("the body was cut; use get_response with a JSON pointer `path` or paging, or read `bodyFile` (the full redacted body) with a script") } else { None },
             });
+            if let Some((id, name)) = similar {
+                v["similarSavedRequest"] = json!({ "id": id, "name": name });
+                v["hint"] = json!(format!(
+                    "this inline request matches saved request `{name}`; next time send it with `id` and `overrides` instead of an inline request"
+                ));
+            }
             Ok((
                 project(v, args.fields.as_deref())?,
                 sent.allowed_by.map(str::to_owned),
@@ -2097,6 +2138,7 @@ mod masking_tests {
         let basic = Auth::Basic {
             username: "sk-live-1".into(),
             password: "{{pw}}".into(),
+            value: None,
         };
         let v = masked_auth(&basic).unwrap();
         assert_eq!(

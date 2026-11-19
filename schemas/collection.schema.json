@@ -61,6 +61,13 @@
             },
             "username": {
               "type": "string"
+            },
+            "value": {
+              "description": "Send this base64 value directly instead of encoding `username:password`.\nA `{{variable}}` backed by a secret keeps the credential in the keyring.",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "required": [

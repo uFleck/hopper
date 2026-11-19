@@ -35,7 +35,7 @@ export function setupItems(input: { operations: number; rows: MatrixRow[]; auth:
     items.push({ key: "auth", state: "optional", title: "Authentication", detail: "None. Set it if the API needs a login", go: { label: "Set up", tab: "auth" } });
   } else {
     const text = authText(auth);
-    const raw = [auth.type === "bearer" ? auth.token : auth.type === "basic" ? auth.password : auth.value].some(isRawValue);
+    const raw = [auth.type === "bearer" ? auth.token : auth.type === "basic" ? (auth.value ?? auth.password) : auth.value].some(isRawValue);
     const need = rows.filter((r) => r.secret && text.some((t) => variablesIn(t).includes(r.name)) && active && r.cells[active].kind !== "set");
     if (raw) items.push({ key: "auth", state: "todo", title: "Authentication", detail: "A credential is written in the collection file", go: { label: "Fix", tab: "auth" } });
     else if (need.length > 0 && where) items.push({ key: "auth", state: "todo", title: "Authentication", detail: `${AUTH_NAME[auth.type]} needs {{${need[0].name}}} in ${where}`, go: { label: "Set value", tab: "auth" } });

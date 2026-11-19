@@ -229,6 +229,31 @@ pub struct WorkspaceStore {
     seen_ids: HashSet<String>,
 }
 
+fn find_same<'a>(
+    children: &'a [TreeNode],
+    method: &crate::format::Method,
+    key: &str,
+) -> Option<&'a Loaded<Request>> {
+    children.iter().find_map(|node| match node {
+        TreeNode::Request { request, .. } => {
+            (request.doc.method == *method && url_key(&request.doc.url) == key).then_some(request)
+        }
+        TreeNode::Folder { children, .. } => find_same(children, method, key),
+    })
+}
+
+/// What two URL templates must share to count as the same route: no leading
+/// `{{baseUrl}}`, no query string, no trailing slash.
+fn url_key(url: &str) -> String {
+    let url = url.trim();
+    let url = url.strip_prefix("{{baseUrl}}").unwrap_or(url);
+    url.split('?')
+        .next()
+        .unwrap_or_default()
+        .trim_end_matches('/')
+        .to_owned()
+}
+
 fn find_in<'a>(
     children: &'a [TreeNode],
     id: &str,
@@ -359,6 +384,22 @@ impl WorkspaceStore {
             }
         }
         None
+    }
+
+    /// A saved request with the same method and URL template, in `collection`
+    /// (or in any collection when `None`). Used to refuse duplicate routes.
+    pub fn find_same_request(
+        &self,
+        collection: Option<&str>,
+        method: &crate::format::Method,
+        url: &str,
+    ) -> Option<&Loaded<Request>> {
+        let key = url_key(url);
+        self.tree
+            .collections
+            .iter()
+            .filter(|c| collection.is_none_or(|slug| c.slug == slug))
+            .find_map(|c| find_same(&c.children, method, &key))
     }
 
     fn request_ref(&self, id: &str) -> Result<RequestRef<'_>, StoreError> {

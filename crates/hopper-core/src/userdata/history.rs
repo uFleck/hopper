@@ -335,7 +335,14 @@ pub fn without_literal_credentials(request: &Request) -> Request {
     };
     match &mut out.auth {
         Auth::Bearer { token } => blank(token),
-        Auth::Basic { password, .. } => blank(password),
+        Auth::Basic {
+            password, value, ..
+        } => {
+            blank(password);
+            if let Some(v) = value {
+                blank(v);
+            }
+        }
         Auth::ApiKey { value, .. } => blank(value),
         Auth::Inherit | Auth::None => {}
     }

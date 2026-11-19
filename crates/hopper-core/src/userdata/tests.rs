@@ -593,6 +593,28 @@ fn a_stored_request_keeps_templates_and_blanks_literal_credentials() {
         token: "{{token}}".into(),
     };
     assert_eq!(without_literal_credentials(&req).auth, req.auth);
+
+    // A pre-encoded Basic value is a credential too: blank it in history unless it is a reference.
+    req.auth = Auth::Basic {
+        username: "u".into(),
+        password: "p".into(),
+        value: Some("literal-base64".into()),
+    };
+    assert_eq!(
+        without_literal_credentials(&req).auth,
+        Auth::Basic {
+            username: "u".into(),
+            password: String::new(),
+            value: Some(String::new()),
+        }
+    );
+
+    req.auth = Auth::Basic {
+        username: "".into(),
+        password: "".into(),
+        value: Some("{{basic}}".into()),
+    };
+    assert_eq!(without_literal_credentials(&req).auth, req.auth);
 }
 
 #[test]
