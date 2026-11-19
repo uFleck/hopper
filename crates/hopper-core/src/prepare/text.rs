@@ -149,6 +149,18 @@ fn is_var_name(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
 }
 
+/// Names of `{{variables}}` in a template, using the resolver's own parser so
+/// callers that guard overrides cannot disagree with what actually resolves.
+pub(crate) fn template_vars(s: &str) -> Vec<String> {
+    parse_template(s)
+        .into_iter()
+        .filter_map(|part| match part {
+            Part::Var(name) => Some(name.to_owned()),
+            Part::Lit(_) => None,
+        })
+        .collect()
+}
+
 /// Splits `{{name}}` references out of a template. Anything that does not look
 /// like a variable name (JSON like `{{"a":1}}`, `{{ two words }}`) stays literal.
 pub(super) fn parse_template(s: &str) -> Vec<Part<'_>> {

@@ -25,6 +25,7 @@ use crate::{
     resolved::{ResolvedBody, ResolvedPart, ResolvedPartContent, ResolvedRequest},
     secrets::{MASK, Redactor, SecretError, SecretProvider, SecretRef, is_sensitive_header},
 };
+pub(crate) use text::template_vars;
 use text::{Part, Text, base64, is_param_name, parse_template, percent_encode};
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;

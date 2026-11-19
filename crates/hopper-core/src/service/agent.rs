@@ -898,7 +898,7 @@ impl AgentApi {
                         "folder": r.folders.iter().map(|f| f.slug).collect::<Vec<_>>(),
                         "path": r.path,
                         "readOnly": r.request.read_only,
-                        "urlVariables": super::send::template_vars(&r.request.doc.url),
+                        "urlVariables": super::send::request_vars(&r.request.doc),
                         "hint": "to vary a value for one send, call hopper_send_request with this `id` and `overrides` (not URL variables); to change the route, edit the request URL instead",
                         "request": serde_json::to_value(RequestDoc::from(&r.request.doc))
                             .map_err(|e| HopperError::internal(e.to_string()))?,

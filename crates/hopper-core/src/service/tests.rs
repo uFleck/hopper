@@ -1030,6 +1030,27 @@ async fn an_auto_grant_cannot_be_used_to_reach_another_resource_via_a_path_param
 }
 
 #[tokio::test]
+async fn a_malformed_url_template_still_guards_the_variable_it_resolves() {
+    let h = H::new().await;
+    h.env("local", &[]).await;
+    h.activate("local").await;
+    // The resolver's one-character rescan finds `id` here; a naive scan to the
+    // next `}}` sees only `{{id` and would let the override through.
+    let id = h.save("odd", "{{baseUrl}}/users/{{{{id}}").await.doc.id;
+    let err = h
+        .agent()
+        .send_request(SendArgs {
+            id: Some(id),
+            overrides: BTreeMap::from([("id".into(), "admin".into())]),
+            ..Default::default()
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, "invalid_input");
+    assert!(err.message.contains("id"), "{err:?}");
+}
+
+#[tokio::test]
 async fn create_request_refuses_a_saved_route_unless_forced() {
     let h = H::new().await;
     h.save("echo", "{{baseUrl}}/echo").await;
