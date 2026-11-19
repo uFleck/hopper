@@ -747,7 +747,7 @@ impl AgentApi {
                 "collections": collections,
                 "environments": environments,
                 "hints": [
-                    "Search with search_routes first. To change a request's variables for one send, send the saved request with `id` and `overrides`; create_request refuses a duplicate route unless `force` is set.",
+                    "Search with search_routes first. To change a non-URL variable for one send, send the saved request with `id` and `overrides`; create_request refuses a duplicate route unless `force` is set.",
                     "Requests reference variables as {{name}}; secrets are set by the user and never visible here.",
                     "Update requests with the revision from get_request (expectedRevision is required).",
                     "Sends to non-local stages may need the user's approval in the Hopper panel.",
@@ -899,7 +899,7 @@ impl AgentApi {
                         "path": r.path,
                         "readOnly": r.request.read_only,
                         "urlVariables": super::send::template_vars(&r.request.doc.url),
-                        "hint": "to vary this request for one send, call hopper_send_request with this `id` and `overrides` (URL variables included); do not create a new request",
+                        "hint": "to vary a value for one send, call hopper_send_request with this `id` and `overrides` (not URL variables); to change the route, edit the request URL instead",
                         "request": serde_json::to_value(RequestDoc::from(&r.request.doc))
                             .map_err(|e| HopperError::internal(e.to_string()))?,
                     }))

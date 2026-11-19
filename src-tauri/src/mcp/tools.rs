@@ -343,14 +343,14 @@ pub fn definitions() -> Vec<Value> {
         ),
         tool(
             "hopper_send_request",
-            "Send a saved request (`id`) or an inline `request` in an environment. To change any variable for one send, including URL variables, pass `overrides` with the saved `id`; do not create an inline or new request to change a value. May wait for the user's approval in the panel. Returns status, redacted headers, timing, size, a body cut at 30,000 chars (`bodyTruncated` says so) and a `responseId`. Cheapest when you need one fact: pass `fields: [\"status\"]`, or `fields` with `path` (a JSON pointer such as /data/id) to get just that value. A body over 1 MiB is also saved whole (redacted) to `bodyFile`; read it with a script instead of paging.",
+            "Send a saved request (`id`) or an inline `request` in an environment. To change a value for one send, pass `overrides` with the saved `id`; variables used in the request URL cannot be overridden — change the URL in the request instead. May wait for the user's approval in the panel. Returns status, redacted headers, timing, size, a body cut at 30,000 chars (`bodyTruncated` says so) and a `responseId`. Cheapest when you need one fact: pass `fields: [\"status\"]`, or `fields` with `path` (a JSON pointer such as /data/id) to get just that value. A body over 1 MiB is also saved whole (redacted) to `bodyFile`; read it with a script instead of paging.",
             schema(
                 json!({"id": s("Saved request id"),
                     "request": {"type": "object", "properties": inline, "required": ["method", "url"]},
                     "collection": s("Collection whose inherited headers/auth an inline request uses"),
                     "folder": strings("Folder slugs"),
                     "environment": s("Environment name (default: the active one)"),
-                    "overrides": {"type": "object", "description": "Variable values for this send only, e.g. {\"id\": \"42\"}; the request is not changed", "additionalProperties": {"type": "string"}},
+                    "overrides": {"type": "object", "description": "Variable values for this send only (not variables used in the request URL); the request is not changed", "additionalProperties": {"type": "string"}},
                     "path": s("JSON pointer into the body, e.g. /items/0/id; the body returned is that part"),
                     "fields": strings("Keep only these top-level keys of the result, e.g. [\"status\"]. Add \"responseId\" to keep the handle for hopper_get_response")}),
                 &[],

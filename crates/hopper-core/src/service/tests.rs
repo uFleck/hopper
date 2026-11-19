@@ -883,7 +883,7 @@ async fn auto_grant_with_an_unlisted_host_asks() {
 }
 
 #[tokio::test]
-async fn agents_override_url_variables_but_new_hosts_still_ask() {
+async fn agents_cannot_override_variables_the_url_uses() {
     let h = H::new().await;
     h.env("local", &[]).await;
     h.activate("local").await;
@@ -903,16 +903,13 @@ async fn agents_override_url_variables_but_new_hosts_still_ask() {
             .await
         }
     };
-    // Agents may override URL variables: the override reaches the URL.
-    let out = send(&[("id", "1")]).await.unwrap();
-    assert!(out["body"].as_str().unwrap().contains("x=1"));
-    // A host the override points at is still gated by policy: it asks, and nobody answers here.
-    h.svc.set_approval_timeout(Duration::from_millis(150));
-    assert_eq!(
-        err_code(send(&[("baseUrl", "http://evil.test"), ("id", "1")]).await),
-        "not_approved"
-    );
-    h.svc.set_approval_timeout(Duration::from_secs(30));
+    let e = send(&[("baseUrl", "http://evil.test"), ("id", "1")])
+        .await
+        .unwrap_err();
+    assert_eq!(e.code, "invalid_input");
+    assert!(e.message.contains("baseUrl"));
+    // `id` is in the URL too, so it is refused as well.
+    assert_eq!(err_code(send(&[("id", "1")]).await), "invalid_input");
     // The UI may override anything.
     let mut input = H::user_send_input("o1", &id);
     input.overrides = Some(BTreeMap::from([("id".into(), "5".into())]));
@@ -969,21 +966,35 @@ async fn unreadable_env_rules_deny_agents_but_not_the_user() {
 }
 
 #[tokio::test]
-async fn agents_override_url_variables_for_one_send() {
+async fn an_auto_grant_cannot_be_used_to_reach_a_new_path_via_overrides() {
     let h = H::new().await;
-    h.env("local", &[]).await;
-    h.activate("local").await;
-    let id = h.save("echo", "{{baseUrl}}/{{route}}").await.doc.id;
-    let res = h
+    h.env_other(&[]).await;
+    h.activate("dev").await;
+    h.svc.set_approval_timeout(Duration::from_millis(150));
+    let id = h.save("item", "{{baseUrl}}/items/{{id}}").await.doc.id;
+    h.svc
+        .agent_access_set(
+            std::slice::from_ref(&id),
+            AgentAccess::Auto,
+            GrantScope::Exact,
+        )
+        .await
+        .unwrap();
+
+    // An Auto grant pins the host, not the path. Overriding a URL variable must
+    // still be refused, or the agent could walk to any path on the allowed host
+    // with secrets and no prompt.
+    let err = h
         .agent()
         .send_request(SendArgs {
             id: Some(id),
-            overrides: BTreeMap::from([("route".into(), "echo".into())]),
+            overrides: BTreeMap::from([("id".into(), "../../admin/x".into())]),
             ..Default::default()
         })
         .await
-        .unwrap();
-    assert_eq!(res["status"], 200);
+        .unwrap_err();
+    assert_eq!(err.code, "invalid_input");
+    assert!(err.message.contains("id"), "{err:?}");
 }
 
 #[tokio::test]
