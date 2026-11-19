@@ -3,6 +3,7 @@
 pub mod discover;
 pub mod engine;
 pub mod format;
+pub mod fullscreen;
 pub mod openapi;
 pub mod panel;
 pub mod policy;
