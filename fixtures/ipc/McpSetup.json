@@ -1,6 +1,7 @@
 {
   "agents": [
     {
+      "aiPrompt": "",
       "command": "opencode mcp add hopper",
       "connection": "connected",
       "detected": true,

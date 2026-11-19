@@ -501,6 +501,7 @@ const handlers: Handlers = {
         connection: s.connectedAgents.has("claude-code") ? "connected" : "none",
         command: `claude mcp add --transport http --scope user hopper ${url} --header "Authorization: Bearer ${token}"`,
         jsonConfig: JSON.stringify({ mcpServers: { hopper: { type: "http", url, headers: { Authorization: `Bearer ${token}` } } } }, null, 2),
+        aiPrompt: "",
       },
       {
         id: "opencode",
@@ -509,6 +510,16 @@ const handlers: Handlers = {
         connection: s.connectedAgents.has("opencode") ? "connected" : "none",
         command: `opencode mcp add hopper --global --url ${url} --header "Authorization=Bearer ${token}"`,
         jsonConfig: JSON.stringify({ mcp: { servers: { hopper: { type: "remote", url, headers: { Authorization: `Bearer ${token}` } } } } }, null, 2),
+        aiPrompt: "",
+      },
+      {
+        id: "executor",
+        name: "Executor",
+        detected: true,
+        connection: "none",
+        command: "",
+        jsonConfig: "",
+        aiPrompt: `Add Hopper as a custom MCP server in Executor. Hopper is a local MCP server running on this machine.\n\nUse Executor's documented way to add a custom remote MCP server with these details:\n- Name: hopper\n- URL: ${url}\n- Transport: remote (HTTP)\n\nDo not put any Authorization header, token or other secret in the config — credentials are handled separately through Executor's secure connection flow. If adding it needs approval, show me the request first.`,
       },
     ];
     return { agents };

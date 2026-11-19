@@ -984,6 +984,8 @@ pub struct McpAgentSetup {
     pub command: String,
     /// Copy-paste JSON for the agent's own config file. Contains the MCP token.
     pub json_config: String,
+    /// A ready-to-paste prompt for agents set up through their own AI (Executor). URL only, no secret.
+    pub ai_prompt: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1545,6 +1547,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
                 connection: AgentConnection::Connected,
                 command: "opencode mcp add hopper".into(),
                 json_config: "{}".into(),
+                ai_prompt: String::new(),
             }),
         ),
         (
@@ -1557,6 +1560,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
                     connection: AgentConnection::Connected,
                     command: "opencode mcp add hopper".into(),
                     json_config: "{}".into(),
+                    ai_prompt: String::new(),
                 }],
             }),
         ),

@@ -42,7 +42,7 @@ const REQUIRED: Record<string, string[]> = {
   ActivityEntry: ["id", "at", "client", "tool", "target", "outcome"],
   GrantDto: ["requestId", "requestName", "access", "scope", "suspended"],
   McpStatus: ["running"],
-  McpAgentSetup: ["id", "name", "detected", "connection", "command", "jsonConfig"],
+  McpAgentSetup: ["id", "name", "detected", "connection", "command", "jsonConfig", "aiPrompt"],
   McpSetup: ["agents"],
   Settings: ["hotkey", "dockSide", "widthPreset", "theme", "alwaysShowTab", "startWithWindows"],
   RecentItem: ["id", "name", "method", "status"],
