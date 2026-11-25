@@ -73,6 +73,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             panel::panel_place,
             panel::panel_drag,
+            panel::panel_grip,
             panel::panel_pointer,
             panel::panel_event,
             panel::panel_mode,

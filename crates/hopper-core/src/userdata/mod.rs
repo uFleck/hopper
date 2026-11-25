@@ -86,6 +86,7 @@ pub struct Settings {
     pub width_upgraded: bool,
     pub theme: Theme,
     pub always_show_tab: bool,
+    pub show_mascot: bool,
     /// `None` until the first-run question has been answered.
     pub start_with_windows: Option<bool>,
 }
@@ -150,6 +151,7 @@ impl Default for Settings {
             width_upgraded: true,
             theme: Theme::Dark,
             always_show_tab: true,
+            show_mascot: true,
             start_with_windows: None,
         }
     }

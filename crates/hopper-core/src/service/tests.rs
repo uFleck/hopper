@@ -2835,8 +2835,20 @@ async fn settings_round_trip_and_validate() {
     s.width_preset = 640;
     s.theme = crate::userdata::Theme::Light;
     s.start_with_windows = Some(true);
+    s.show_mascot = Some(false);
     assert_eq!(h.svc.settings_set(s.clone()).await.unwrap(), s);
     assert_eq!(h.svc.settings_get().await.unwrap(), s);
+
+    let mut legacy = serde_json::to_value(&s).unwrap();
+    legacy.as_object_mut().unwrap().remove("showMascot");
+    assert_eq!(
+        h.svc
+            .settings_set(serde_json::from_value(legacy).unwrap())
+            .await
+            .unwrap(),
+        s
+    );
+
     s.width_preset = 500;
     assert_eq!(err_code(h.svc.settings_set(s).await), "invalid_input");
 }

@@ -2299,6 +2299,7 @@ impl AppService {
             width_preset: s.width_preset,
             theme: s.theme,
             always_show_tab: s.always_show_tab,
+            show_mascot: Some(s.show_mascot),
             start_with_windows: s.start_with_windows,
         }
     }
@@ -2325,6 +2326,9 @@ impl AppService {
             s.width_preset = settings.width_preset;
             s.theme = settings.theme;
             s.always_show_tab = settings.always_show_tab;
+            if let Some(show_mascot) = settings.show_mascot {
+                s.show_mascot = show_mascot;
+            }
             s.start_with_windows = settings.start_with_windows;
             ud.save_settings(&s)?;
             Ok(s)

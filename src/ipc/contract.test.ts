@@ -44,7 +44,7 @@ const REQUIRED: Record<string, string[]> = {
   McpStatus: ["running"],
   McpAgentSetup: ["id", "name", "detected", "connection", "command", "jsonConfig", "aiPrompt"],
   McpSetup: ["agents"],
-  Settings: ["hotkey", "dockSide", "widthPreset", "theme", "alwaysShowTab", "startWithWindows"],
+  Settings: ["hotkey", "dockSide", "widthPreset", "theme", "alwaysShowTab", "showMascot", "startWithWindows"],
   RecentItem: ["id", "name", "method", "status"],
 };
 

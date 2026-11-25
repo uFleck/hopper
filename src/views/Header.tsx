@@ -11,7 +11,7 @@ import { Menu, type MenuItem } from "./find/Menu";
 import UpdateButton from "./UpdateButton";
 import "../styles/header.css";
 
-/** The mascot is the drag handle: the backend runs the OS move loop, then snaps the panel to the nearest screen edge. */
+/** The leading grip is the drag handle: the backend runs the OS move loop, then snaps the panel to the nearest screen edge. */
 function startDrag(e: MouseEvent) {
   if (e.button !== 0 || !inTauri()) return;
   e.preventDefault();

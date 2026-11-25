@@ -2,6 +2,7 @@
   "alwaysShowTab": false,
   "dockSide": "right",
   "hotkey": "ctrl+alt+h",
+  "showMascot": true,
   "startWithWindows": null,
   "theme": "dark",
   "widthPreset": 640

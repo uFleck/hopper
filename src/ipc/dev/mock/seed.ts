@@ -230,6 +230,7 @@ export const settings: Settings = {
   widthPreset: 860,
   theme: "dark",
   alwaysShowTab: true,
+  showMascot: true,
   startWithWindows: true,
 };
 
