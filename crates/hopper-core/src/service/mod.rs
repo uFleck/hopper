@@ -544,6 +544,7 @@ fn saved_items(
                 collection: c.slug.clone(),
                 tags: Vec::new(),
                 source: doc.source.as_ref().map(|s| (s.spec.clone(), s.key.clone())),
+                notes: doc.notes.clone(),
                 agent_access: access_state(
                     grants,
                     &doc.id,

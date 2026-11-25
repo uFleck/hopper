@@ -66,7 +66,13 @@ fn saved(id: &str, name: &str, url: &str) -> SavedItem {
         tags: vec![],
         source: None,
         agent_access: AgentAccess::Ask,
+        notes: None,
     }
+}
+
+fn with_notes(mut item: SavedItem, notes: &str) -> SavedItem {
+    item.notes = Some(notes.into());
+    item
 }
 
 fn q(text: &str) -> Query {
@@ -469,4 +475,106 @@ fn three_thousand_operations_search_fast() {
         idx.search(&q("#getitem500")).hits[0].path(),
         "/r500/Items19/{id}"
     );
+}
+
+// ------------------------------------------------------------ saved notes
+
+#[test]
+fn prose_query_finds_a_route_by_its_notes() {
+    let mut idx = SearchIndex::new();
+    idx.set_saved(vec![
+        with_notes(
+            saved("r1", "mystery", "/x/mystery"),
+            "the endpoint that refunds an invoice",
+        ),
+        saved("r2", "Refund", "/x/refund"),
+    ]);
+
+    let prose = idx.search(&q("the endpoint that refunds an invoice"));
+    assert_eq!(prose.total, 1, "{:?}", paths(&prose));
+    assert_eq!(key_of(&prose.hits[0]), "r1");
+
+    let direct = idx.search(&q("refund"));
+    assert_eq!(key_of(&direct.hits[0]), "r2");
+    assert_eq!(key_of(&direct.hits[1]), "r1");
+    assert!(direct.hits[0].score() > direct.hits[1].score());
+}
+
+#[test]
+fn saved_notes_are_bounded_on_the_character_boundary() {
+    let notes = format!("needle {} haystack", "x".repeat(NOTE_CAP));
+    let mut idx = SearchIndex::new();
+    idx.set_saved(vec![with_notes(saved("r1", "plain", "/x/plain"), &notes)]);
+
+    assert_eq!(idx.search(&q("needle")).total, 1);
+    assert_eq!(idx.search(&q("haystack")).total, 0);
+}
+
+fn described_spec(description: &str) -> SpecIndex {
+    openapi::parse(&json!({
+        "openapi": "3.0.0",
+        "info": {"title": "t", "version": "1"},
+        "paths": {
+            "/x/doc": {
+                "get": {
+                    "operationId": "docop",
+                    "description": description,
+                    "responses": {"200": {"description": "ok"}}
+                }
+            }
+        }
+    }))
+    .unwrap()
+}
+
+#[test]
+fn notes_and_openapi_descriptions_stay_separate() {
+    let mut idx = SearchIndex::new();
+    idx.set_spec("main", "s", &described_spec("sambadesc from the spec"));
+    idx.set_saved(vec![with_notes(
+        saved("r1", "plain", "/x/plain"),
+        "tangoprose from the note",
+    )]);
+
+    let by_note = idx.search(&q("tangoprose"));
+    assert_eq!(by_note.total, 1);
+    assert!(matches!(&by_note.hits[0], Hit::Saved { .. }));
+
+    let by_desc = idx.search(&q("sambadesc"));
+    assert_eq!(by_desc.total, 1);
+    assert!(matches!(&by_desc.hits[0], Hit::Operation { .. }));
+}
+
+#[test]
+fn filler_words_leave_strict_path_and_id_tokens_alone() {
+    let mut idx = SearchIndex::new();
+    idx.set_spec(
+        "main",
+        "s",
+        &spec_of(&[
+            ("get", "/the", Some("the"), false),
+            ("get", "/other", Some("zzz"), false),
+        ]),
+    );
+
+    let r = idx.search(&q("path:/the"));
+    assert_eq!(paths(&r), ["/the"]);
+    let r = idx.search(&q("#the"));
+    assert_eq!(paths(&r), ["/the"]);
+}
+
+#[test]
+fn a_filler_only_query_does_not_become_a_browse() {
+    let mut idx = SearchIndex::new();
+    idx.set_spec(
+        "main",
+        "s",
+        &spec_of(&[
+            ("get", "/alpha", Some("A"), false),
+            ("get", "/beta", Some("B"), false),
+        ]),
+    );
+
+    assert_eq!(idx.search(&q("")).total, 2);
+    assert_eq!(idx.search(&q("the and of")).total, 0);
 }

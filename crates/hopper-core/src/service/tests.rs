@@ -3704,3 +3704,34 @@ fn inputs_deserialize_from_the_shapes_the_front_end_sends() {
         )
     );
 }
+
+#[tokio::test]
+async fn search_routes_finds_a_saved_request_by_its_notes() {
+    let h = H::new().await;
+    let mut doc = H::doc("Mystery", Method::Get, "{{baseUrl}}/x/mystery");
+    doc.notes = Some("the endpoint that refunds an invoice".into());
+    let noted = h.save_doc(doc).await;
+
+    let q = |s: &str| SearchQuery {
+        query: s.into(),
+        collection: None,
+        tag: None,
+        method: None,
+        limit: None,
+    };
+    let found = h.svc.search_routes(q("refunds invoice")).await.unwrap();
+    assert_eq!(found.total, 1);
+    assert!(
+        matches!(&found.hits[0], SearchHit::Saved { request_id, .. } if request_id == &noted.doc.id),
+        "{:?}",
+        found.hits[0]
+    );
+
+    let direct = h.save("Refund", "{{baseUrl}}/x/refund").await;
+    let found = h.svc.search_routes(q("refund")).await.unwrap();
+    assert!(
+        matches!(&found.hits[0], SearchHit::Saved { request_id, .. } if request_id == &direct.doc.id),
+        "{:?}",
+        found.hits[0]
+    );
+}

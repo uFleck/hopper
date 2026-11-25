@@ -26,6 +26,8 @@ mod tests;
 const DEFAULT_LIMIT: usize = 50;
 const LRU_CAP: usize = 50;
 const DESC_CAP: usize = 400;
+/// Notes are cut on a character boundary before they enter the index, like descriptions.
+const NOTE_CAP: usize = 500;
 
 const SAVED_BOOST: f64 = 30.0;
 const RECENT_BOOST: f64 = 25.0;
@@ -36,6 +38,16 @@ const W_ID: f64 = 0.9;
 const W_TAG: f64 = 0.8;
 const W_LABEL: f64 = 0.6;
 const W_METHOD: f64 = 0.5;
+/// Saved notes are the weakest field: a path or name hit always outranks them.
+const W_NOTE: f64 = 0.4;
+
+/// Prose glue dropped when a query still has another plain word. Strict `path:`
+/// and `#` tokens are parsed before this, and a query made only of these words
+/// keeps scoring instead of becoming a browse of every route.
+const FILLER_WORDS: &[&str] = &[
+    "a", "an", "and", "by", "endpoint", "for", "of", "request", "route", "that", "the", "this",
+    "to", "with",
+];
 
 #[derive(Debug, Clone)]
 pub struct SavedItem {
@@ -49,6 +61,8 @@ pub struct SavedItem {
     /// `(spec, operation key)` the request was created from.
     pub source: Option<(String, String)>,
     pub agent_access: AgentAccess,
+    /// Capped at `NOTE_CAP` characters when the document is built.
+    pub notes: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -280,7 +294,9 @@ struct Doc {
     op_id: Option<Field>,
     tags: Vec<Field>,
     label: Option<Field>,
+    /// OpenAPI summary/description. Never fed from saved notes.
     desc: Option<String>,
+    note: Option<Field>,
 }
 
 impl Doc {
@@ -303,6 +319,7 @@ impl Doc {
             tags: op.tags.iter().map(|t| Field::new(t)).collect(),
             label: op.summary.as_deref().map(Field::new),
             desc,
+            note: None,
         }
     }
 
@@ -313,6 +330,10 @@ impl Doc {
         } else {
             item.tags.iter().map(|t| Field::new(t)).collect()
         };
+        let note = item.notes.as_deref().map(|n| {
+            let cut: String = n.chars().take(NOTE_CAP).collect();
+            Field::new(&cut)
+        });
         Doc {
             collection: item.collection.clone(),
             kind: Kind::Saved {
@@ -329,6 +350,7 @@ impl Doc {
                 Kind::Op { summary, .. } => summary.as_deref().map(str::to_lowercase),
                 Kind::Saved { .. } => None,
             }),
+            note,
         }
     }
 
@@ -634,6 +656,10 @@ fn method_word(w: &str) -> Option<Method> {
     })
 }
 
+fn is_filler(word: &str) -> bool {
+    FILLER_WORDS.contains(&word)
+}
+
 fn method_lower(m: Method) -> &'static str {
     match m {
         Method::Get => "get",
@@ -684,6 +710,7 @@ impl Parsed {
             tags: Vec::new(),
             method: None,
         };
+        let mut plain: Vec<String> = Vec::new();
         for (i, raw) in text.split_whitespace().enumerate() {
             let lower = raw.to_lowercase();
             if let Some(v) = lower.strip_prefix("tag:") {
@@ -703,8 +730,20 @@ impl Parsed {
             {
                 p.method = Some(m);
             } else {
-                p.words.push(Tok::new(raw));
+                plain.push(raw.to_owned());
             }
+        }
+        let meaningful: Vec<&String> = plain
+            .iter()
+            .filter(|w| !is_filler(&w.to_lowercase()))
+            .collect();
+        let kept: Vec<&String> = if meaningful.is_empty() {
+            plain.iter().collect()
+        } else {
+            meaningful
+        };
+        for w in kept {
+            p.words.push(Tok::new(w));
         }
         p
     }
@@ -788,6 +827,9 @@ fn word_score(t: &Tok, doc: &Doc, fz: &mut Fuzzy) -> Option<f64> {
     if let Some(f) = &doc.label {
         best = best.max(field_score(tok, f) * W_LABEL);
     }
+    if let Some(f) = &doc.note {
+        best = best.max(field_score(tok, f) * W_NOTE);
+    }
     if method_lower(doc.method) == tok {
         best = best.max(100.0 * W_METHOD);
     }
@@ -804,6 +846,9 @@ fn word_score(t: &Tok, doc: &Doc, fz: &mut Fuzzy) -> Option<f64> {
         }
         if let Some(l) = &doc.label {
             f = f.max(fz.score(&t.pattern, &l.text, tok) * W_LABEL);
+        }
+        if let Some(n) = &doc.note {
+            f = f.max(fz.score(&t.pattern, &n.text, tok) * W_NOTE);
         }
         best = best.max(f);
     }
