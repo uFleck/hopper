@@ -532,6 +532,7 @@ export interface Settings {
   widthPreset: 430 | 640 | 860;
   theme: "dark" | "light" | "system";
   alwaysShowTab: boolean;
+  showMascot: boolean;
   startWithWindows: boolean | null;
 }
 

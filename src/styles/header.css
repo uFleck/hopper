@@ -1,7 +1,8 @@
 /* Header: mascot handle, workspace, environment menu, pin, width, menu. Also the shared popover menu. */
 
 .hdr { gap: 6px; padding: 0 2px; }
-.hdr-drag { display: inline-flex; flex: none; margin-right: 4px; cursor: grab; user-select: none; }
+.hdr-drag { display: inline-grid; flex: none; width: 40px; height: 40px; place-items: center; margin-right: 4px; cursor: grab; user-select: none; }
+.hdr-drag:empty::before { content: ""; width: 6px; height: 18px; background: radial-gradient(circle, var(--text-tertiary) 1px, transparent 1.4px) 0 0 / 6px 6px; }
 .hdr-drag:active { cursor: grabbing; }
 .hdr-drag .mascot { pointer-events: none; }
 

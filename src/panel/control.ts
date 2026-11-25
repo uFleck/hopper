@@ -17,6 +17,11 @@ export function panelEvent(name: PanelGesture): void {
   if (inTauri()) void tauriInvoke("panel_event", { name });
 }
 
+/** Matches the native input region to the visible edge grip. */
+export function panelGrip(expanded: boolean): void {
+  if (inTauri()) void tauriInvoke("panel_grip", { expanded });
+}
+
 /** Starts dragging Hopper off its edge; it snaps to the nearest one on release. Resolves when the button is released, with whether it moved; a press that did not move is a click. */
 export async function panelDrag(): Promise<boolean> {
   return inTauri() ? tauriInvoke<boolean>("panel_drag") : false;

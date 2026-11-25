@@ -21,8 +21,10 @@ pub const LABEL: &str = "panel";
 
 /// Logical sizes per mode. The open panel's width is the `widthPreset` setting (430, 640 or 860); this is the default until it is read.
 const WIDTH: u32 = hopper_core::userdata::DEFAULT_WIDTH;
-/// The handle on the screen edge: it is clipped by the window, so the page slides it half out of sight.
+/// The expanded edge handle and its resting grip, in logical pixels.
 const TAB: (f64, f64) = (52.0, 64.0);
+#[cfg(windows)]
+const GRIP: (f64, f64) = (12.0, 52.0);
 /// Gap between the pill or the open panel and the screen edge.
 const MARGIN: f64 = 16.0;
 /// The notice pill at the top corner. Narrow on purpose: the transparent rest of the window still takes clicks.
@@ -342,6 +344,53 @@ fn dock(window: &WebviewWindow, mode: Mode) {
     let x = x.clamp(left, (right - w).max(left));
     let y = y.clamp(top, (bottom - h).max(top));
     place(window, x, y, w.max(1) as u32, h.max(1) as u32);
+    set_grip_region(window, mode != Mode::Tab);
+}
+
+/// The resting grip only occupies the visible strip, so the transparent area cannot intercept desktop clicks.
+#[cfg(windows)]
+fn set_grip_region(window: &WebviewWindow, expanded: bool) {
+    use windows_sys::Win32::Graphics::Gdi::{CreateRectRgn, DeleteObject, SetWindowRgn};
+
+    let Ok(hwnd) = window.hwnd() else { return };
+    if expanded {
+        unsafe { SetWindowRgn(hwnd.0, std::ptr::null_mut(), 1) };
+        return;
+    }
+    let (Ok(size), Ok(scale)) = (window.outer_size(), window.scale_factor()) else {
+        return;
+    };
+    let width = (GRIP.0 * scale).round() as i32;
+    let height = (GRIP.1 * scale).round() as i32;
+    let top = (size.height as i32 - height).max(0) / 2;
+    let left = if current_dock(window).right {
+        (size.width as i32 - width).max(0)
+    } else {
+        0
+    };
+    unsafe {
+        let region = CreateRectRgn(left, top, left + width, top + height);
+        // Windows owns a successfully applied region.
+        if !region.is_null() && SetWindowRgn(hwnd.0, region, 1) == 0 {
+            DeleteObject(region);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn set_grip_region(_window: &WebviewWindow, _expanded: bool) {}
+
+#[tauri::command]
+pub fn panel_grip(app: AppHandle, expanded: bool) {
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        // A late pointer event must not clip the open panel or the compact notice.
+        if mode(&handle) == Mode::Tab
+            && let Some(window) = handle.get_webview_window(LABEL)
+        {
+            set_grip_region(&window, expanded);
+        }
+    });
 }
 
 /// The mode and edge as the page needs them: `panel://mode` and the `panel_mode` command.

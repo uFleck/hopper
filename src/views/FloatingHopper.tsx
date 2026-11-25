@@ -1,17 +1,10 @@
-import type { CSSProperties, MouseEvent } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { inTauri } from "../ipc";
 import { Mascot } from "../components/Mascot";
 import { useMascot } from "../components/useMascot";
-import { panelDrag, panelEvent, type PanelModeInfo } from "../panel/control";
+import { panelDrag, panelEvent, panelGrip, type PanelModeInfo } from "../panel/control";
 import { markNoticesSeen, openRequest, useStore, type EndpointNotice } from "../store";
 import "../styles/floating.css";
-
-/** Pressing the handle starts the OS move loop; releasing without having moved is a click, which opens the panel. */
-function press(e: MouseEvent, onClick: () => void) {
-  if (e.button !== 0) return;
-  e.preventDefault();
-  void panelDrag().then((moved) => !moved && onClick());
-}
 
 function open(notice?: EndpointNotice) {
   markNoticesSeen();
@@ -26,22 +19,40 @@ function useAttention() {
   return { approvals, unseen, badge: approvals || unseen };
 }
 
-/** The handle on the screen edge: half out of sight until hovered, like a drawer pull. */
+/** The grip expands into the desktop from its docked edge. */
 function Tab({ onClick }: { onClick: () => void }) {
   const mascot = useMascot();
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const { approvals, unseen, badge } = useAttention();
+  const expanded = hovered || focused || dragging;
   const label = approvals ? `${approvals} approval${approvals === 1 ? "" : "s"} waiting` : unseen ? `${unseen} new endpoint${unseen === 1 ? "" : "s"}` : "Open Hopper";
-  const lamp = approvals ? "var(--warn)" : unseen ? "var(--accent)" : undefined;
+  useEffect(() => panelGrip(expanded), [expanded, dragging]);
+
   return (
     <button
       type="button"
-      className="fh-tab"
-      style={lamp ? ({ "--lampc": lamp } as CSSProperties) : undefined}
-      onMouseDown={(e) => press(e, onClick)}
+      className={expanded ? "fh-tab is-expanded" : "fh-tab"}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocus={(e) => setFocused(e.currentTarget.matches(":focus-visible"))}
+      onBlur={() => setFocused(false)}
+      onMouseDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        setDragging(true);
+        void panelDrag().then((moved) => {
+          if (moved) setHovered(false);
+          else onClick();
+        }, () => setHovered(false)).finally(() => setDragging(false));
+      }}
+      onClick={(e) => { if (e.detail === 0) onClick(); }}
       aria-label={label}
     >
-      <Mascot state={mascot} size={32} />
-      {badge > 0 && <span className={approvals ? "fh-badge is-warn" : "fh-badge"}>{badge}</span>}
+      <span className="fh-tab-nub" aria-hidden="true" />
+      <Mascot state={mascot} size={32} approvalMark={false} />
+      {badge > 0 && <span className={approvals ? "fh-badge is-warn" : "fh-badge"} aria-hidden="true" />}
     </button>
   );
 }
@@ -102,7 +113,7 @@ export default function FloatingHopper({ info }: { info: PanelModeInfo }) {
   const preview = inTauri() ? "" : " is-preview";
   return (
     <div className={`fh ${side} fh--${info.mode}${preview}`}>
-      {info.mode === "compact" ? <Pill onClick={open} /> : <Tab onClick={() => open()} />}
+      {info.mode === "compact" ? <Pill onClick={open} /> : <Tab key={side} onClick={() => open()} />}
     </div>
   );
 }

@@ -140,6 +140,7 @@ fn settings_defaults() {
     assert_eq!(s.width_preset, 860);
     assert_eq!(s.theme, Theme::Dark);
     assert!(s.always_show_tab);
+    assert!(s.show_mascot);
     assert_eq!(s.start_with_windows, None);
     assert!(s.recent_workspaces.is_empty());
 }
@@ -157,6 +158,7 @@ fn settings_older_file_loads_with_defaults_for_missing_fields() {
     assert_eq!(s.theme, Theme::Light);
     assert_eq!(s.width_preset, 860);
     assert_eq!(s.dock_side, DockSide::Right);
+    assert!(s.show_mascot);
     assert!(s.recent_workspaces.is_empty());
 }
 
@@ -189,6 +191,7 @@ fn settings_round_trip_and_camel_case_keys() {
     let s = Settings {
         dock_side: DockSide::Left,
         always_show_tab: true,
+        show_mascot: false,
         start_with_windows: Some(true),
         ..Settings::default()
     };

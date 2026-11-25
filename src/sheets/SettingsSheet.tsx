@@ -66,6 +66,7 @@ export default function SettingsSheet() {
               {() => <Segmented ariaLabel="Theme" value={settings.theme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }, { value: "system", label: "System" }]} onChange={(theme) => void updateSettings({ theme })} />}
             </Field>
             <Switch checked={settings.alwaysShowTab} onChange={(alwaysShowTab) => void updateSettings({ alwaysShowTab })} label="Always show the edge handle" hint="Keep Hopper on the screen edge when the panel is closed. Drag it to the other edge; click it to open the panel." />
+            <Switch checked={settings.showMascot ?? true} onChange={(showMascot) => void updateSettings({ showMascot })} label="Show mascot" />
             <Switch checked={settings.startWithWindows === true} disabled={settings.startWithWindows === null} onChange={(startWithWindows) => void updateSettings({ startWithWindows })} label="Start with Windows" hint={settings.startWithWindows === null ? "Not available on this system." : undefined} />
           </Section>
 

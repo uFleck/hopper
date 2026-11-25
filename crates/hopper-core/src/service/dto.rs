@@ -1004,6 +1004,8 @@ pub struct Settings {
     pub width_preset: u32,
     pub theme: Theme,
     pub always_show_tab: bool,
+    /// Omitted by older settings writers. Settings responses always include it.
+    pub show_mascot: Option<bool>,
     pub start_with_windows: Option<bool>,
 }
 
@@ -1572,6 +1574,7 @@ pub fn samples() -> Vec<(&'static str, Value)> {
                 width_preset: 640,
                 theme: Theme::Dark,
                 always_show_tab: false,
+                show_mascot: Some(true),
                 start_with_windows: None,
             }),
         ),
